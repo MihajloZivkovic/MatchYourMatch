@@ -2,10 +2,8 @@
 using MatchYourMatch.WebAPI.DTOs.Auth;
 using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -20,6 +18,7 @@ namespace MatchYourMatch.WebAPI.Services
         private readonly string _issuer;
         private readonly string _audience;
         private readonly string _secret;
+        private readonly int _expires;
 
         public AuthService(IConfiguration config, AppDbContext context)
         {
@@ -29,6 +28,7 @@ namespace MatchYourMatch.WebAPI.Services
             _issuer = _config["JwtSettings:Issuer"]!;
             _audience = _config["JwtSettings:Audience"]!;
             _secret = _config["JwtSettings:Secret"]!;
+            _expires = int.Parse(_config["JwtSettings:ExpiresInMinutes"]!);
         }
 
         public async Task<AuthInfoDto> RegisterAsync(RegisterDto dto)
@@ -63,7 +63,7 @@ namespace MatchYourMatch.WebAPI.Services
 
         private AuthInfoDto GenerateResponse(User user)
         {
-            var expiry = DateTime.Now.AddMinutes(int.Parse(_config["JwtSettings:ExpiresInMinutes"]!));
+            var expiry = DateTime.UtcNow.AddMinutes(_expires);
 
             return new AuthInfoDto
             {

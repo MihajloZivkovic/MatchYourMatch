@@ -8,5 +8,6 @@
         public required string PasswordHash { get; set; }
         public string Role { get; set; } = "User";
         public bool IsActive { get; set; } = true;
+        public UserProfile? Profile { get; set; }
     }
 }

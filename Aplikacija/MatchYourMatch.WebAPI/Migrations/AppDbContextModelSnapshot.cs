@@ -58,6 +58,50 @@ namespace MatchYourMatch.WebAPI.Migrations
 
                     b.ToTable("Users");
                 });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Bio")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProfilePicture")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserProfiles");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserProfile", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithOne("Profile")
+                        .HasForeignKey("MatchYourMatch.WebAPI.Models.UserProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
+                {
+                    b.Navigation("Profile");
+                });
 #pragma warning restore 612, 618
         }
     }
