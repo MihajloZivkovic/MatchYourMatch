@@ -17,7 +17,9 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task EditProfileAsync(int userId, EditProfileDto dto)
         {
-            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users
+                .Include(u => u.Profile)
+                .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
 
@@ -36,7 +38,9 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<UserProfileDto> GetProfileAsync(int userId)
         {
-            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users
+                .Include(u => u.Profile)
+                .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
 
