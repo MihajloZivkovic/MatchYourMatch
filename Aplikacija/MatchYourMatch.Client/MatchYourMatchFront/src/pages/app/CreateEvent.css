@@ -157,3 +157,7 @@
     grid-template-columns: 1fr;
   }
 }
+
+fieldset{
+  border:none;
+}
