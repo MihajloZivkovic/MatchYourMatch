@@ -755,6 +755,10 @@
     background-color var(--transition-smooth);
 }
 
+.input-danger{
+  border: 1px solid red;
+}
+
 .auth__input::placeholder {
   color: rgba(255, 255, 255, 0.3);
 }

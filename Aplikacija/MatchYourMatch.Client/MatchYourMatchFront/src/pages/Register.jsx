@@ -1,24 +1,57 @@
-import { Link } from 'react-router-dom';
+import { useActionState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 function Register() {
+  const navigate = useNavigate();
+  const [state, formAction] = useActionState(handleSubmit, {
+    error: null,
+    values: { username: "", email: "", password: "", confirmPassword: "" },
+  });
+
+  async function handleSubmit(prevState,formData) {
+    const username = formData.get("fullName");
+    const email = formData.get("email");
+    const password = formData.get("password");
+    const confirmPassword = formData.get("confirmPassword");
+
+    if(password !== confirmPassword){
+      return{
+        error: "lozinke se ne poklapaju",
+        values: {username,email,password,confirmPassword}
+      }
+    }else{
+      await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username,
+          email: email,
+          password: password,
+        }),
+      });
+      navigate('/login')
+    }
+  }
+
   return (
     <div className="page-fade-in">
       <main className="page__main page__main--auth">
         <div className="auth">
-          <form className="auth__card" onSubmit={(e) => e.preventDefault()}>
+          <form className="auth__card" action={formAction}>
             <h1 className="auth__title">REGISTER</h1>
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-name">
-                Full Name
+                Username
               </label>
               <input
                 id="register-name"
                 className="auth__input"
                 type="text"
                 name="fullName"
-                placeholder="Your full name"
+                placeholder="Your username"
                 autoComplete="name"
+                defaultValue={state.values.username || ""}
               />
             </div>
 
@@ -33,6 +66,7 @@ function Register() {
                 name="email"
                 placeholder="you@example.com"
                 autoComplete="email"
+                defaultValue={state.values.email || ""}
               />
             </div>
 
@@ -47,6 +81,7 @@ function Register() {
                 name="password"
                 placeholder="••••••••"
                 autoComplete="new-password"
+                defaultValue={state.values.password || ""}
               />
             </div>
 
@@ -56,11 +91,12 @@ function Register() {
               </label>
               <input
                 id="register-confirm"
-                className="auth__input"
+                className={`auth__input ${state.error ? "input-danger" : ""}`} //ako nisu iste dodaje klasu koja ga zacrveni
                 type="password"
                 name="confirmPassword"
                 placeholder="••••••••"
                 autoComplete="new-password"
+                defaultValue={state.values.confirmPassword || ""}
               />
             </div>
 
@@ -69,7 +105,7 @@ function Register() {
             </button>
 
             <p className="auth__switch">
-              Already have an account?{' '}
+              Already have an account?{" "}
               <Link to="/login" className="auth__switch-link">
                 Login
               </Link>

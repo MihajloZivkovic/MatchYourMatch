@@ -1,9 +1,8 @@
 const footerLinks = [
-  { label: 'Link One', href: '#' },
-  { label: 'Link Two', href: '#' },
-  { label: 'Link Three', href: '#' },
-  { label: 'Link Four', href: '#' },
-  { label: 'Link Five', href: '#' },
+  { label: 'Marko', href: '#' },
+  { label: 'Mihajlo', href: '#' },
+  { label: 'Aleksandar', href: '#' },
+  { label: 'Jana', href: '#' },
 ];
 
 const legalLinks = [
