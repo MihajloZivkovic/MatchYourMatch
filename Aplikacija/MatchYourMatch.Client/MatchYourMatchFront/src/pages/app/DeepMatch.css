@@ -1,0 +1,222 @@
+.deep-match {
+  position: relative;
+  min-height: calc(100vh - var(--app-nav-height));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--container-padding);
+  overflow: hidden;
+}
+
+.deep-match__atmo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.deep-match__mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 50% 40% at 30% 25%, rgba(244, 163, 0, 0.04) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 35% at 75% 70%, rgba(120, 120, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(140, 100, 200, 0.025) 0%, transparent 45%);
+}
+
+.deep-match__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 65% 55% at 50% 45%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
+}
+
+.deep-match__card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 560px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  box-shadow: var(--elev-3);
+}
+
+.deep-match__header h1 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  letter-spacing: 0.06em;
+}
+
+.deep-match__header p {
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.deep-match__accent-line {
+  width: 60px;
+  height: 3px;
+  background: var(--accent);
+  margin: 1rem 0 1.75rem;
+  box-shadow: 0 0 12px rgba(244, 163, 0, 0.3);
+}
+
+.deep-match__steps {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.deep-match__dot {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  transition: var(--transition);
+}
+
+.deep-match__dot--active,
+.deep-match__dot--done {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(244, 163, 0, 0.3);
+}
+
+.deep-match__question {
+  font-size: 1.3rem;
+  font-weight: 500;
+  line-height: 1.45;
+  margin-bottom: 1.5rem;
+}
+
+.deep-match__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.deep-match__option {
+  text-align: left;
+  padding: 1.05rem 1.2rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.35s ease,
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    color 0.35s ease;
+}
+
+.deep-match__option:hover {
+  border-color: rgba(244, 163, 0, 0.35);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.deep-match__option--selected {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(244, 163, 0, 0.1);
+  box-shadow: inset 0 0 18px rgba(244, 163, 0, 0.06), 0 0 14px rgba(244, 163, 0, 0.08);
+  transform: scale(1.015);
+}
+
+.deep-match__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+
+.deep-match__back {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.deep-match__back:hover {
+  color: var(--accent);
+}
+
+.deep-match__next {
+  margin-left: auto;
+}
+
+.deep-match__find {
+  width: 100%;
+  padding: 0.9rem;
+}
+
+.deep-match__loading {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.deep-match__spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1.25rem;
+  border-radius: 50%;
+  border: 3px solid var(--glass-border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+.deep-match__loading p {
+  color: var(--text-muted);
+}
+
+.deep-match__results-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 1.25rem;
+}
+
+.deep-match__result {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0.5rem 1rem;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--glass-border);
+  align-items: center;
+}
+
+.deep-match__result h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+}
+
+.deep-match__result p {
+  grid-column: 1;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.deep-match__score {
+  grid-row: 1 / span 2;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.deep-match__result .app-btn-pill {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 0.65rem;
+  padding: 0.4rem 1rem;
+}

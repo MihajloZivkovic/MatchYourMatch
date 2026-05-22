@@ -1,0 +1,56 @@
+import { MapPin, Clock } from 'lucide-react';
+
+function EventCard({ event, style, mini = false, onJoin }) {
+  const { title, category, date, time, location, description, attendees, attendeeCount } = event;
+  const extra = attendeeCount - attendees.length;
+
+  if (mini) {
+    return (
+      <article className="event-card event-card--mini" style={style}>
+        <span className="event-card__category">{category}</span>
+        <h4 className="event-card__title event-card__title--mini">{title}</h4>
+        <p className="event-card__meta-mini">
+          <Clock size={12} /> {date} · {time}
+        </p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="event-card" style={style}>
+      <div className="event-card__top">
+        <span className="event-card__category">{category}</span>
+        <span className="event-card__date-pill">{date}</span>
+      </div>
+      <h3 className="event-card__title">{title}</h3>
+      <p className="event-card__desc">{description}</p>
+      <p className="event-card__meta">
+        <MapPin size={14} />
+        <span>{location}</span>
+      </p>
+      <p className="event-card__meta">
+        <Clock size={14} />
+        <span>{time}</span>
+      </p>
+      <div className="event-card__footer">
+        <div className="event-card__attendees">
+          {attendees.map((initial, i) => (
+            <span
+              key={initial + i}
+              className="event-card__attendee"
+              style={{ zIndex: attendees.length - i }}
+            >
+              {initial}
+            </span>
+          ))}
+          {extra > 0 && <span className="event-card__more">+{extra} more</span>}
+        </div>
+        <button type="button" className="event-card__join" onClick={onJoin}>
+          JOIN EVENT
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export default EventCard;
