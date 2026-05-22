@@ -10,7 +10,7 @@ function Navbar({ isExiting = false, onAboutClick }) {
 
         <div className="navbar__actions">
           <a href="/about" className="navbar__link" onClick={onAboutClick}>
-            ABOUT
+            ABOUT 
           </a>
           <Link to="/login" className="btn btn--outline navbar__btn">
             LOGIN

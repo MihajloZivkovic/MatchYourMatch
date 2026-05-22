@@ -1,11 +1,20 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
+// ovo menjamo kako odlucimo
 function Login() {
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    localStorage.setItem('mym_authed', 'true');
+    navigate('/app/dashboard');
+  };
+
   return (
     <div className="page-fade-in">
       <main className="page__main page__main--auth">
         <div className="auth">
-          <form className="auth__card" onSubmit={(e) => e.preventDefault()}>
+          <form className="auth__card" onSubmit={handleSubmit}>
             <h1 className="auth__title">LOGIN</h1>
 
             <div className="auth__field">

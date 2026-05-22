@@ -1,0 +1,151 @@
+/* Global polish — tokens, empty states, inputs, motion rhythm */
+
+.app-shell {
+  --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition-card:
+    transform 0.35s var(--ease-premium),
+    box-shadow 0.35s var(--ease-premium),
+    border-color 0.35s ease,
+    opacity 0.35s ease;
+  --section-gap: clamp(3rem, 6vw, 4rem);
+  --space-card: 1.25rem;
+}
+
+.app-shell .page-fade-in {
+  animation: pageFadeIn 0.55s var(--ease-premium) both;
+}
+
+.app-shell__bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 90% 80% at 50% 40%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+}
+
+/* Unified interactive surfaces */
+.app-shell .app-tilt-hover {
+  transition: var(--transition-card);
+}
+
+.app-shell .app-tilt-hover:hover {
+  transform: translateY(-2px);
+}
+
+.app-shell .app-interactive:active {
+  transform: scale(0.97);
+  transition-duration: 0.12s;
+}
+
+/* Buttons */
+.app-shell .app-btn-pill {
+  font-weight: 600;
+  transition:
+    transform 0.35s var(--ease-premium),
+    box-shadow 0.35s var(--ease-premium),
+    background 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease;
+}
+
+.app-shell .app-btn-pill:hover {
+  box-shadow: 0 0 20px rgba(244, 163, 0, 0.18);
+}
+
+.app-shell .app-btn-pill:active {
+  transform: scale(0.97);
+}
+
+.app-shell .app-btn-pill--outline:hover {
+  box-shadow: 0 0 16px rgba(244, 163, 0, 0.1);
+}
+
+/* App inputs (create event, profile textarea) */
+.app-shell .app-input,
+.create-event__field input,
+.create-event__field textarea,
+.profile__block textarea {
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s var(--ease-premium),
+    background 0.35s ease;
+}
+
+.app-shell .app-input::placeholder,
+.create-event__field input::placeholder,
+.create-event__field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.create-event__field input:focus,
+.create-event__field textarea:focus,
+.profile__block textarea:focus {
+  outline: none;
+  border-color: rgba(244, 163, 0, 0.45);
+  box-shadow:
+    0 0 0 2px rgba(244, 163, 0, 0.22),
+    0 0 24px rgba(244, 163, 0, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Empty states */
+.app-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+
+.app-empty__icon {
+  color: var(--text-subtle);
+  opacity: 0.35;
+  margin-bottom: 1rem;
+}
+
+.app-empty__title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+}
+
+.app-empty__text {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+/* Skeleton shimmer */
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.app-skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s var(--ease-premium) infinite;
+}
+
+.app-skeleton--pill {
+  border-radius: var(--radius-pill);
+  height: 32px;
+}
+
+.app-skeleton--card {
+  height: 140px;
+  border-radius: var(--radius-md);
+}
