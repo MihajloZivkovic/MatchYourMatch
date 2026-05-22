@@ -2,7 +2,6 @@ import { Link, useNavigate } from 'react-router-dom';
 
 // ovo menjamo kako odlucimo
 function Login() {
-<<<<<<< ours
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
@@ -10,12 +9,6 @@ function Login() {
     localStorage.setItem('mym_authed', 'true');
     navigate('/app/dashboard');
   };
-
-=======
-
-
-  
->>>>>>> theirs
   return (
     <div className="page-fade-in">
       <main className="page__main page__main--auth">
