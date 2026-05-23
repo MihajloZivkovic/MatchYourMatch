@@ -40,7 +40,8 @@ namespace MatchYourMatch.WebAPI.Services
             {
                 Username = dto.Username,
                 Email = dto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Role = dto.Role
             };
 
             _context.Users.Add(user);
