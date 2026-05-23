@@ -1,19 +1,55 @@
+import { useActionState, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-// ovo menjamo kako odlucimo
 function Login() {
   const navigate = useNavigate();
+  const [vrstaGreske, setVrstaGreske] = useState("")
+  const [state, formAction] = useActionState(handleSubmit, {
+    error: null,
+    values: { email: "", password: "" }
+  })
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+
+  async function handleSubmit(prevState, formData) {
+    const email = formData.get("email")
+    const password = formData.get("password")
+
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email,
+        password: password,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorMessage = await response.text();
+      if (errorMessage === "Pogresan email.") {
+        setVrstaGreske("email");
+      }
+      else {
+        setVrstaGreske("password"); //pogresna lozinka
+      }
+
+      return {
+        error: errorMessage,
+        values: { email, password }
+      }
+    }
+    setVrstaGreske("");
+    const data = await response.json();
+
+    localStorage.setItem("token", data.accessToken);
     localStorage.setItem('mym_authed', 'true');
-    navigate('/app/dashboard');
-  };
+    navigate("/app/dashboard");
+  }
+
   return (
     <div className="page-fade-in">
       <main className="page__main page__main--auth">
         <div className="auth">
-          <form className="auth__card" onSubmit={handleSubmit}>
+          <form className="auth__card" action={formAction}>
             <h1 className="auth__title">LOGIN</h1>
 
             <div className="auth__field">
@@ -22,11 +58,12 @@ function Login() {
               </label>
               <input
                 id="login-email"
-                className="auth__input"
+                className={`auth__input ${vrstaGreske === "email" ? "input-danger" : ""}`}
                 type="email"
                 name="email"
-                placeholder="you@example.com"
+                placeholder={vrstaGreske === "email" ? "pogresan email" : "you@example.com"}
                 autoComplete="email"
+                defaultValue={vrstaGreske === "password" ? state.values.email : ""} //ako je greska u lozinci, ostaje mejl na mesto, ako nije onda se brise
               />
             </div>
 
@@ -36,10 +73,10 @@ function Login() {
               </label>
               <input
                 id="login-password"
-                className="auth__input"
+                className={`auth__input ${vrstaGreske === "password" ? "input-danger" : ""}`}
                 type="password"
                 name="password"
-                placeholder="••••••••"
+                placeholder={vrstaGreske === "password" ? "pogresna lozinka" : "••••••••"}
                 autoComplete="current-password"
               />
             </div>
