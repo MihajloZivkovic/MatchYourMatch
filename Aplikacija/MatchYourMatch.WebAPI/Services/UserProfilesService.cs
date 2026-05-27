@@ -83,5 +83,16 @@ namespace MatchYourMatch.WebAPI.Services
             _context.FreeTimeSlots.Add(timeslot);
             await _context.SaveChangesAsync();
         }
+
+        public async Task RemoveTimeSlotAsync(int userId, int timeslotId)
+        {
+            var timeslot = await _context.FreeTimeSlots
+                .FirstOrDefaultAsync(s => s.Id == timeslotId && s.UserId == userId);
+            if (timeslot == null)
+                throw new Exception("Timeslot ne postoji.");
+            
+            _context.FreeTimeSlots.Remove(timeslot);
+            await _context.SaveChangesAsync();
+        }
     }
 }

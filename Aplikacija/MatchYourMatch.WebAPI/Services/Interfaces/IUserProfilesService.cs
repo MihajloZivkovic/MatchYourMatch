@@ -8,5 +8,6 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task EditProfileAsync(int userId, EditProfileDto dto);
         Task<List<FreeTimeSlotDto>> GetTimeSlotsAsync(int userId);
         Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto);
+        Task RemoveTimeSlotAsync(int userId, int timeslotId);
     }
 }

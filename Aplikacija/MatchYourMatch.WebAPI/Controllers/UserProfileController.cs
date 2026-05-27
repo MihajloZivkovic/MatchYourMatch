@@ -63,20 +63,52 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        /* TBD
         [Authorize]
         [HttpGet("me/timeslots")]
         public async Task<IActionResult> GetTimeSlots()
         {
-            
+            try 
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var timeslots = await _service.GetTimeSlotsAsync(userId);
+                return Ok(timeslots);
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [Authorize]
         [HttpPost("me/timeslots")]
         public async Task<IActionResult> AddTimeSlot(CreateFreeTimeSlotDto dto)
         {
-            
+            try 
+            {   
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _service.AddTimeSlotAsync(userId, dto);
+                return NoContent();
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
         } 
-        */
+
+        [Authorize]
+        [HttpPost("me/timeslots/{timeslotId}")]
+        public async Task<IActionResult> RemoveTimeSlot(int timeslotId)
+        {
+            try 
+            {   
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _service.RemoveTimeSlotAsync(userId, timeslotId);
+                return Ok("Obrisan timeslot.");
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
+        } 
     }
 }
