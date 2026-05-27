@@ -54,5 +54,34 @@ namespace MatchYourMatch.WebAPI.Services
                 Location = user.Profile?.Location
             };
         }
+
+        public async Task<List<FreeTimeSlotDto>> GetTimeSlotsAsync(int userId)
+        {
+            return await _context.FreeTimeSlots
+                .Where(s => s.UserId == userId)
+                .Select(s => new FreeTimeSlotDto
+                {
+                    Id = s.Id,
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime
+                })
+                .ToListAsync();
+        }
+
+        
+        public async Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto)
+        {
+            var timeslot = new FreeTimeSlot
+            {
+                UserId = userId,
+                DayOfWeek = dto.DayOfWeek,
+                StartTime = dto.StartTime,
+                EndTime = dto.EndTime
+            };
+
+            _context.FreeTimeSlots.Add(timeslot);
+            await _context.SaveChangesAsync();
+        }
     }
 }

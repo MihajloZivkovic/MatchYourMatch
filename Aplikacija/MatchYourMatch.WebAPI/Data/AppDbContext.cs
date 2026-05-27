@@ -7,7 +7,7 @@ namespace MatchYourMatch.WebAPI.Data
     {
         public DbSet<User> Users { get; set; }
         public DbSet<UserProfile> UserProfiles { get; set; }
-
+        public DbSet<FreeTimeSlot> FreeTimeSlots { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }

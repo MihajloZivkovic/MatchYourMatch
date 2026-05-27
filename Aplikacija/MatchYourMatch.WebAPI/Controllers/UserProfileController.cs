@@ -62,5 +62,21 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        /* TBD
+        [Authorize]
+        [HttpGet("me/timeslots")]
+        public async Task<IActionResult> GetTimeSlots()
+        {
+            
+        }
+
+        [Authorize]
+        [HttpPost("me/timeslots")]
+        public async Task<IActionResult> AddTimeSlot(CreateFreeTimeSlotDto dto)
+        {
+            
+        } 
+        */
     }
 }

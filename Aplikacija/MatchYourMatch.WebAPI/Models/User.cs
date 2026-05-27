@@ -9,5 +9,7 @@
         public string Role { get; set; } = "User";
         public bool IsActive { get; set; } = true;
         public UserProfile? Profile { get; set; }
+        public List<FreeTimeSlot> FreeTimeSlots { get; set; } = new();
+        
     }
 }
