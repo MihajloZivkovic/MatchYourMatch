@@ -103,12 +103,74 @@ namespace MatchYourMatch.WebAPI.Controllers
             {   
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 await _service.RemoveTimeSlotAsync(userId, timeslotId);
-                return Ok("Obrisan timeslot.");
+                return Ok();
             }
             catch (Exception ex) 
             {
                 return BadRequest(ex.Message);
             }
         } 
+
+        [HttpGet("interests")]
+        public async Task<IActionResult> GetAllInterests()
+        {
+            try
+            {
+                var interests = await _service.GetInterestsAsync();
+                return Ok(interests);
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpGet("me/interests")]
+        public async Task<IActionResult> GetUserInterests()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var interests = await _service.GetUserInterestsAsync(userId);
+                return Ok(interests);
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPost("me/interests/{interestId}")]
+        public async Task<IActionResult> AddInterest(int interestId)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _service.AddInterestAsync(userId, interestId); 
+                return NoContent();
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpDelete("me/interests/{interestId}")]
+        public async Task<IActionResult> RemoveInterest(int interestId)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _service.RemoveInterestAsync(userId, interestId); 
+                return Ok();
+            }
+            catch (Exception ex) 
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }
