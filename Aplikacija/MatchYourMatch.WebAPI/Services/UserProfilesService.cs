@@ -107,6 +107,19 @@ namespace MatchYourMatch.WebAPI.Services
                 .ToListAsync();
         }
 
+        public async Task<List<InterestDto>> GetUserInterestsAsync(int userId)
+        {
+            return await _context.UserInterests
+                .Where(u => u.UserId == userId)
+                .Select(u => new InterestDto
+                {
+                    Id = u.Interest!.Id,
+                    Name = u.Interest.Name,
+                    Category = u.Interest.Category
+                })
+                .ToListAsync();
+        }
+
         public async Task AddInterestAsync(int userId, int interestId)
         {
             var added = await _context.UserInterests
