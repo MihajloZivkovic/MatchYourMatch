@@ -94,5 +94,41 @@ namespace MatchYourMatch.WebAPI.Services
             _context.FreeTimeSlots.Remove(timeslot);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<InterestDto>> GetInterestsAsync()
+        {
+            return await _context.Interests
+                .Select(i => new InterestDto
+                {
+                    Id = i.Id,
+                    Name = i.Name,
+                    Category = i.Category
+                })
+                .ToListAsync();
+        }
+
+        public async Task AddInterestAsync(int userId, int interestId)
+        {
+            var added = await _context.UserInterests
+                .AnyAsync(u => u.UserId == userId && u.InterestId == interestId);
+            if (added)
+                return;
+            _context.UserInterests.Add(new UserInterest
+            {
+                UserId = userId,
+                InterestId = interestId
+            });
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RemoveInterestAsync(int userId, int interestId)
+        {
+            var interest = await _context.UserInterests
+                .FirstOrDefaultAsync(u => u.UserId == userId && u.InterestId == interestId);
+            if (interest == null)
+                return;
+            _context.UserInterests.Remove(interest);
+            await _context.SaveChangesAsync();
+        }
     }
 }

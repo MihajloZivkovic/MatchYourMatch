@@ -49,6 +49,27 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("FreeTimeSlots");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Interest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Interests");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -85,6 +106,21 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserInterest", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InterestId")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId", "InterestId");
+
+                    b.HasIndex("InterestId");
+
+                    b.ToTable("UserInterests");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserProfile", b =>
@@ -124,6 +160,25 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserInterest", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Interest", "Interest")
+                        .WithMany("UserInterests")
+                        .HasForeignKey("InterestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("UserInterests")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Interest");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserProfile", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
@@ -135,11 +190,18 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Interest", b =>
+                {
+                    b.Navigation("UserInterests");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
                     b.Navigation("FreeTimeSlots");
 
                     b.Navigation("Profile");
+
+                    b.Navigation("UserInterests");
                 });
 #pragma warning restore 612, 618
         }

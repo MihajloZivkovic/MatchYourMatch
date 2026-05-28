@@ -9,5 +9,8 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<List<FreeTimeSlotDto>> GetTimeSlotsAsync(int userId);
         Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto);
         Task RemoveTimeSlotAsync(int userId, int timeslotId);
+        Task<List<InterestDto>> GetInterestsAsync();
+        Task AddInterestAsync(int userId, int interestId);
+        Task RemoveInterestAsync(int userId, int interestId);
     }
 }
