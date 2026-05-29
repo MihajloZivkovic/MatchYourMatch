@@ -6,5 +6,6 @@ namespace MatchYourMatch.WebAPI.Models
         public required string Name { get; set; }
         public required string Category { get; set; } // Interest || Vibe
         public List<UserInterest> UserInterests { get; set; } = new();
+        public List<Event> Events { get; set; } = new();
     }
 }
