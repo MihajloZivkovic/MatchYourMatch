@@ -69,7 +69,6 @@ namespace MatchYourMatch.WebAPI.Services
                 .ToListAsync();
         }
 
-        
         public async Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto)
         {
             var timeslot = new FreeTimeSlot

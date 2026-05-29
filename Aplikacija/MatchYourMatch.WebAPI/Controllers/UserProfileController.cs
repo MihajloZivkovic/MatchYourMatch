@@ -96,7 +96,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         } 
 
         [Authorize]
-        [HttpPost("me/timeslots/{timeslotId}")]
+        [HttpDelete("me/timeslots/{timeslotId}")]
         public async Task<IActionResult> RemoveTimeSlot(int timeslotId)
         {
             try 
