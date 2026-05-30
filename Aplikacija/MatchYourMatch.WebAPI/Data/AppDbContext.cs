@@ -35,7 +35,7 @@ namespace MatchYourMatch.WebAPI.Data
 
             // Event
             modelBuilder.Entity<Event>()
-                .HasOne(e => e.Interest).WithMany(i => i.Events).HasForeignKey(e => e.InterestId);
+                .HasOne(e => e.Interest).WithMany(i => i.Events).HasForeignKey(e => e.InterestId).OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

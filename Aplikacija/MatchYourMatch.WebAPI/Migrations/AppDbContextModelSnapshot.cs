@@ -22,6 +22,52 @@ namespace MatchYourMatch.WebAPI.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("InterestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("MaxAttendees")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrganizerId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("Time")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InterestId");
+
+                    b.HasIndex("OrganizerId");
+
+                    b.ToTable("Events");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
                 {
                     b.Property<int>("Id")
@@ -151,6 +197,22 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("UserProfiles");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Interest", "Interest")
+                        .WithMany("Events")
+                        .HasForeignKey("InterestId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "Organizer")
+                        .WithMany("Events")
+                        .HasForeignKey("OrganizerId");
+
+                    b.Navigation("Interest");
+
+                    b.Navigation("Organizer");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", null)
@@ -192,11 +254,15 @@ namespace MatchYourMatch.WebAPI.Migrations
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Interest", b =>
                 {
+                    b.Navigation("Events");
+
                     b.Navigation("UserInterests");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
+                    b.Navigation("Events");
+
                     b.Navigation("FreeTimeSlots");
 
                     b.Navigation("Profile");
