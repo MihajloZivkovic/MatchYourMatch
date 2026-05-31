@@ -1,6 +1,4 @@
-﻿using MatchYourMatch.WebAPI.Models;
-
-namespace MatchYourMatch.WebAPI.DTOs.Event
+﻿namespace MatchYourMatch.WebAPI.DTOs.Event
 {
     public class EventDto
     {
