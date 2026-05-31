@@ -62,20 +62,15 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<EventDto> CreateAsync(int organizerId, CreateEventDto dto)
         {
-            int? interestId = null;
-            if (!string.IsNullOrEmpty(dto.Category))
-            {
-                var interest = await _context.Interests.FirstOrDefaultAsync(i => i.Name == dto.Category);
-                if (interest == null)
-                    throw new Exception("Kategorija ne postoji");
-                interestId = interest.Id;
-            }
+            var interest = await _context.Interests.FirstOrDefaultAsync(i => i.Name == dto.Category);
+            if (interest == null)
+                throw new Exception("Kategorija ne postoji");
 
             var e = new Event
             {
                 Title = dto.Title,
                 OrganizerId = organizerId,
-                InterestId = interestId,
+                InterestId = interest.Id,
                 Date = dto.Date,
                 Time = dto.Time,
                 Location = dto.Location!,
@@ -99,17 +94,12 @@ namespace MatchYourMatch.WebAPI.Services
             if (e.OrganizerId != organizerId)
                 throw new Exception("Niste organizator ovog eventa");
 
-            int? interestId = null;
-            if (!string.IsNullOrEmpty(dto.Category))
-            {
-                var interest = await _context.Interests.FirstOrDefaultAsync(i => i.Name == dto.Category);
-                if (interest == null)
-                    throw new Exception("Kategorija ne postoji");
-                interestId = interest.Id;
-            }
+            var interest = await _context.Interests.FirstOrDefaultAsync(i => i.Name == dto.Category);
+            if (interest == null)
+                throw new Exception("Kategorija ne postoji");
 
             e.Title = dto.Title;
-            e.InterestId = interestId;
+            e.InterestId = interest.Id;
             e.Date = dto.Date;
             e.Time = dto.Time;
             e.Location = dto.Location!;
