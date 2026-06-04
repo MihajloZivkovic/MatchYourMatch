@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MapPin,
@@ -22,13 +22,15 @@ const ACTIVITIES = ['Live music', 'Gallery nights', 'Rooftop hangs', 'Road trips
 const SOCIAL_ENERGY = 72;
 const CONVERSATION = 'Thoughtful & playful';
 
-function Profile() {
+function Profile(props) {
   const [tab, setTab] = useState('ABOUT');
   const [eventSegment, setEventSegment] = useState('Upcoming');
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem('mym_authed');
+    localStorage.removeItem("token");
+    window.dispatchEvent(new Event("tokenChanged"))
     navigate('/');
   };
 
@@ -55,8 +57,8 @@ function Profile() {
               <div className="profile__avatar">{CURRENT_USER.initials}</div>
             </div>
             <div className="profile__identity-text">
-              <h1>{CURRENT_USER.name}</h1>
-              <p className="profile__username">@{CURRENT_USER.username}</p>
+              <h1>{props.currentUser.username}</h1>
+              <p className="profile__username">@{props.currentUser.username}</p>
               <p className="profile__location">
                 <MapPin size={14} />
                 {CURRENT_USER.location}

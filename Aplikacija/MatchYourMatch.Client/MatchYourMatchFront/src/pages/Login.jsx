@@ -42,6 +42,7 @@ function Login() {
 
     localStorage.setItem("token", data.accessToken);
     localStorage.setItem('mym_authed', 'true');
+    window.dispatchEvent(new Event('tokenChanged'));
     navigate("/app/dashboard");
   }
 
