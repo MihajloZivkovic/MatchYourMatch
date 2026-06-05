@@ -6,7 +6,7 @@ import {
   useLocation,
   Navigate,
 } from "react-router-dom";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppShell from "./app/AppShell";

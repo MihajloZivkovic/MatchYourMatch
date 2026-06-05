@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   MapPin,
   Heart,
@@ -9,36 +9,71 @@ import {
   Music,
   Coffee,
   Moon,
-} from 'lucide-react';
-import EventCard from '../../components/EventCard';
-import { CURRENT_USER, matches, LITTLE_THINGS } from '../../data/matches';
-import { events } from '../../data/events';
-import './Profile.css';
+} from "lucide-react";
+import EventCard from "../../components/EventCard";
+import { CURRENT_USER, matches, LITTLE_THINGS } from "../../data/matches";
+import { events } from "../../data/events";
+import "./Profile.css";
 
-const TABS = ['ABOUT', 'MATCHES', 'EVENTS'];
-const EVENT_SEGMENTS = ['Upcoming', 'Past', 'Saved'];
+const TABS = ["ABOUT", "MATCHES", "EVENTS"];
+const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
 
-const ACTIVITIES = ['Live music', 'Gallery nights', 'Rooftop hangs', 'Road trips'];
+const ACTIVITIES = [
+  "Live music",
+  "Gallery nights",
+  "Rooftop hangs",
+  "Road trips",
+];
 const SOCIAL_ENERGY = 72;
-const CONVERSATION = 'Thoughtful & playful';
+const CONVERSATION = "Thoughtful & playful";
 
 function Profile(props) {
-  const [tab, setTab] = useState('ABOUT');
-  const [eventSegment, setEventSegment] = useState('Upcoming');
+  const [tab, setTab] = useState("ABOUT");
+  const [eventSegment, setEventSegment] = useState("Upcoming");
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('mym_authed');
+    localStorage.removeItem("mym_authed");
     localStorage.removeItem("token");
-    window.dispatchEvent(new Event("tokenChanged"))
-    navigate('/');
+    window.dispatchEvent(new Event("tokenChanged"));
+    navigate("/");
   };
 
+  const [userProfile, setUserProfile] = useState({
+    bio: "",
+    profilePicture: "",
+    location: "",
+  });
+    const sendImg = async (event) => {
+      const img = event.target.files[0];
+      if (!img) return;
+
+      const formData = new FormData();
+      formData.append("bio", userProfile.bio);
+      formData.append("profilePicture", img);
+      formData.append("location", userProfile.location);
+
+      const response = await fetch("/api/UserProfile/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", accept: "*/*" },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("sucess", data);
+        // setUserProfile((prev) => ({
+        //   ...prev,
+        //   profilePicture: data.imageUrl,
+        // }))
+      }
+    }; //TODO autorizuj i lepo postavi state
+
   const statCards = [
-    { icon: Heart, label: 'Matches', value: '24' },
-    { icon: Calendar, label: 'Events Joined', value: '7' },
-    { icon: Star, label: 'Profile Score', value: '91%' },
-    { icon: MessageCircle, label: 'Response Rate', value: '94%' },
+    { icon: Heart, label: "Matches", value: "24" },
+    { icon: Calendar, label: "Events Joined", value: "7" },
+    { icon: Star, label: "Profile Score", value: "91%" },
+    { icon: MessageCircle, label: "Response Rate", value: "94%" },
   ];
 
   const eventLists = {
@@ -54,19 +89,34 @@ function Profile(props) {
         <div className="profile__header-inner">
           <div className="profile__identity">
             <div className="profile__avatar-wrap">
-              <div className="profile__avatar">{CURRENT_USER.initials}</div>
+              <div className="profile__avatar">
+                <input
+                  id="imgInput"
+                  type="file"
+                  accept="image/*"
+                  onChange={sendImg}
+                />
+                +
+              </div>
             </div>
             <div className="profile__identity-text">
               <h1>{props.currentUser.username}</h1>
               <p className="profile__username">@{props.currentUser.username}</p>
               <p className="profile__location">
                 <MapPin size={14} />
+                {/* make it display current device location */}
                 {CURRENT_USER.location}
               </p>
               <div className="profile__badges-row">
-                <span className="glass-pill glass-pill--online">ACTIVE TODAY</span>
-                <span className="profile__completion">{CURRENT_USER.completion}% complete</span>
-                <span className="profile__type-badge">{CURRENT_USER.personalityType}</span>
+                <span className="glass-pill glass-pill--online">
+                  ACTIVE TODAY
+                </span>
+                <span className="profile__completion">
+                  {CURRENT_USER.completion}% complete
+                </span>
+                <span className="profile__type-badge">
+                  {CURRENT_USER.personalityType}
+                </span>
               </div>
               <span className="profile__exploring">Currently Exploring</span>
               <div className="profile__trait-tags">
@@ -90,10 +140,17 @@ function Profile(props) {
           </div>
 
           <div className="profile__header-actions">
-            <button type="button" className="app-btn-pill app-btn-pill--outline app-interactive">
+            <button
+              type="button"
+              className="app-btn-pill app-btn-pill--outline app-interactive"
+            >
               EDIT PROFILE
             </button>
-            <button type="button" className="profile__logout" onClick={handleLogout}>
+            <button
+              type="button"
+              className="profile__logout"
+              onClick={handleLogout}
+            >
               LOGOUT
             </button>
           </div>
@@ -108,7 +165,7 @@ function Profile(props) {
               type="button"
               role="tab"
               aria-selected={tab === t}
-              className={`profile__tab${tab === t ? ' profile__tab--active' : ''}`}
+              className={`profile__tab${tab === t ? " profile__tab--active" : ""}`}
               onClick={() => setTab(t)}
             >
               {t}
@@ -118,7 +175,7 @@ function Profile(props) {
         </div>
 
         <div key={tab} className="profile__tab-panel">
-          {tab === 'ABOUT' && (
+          {tab === "ABOUT" && (
             <div className="profile__about">
               <section className="profile__block">
                 <h3>About Me</h3>
@@ -132,7 +189,10 @@ function Profile(props) {
                 <h3>LITTLE THINGS ABOUT ME</h3>
                 <div className="profile__little-grid">
                   {LITTLE_THINGS.map((item) => (
-                    <span key={item} className="profile__little-card app-tilt-hover">
+                    <span
+                      key={item}
+                      className="profile__little-card app-tilt-hover"
+                    >
                       {item}
                     </span>
                   ))}
@@ -157,13 +217,20 @@ function Profile(props) {
                   <h4>Social Energy</h4>
                   <div className="profile__energy-ring">
                     <svg viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="15" className="profile__ring-bg" />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15"
+                        className="profile__ring-bg"
+                      />
                       <circle
                         cx="18"
                         cy="18"
                         r="15"
                         className="profile__ring-fill"
-                        style={{ strokeDashoffset: 94 * (1 - SOCIAL_ENERGY / 100) }}
+                        style={{
+                          strokeDashoffset: 94 * (1 - SOCIAL_ENERGY / 100),
+                        }}
                       />
                     </svg>
                     <span>{SOCIAL_ENERGY}%</span>
@@ -182,26 +249,33 @@ function Profile(props) {
                     Looking For
                   </h4>
                   <div className="profile__pills">
-                    {['Meaningful connection', 'Adventure partner', 'Creative collaborator'].map(
-                      (item) => (
-                        <span key={item} className="profile__pill">
-                          {item}
-                        </span>
-                      ),
-                    )}
+                    {[
+                      "Meaningful connection",
+                      "Adventure partner",
+                      "Creative collaborator",
+                    ].map((item) => (
+                      <span key={item} className="profile__pill">
+                        {item}
+                      </span>
+                    ))}
                   </div>
                 </section>
               </div>
             </div>
           )}
 
-          {tab === 'MATCHES' && (
+          {tab === "MATCHES" && (
             <div className="profile__matches-grid">
               {matches.slice(0, 6).map((m) => (
-                <article key={m.id} className="profile__match-card app-tilt-hover">
+                <article
+                  key={m.id}
+                  className="profile__match-card app-tilt-hover"
+                >
                   <div className="profile__match-ring">
                     <div className="profile__match-avatar">{m.initials}</div>
-                    <span className="profile__match-score">{m.compatibility}%</span>
+                    <span className="profile__match-score">
+                      {m.compatibility}%
+                    </span>
                   </div>
                   <h4>{m.name}</h4>
                   <p className="profile__match-loc">{m.location}</p>
@@ -211,7 +285,10 @@ function Profile(props) {
                     ))}
                   </div>
                   <span className="profile__match-online">Recently active</span>
-                  <button type="button" className="app-btn-pill profile__match-view app-interactive">
+                  <button
+                    type="button"
+                    className="app-btn-pill profile__match-view app-interactive"
+                  >
                     VIEW
                   </button>
                 </article>
@@ -219,14 +296,16 @@ function Profile(props) {
             </div>
           )}
 
-          {tab === 'EVENTS' && (
+          {tab === "EVENTS" && (
             <div className="profile__events-panel">
               <div className="profile__event-segment">
                 {EVENT_SEGMENTS.map((seg) => (
                   <button
                     key={seg}
                     type="button"
-                    className={eventSegment === seg ? 'profile__event-seg--active' : ''}
+                    className={
+                      eventSegment === seg ? "profile__event-seg--active" : ""
+                    }
                     onClick={() => setEventSegment(seg)}
                   >
                     {seg}
