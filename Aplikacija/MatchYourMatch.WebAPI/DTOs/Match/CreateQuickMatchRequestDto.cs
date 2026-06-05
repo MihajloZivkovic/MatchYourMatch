@@ -4,7 +4,7 @@ namespace MatchYourMatch.WebAPI.DTOs.Match
     {
         public TimeOnly StartTime {get; set;}
         public TimeOnly EndTime {get; set;}
-        public string Activity {get;set;} = null!;
+        public int ActivityId {get;set;}
         public string? Description {get; set;}
     }
 }

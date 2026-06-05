@@ -10,6 +10,11 @@ namespace MatchYourMatch.WebAPI.Services
     {
         private readonly AppDbContext _context;
 
+        private const int PointsPerOverlapMinute = 2;
+        private const int ExactActivityBonus = 150;
+        private const int SameCategoryActivityBonus = 70;
+        private const int SameLocationBonus = 40;
+
         public QuickMatchService(AppDbContext context)
         {
             _context = context;
@@ -19,11 +24,13 @@ namespace MatchYourMatch.WebAPI.Services
             int userId,
             CreateQuickMatchRequestDto request)
         {
-            if (request.StartTime >= request.EndTime)
-                throw new Exception("Vreme početka mora biti pre vremena završetka.");
+            ValidateRequest(request);
 
-            if (string.IsNullOrWhiteSpace(request.Activity))
-                throw new Exception("Aktivnost je obavezna.");
+            var activityExists = await _context.Activities
+                .AnyAsync(a => a.Id == request.ActivityId);
+
+            if (!activityExists)
+                throw new Exception("Activity does not exist.");
 
             var post = new QuickMatchPost
             {
@@ -31,7 +38,7 @@ namespace MatchYourMatch.WebAPI.Services
                 Date = DateOnly.FromDateTime(DateTime.Now),
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                Activity = request.Activity.Trim(),
+                ActivityId = request.ActivityId,
                 Description = request.Description,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -43,32 +50,47 @@ namespace MatchYourMatch.WebAPI.Services
             var savedPost = await _context.QuickMatchPosts
                 .Include(p => p.User)
                     .ThenInclude(u => u.Profile)
+                .Include(p => p.Activity)
+                    .ThenInclude(a => a.ActivityCategory)
                 .FirstAsync(p => p.Id == post.Id);
 
-            return MapToDto(savedPost, 0);
+            return MapToDto(
+                post: savedPost,
+                overlapMinutes: 0
+            );
         }
 
         public async Task<List<QuickMatchPostDto>> GetMatchesAsync(
             int userId,
             CreateQuickMatchRequestDto request)
         {
-            if (request.StartTime >= request.EndTime)
-                throw new Exception("Vreme početka mora biti pre vremena završetka.");
-
-            if (string.IsNullOrWhiteSpace(request.Activity))
-                throw new Exception("Aktivnost je obavezna.");
+            ValidateRequest(request);
 
             var today = DateOnly.FromDateTime(DateTime.Now);
-            var activity = request.Activity.Trim().ToLower();
+
+            var currentUser = await _context.Users
+                .Include(u => u.Profile)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (currentUser == null)
+                throw new Exception("User does not exist.");
+
+            var requestedActivity = await _context.Activities
+                .Include(a => a.ActivityCategory)
+                .FirstOrDefaultAsync(a => a.Id == request.ActivityId);
+
+            if (requestedActivity == null)
+                throw new Exception("Chosen activity does not exist.");
 
             var posts = await _context.QuickMatchPosts
                 .Include(p => p.User)
                     .ThenInclude(u => u.Profile)
+                .Include(p => p.Activity)
+                    .ThenInclude(a => a.ActivityCategory)
                 .Where(p =>
                     p.UserId != userId &&
                     p.Date == today &&
-                    p.IsActive &&
-                    p.Activity.ToLower() == activity)
+                    p.IsActive)
                 .ToListAsync();
 
             var matches = posts
@@ -81,15 +103,33 @@ namespace MatchYourMatch.WebAPI.Services
                         post.EndTime
                     );
 
+                    if (overlapMinutes <= 0)
+                        return null;
+
+                    var matchScore = CalculateMatchScore(
+                        overlapMinutes,
+                        requestedActivity,
+                        post.Activity,
+                        currentUser,
+                        post.User
+                    );
+
+                    var dto = MapToDto(
+                        post: post,
+                        overlapMinutes: overlapMinutes
+                    );
+
                     return new
                     {
-                        Post = post,
+                        Dto = dto,
+                        MatchScore = matchScore,
                         OverlapMinutes = overlapMinutes
                     };
                 })
-                .Where(x => x.OverlapMinutes > 0)
-                .OrderByDescending(x => x.OverlapMinutes)
-                .Select(x => MapToDto(x.Post, x.OverlapMinutes))
+                .Where(match => match != null)
+                .OrderByDescending(match => match!.MatchScore)
+                .ThenByDescending(match => match!.OverlapMinutes)
+                .Select(match => match!.Dto)
                 .ToList();
 
             return matches;
@@ -102,6 +142,8 @@ namespace MatchYourMatch.WebAPI.Services
             var posts = await _context.QuickMatchPosts
                 .Include(p => p.User)
                     .ThenInclude(u => u.Profile)
+                .Include(p => p.Activity)
+                    .ThenInclude(a => a.ActivityCategory)
                 .Where(p =>
                     p.UserId != userId &&
                     p.Date == today &&
@@ -110,8 +152,20 @@ namespace MatchYourMatch.WebAPI.Services
                 .ToListAsync();
 
             return posts
-                .Select(post => MapToDto(post, 0))
+                .Select(post => MapToDto(
+                    post: post,
+                    overlapMinutes: 0
+                ))
                 .ToList();
+        }
+
+        private void ValidateRequest(CreateQuickMatchRequestDto request)
+        {
+            if (request.StartTime >= request.EndTime)
+                throw new Exception("The start time must be before the end time.");
+
+            if (request.ActivityId <= 0)
+                throw new Exception("Activity is required.");
         }
 
         private int CalculateOverlapMinutes(
@@ -129,6 +183,63 @@ namespace MatchYourMatch.WebAPI.Services
             return (int)(overlapEnd.ToTimeSpan() - overlapStart.ToTimeSpan()).TotalMinutes;
         }
 
+        private int CalculateMatchScore(
+            int overlapMinutes,
+            Activity requestedActivity,
+            Activity postActivity,
+            User currentUser,
+            User postUser)
+        {
+            var timeScore = overlapMinutes * PointsPerOverlapMinute;
+
+            var activityScore = CalculateActivityScore(
+                requestedActivity,
+                postActivity
+            );
+
+            var locationScore = CalculateLocationScore(
+                currentUser.Profile?.Location,
+                postUser.Profile?.Location
+            );
+
+            var ageScore = 0;
+
+            return timeScore + activityScore + locationScore + ageScore;
+        }
+
+        private int CalculateActivityScore(
+            Activity requestedActivity,
+            Activity postActivity)
+        {
+            if (requestedActivity.Id == postActivity.Id)
+                return ExactActivityBonus;
+
+            if (requestedActivity.ActivityCategoryId == postActivity.ActivityCategoryId)
+                return SameCategoryActivityBonus;
+
+            return 0;
+        }
+
+        private int CalculateLocationScore(
+            string? currentUserLocation,
+            string? postUserLocation)
+        {
+            if (string.IsNullOrWhiteSpace(currentUserLocation) ||
+                string.IsNullOrWhiteSpace(postUserLocation))
+                return 0;
+
+            var current = NormalizeText(currentUserLocation);
+            var other = NormalizeText(postUserLocation);
+
+            if (current == other)
+                return SameLocationBonus;
+
+            if (current.Contains(other) || other.Contains(current))
+                return SameLocationBonus / 2;
+
+            return 0;
+        }
+
         private QuickMatchPostDto MapToDto(
             QuickMatchPost post,
             int overlapMinutes)
@@ -139,16 +250,30 @@ namespace MatchYourMatch.WebAPI.Services
                 UserId = post.UserId,
                 Username = post.User.Username,
                 Location = post.User.Profile?.Location,
-                Activity = post.Activity,
+
+                ActivityId = post.ActivityId,
+                ActivityName = post.Activity.DisplayName,
+                ActivityCategoryId = post.Activity.ActivityCategoryId,
+                ActivityCategoryName = post.Activity.ActivityCategory.DisplayName,
+
                 Description = post.Description,
                 StartTime = post.StartTime.ToString("HH:mm"),
                 EndTime = post.EndTime.ToString("HH:mm"),
-                OverlapMinutes = overlapMinutes,
-                MatchScore = overlapMinutes,
-                Reason = overlapMinutes > 0
-                    ? $"Poklapate se {overlapMinutes} minuta za aktivnost: {post.Activity}"
-                    : $"Oglas za aktivnost: {post.Activity}"
+
+                OverlapMinutes = overlapMinutes
             };
+        }
+
+        private string NormalizeText(string text)
+        {
+            return text
+                .Trim()
+                .ToLower()
+                .Replace("š", "s")
+                .Replace("đ", "dj")
+                .Replace("č", "c")
+                .Replace("ć", "c")
+                .Replace("ž", "z");
         }
     }
 }
