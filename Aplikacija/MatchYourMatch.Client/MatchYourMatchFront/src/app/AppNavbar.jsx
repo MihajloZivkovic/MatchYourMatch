@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
-import { CURRENT_USER } from '../data/matches';
-import './AppNavbar.css';
+import { useState, useEffect, useRef } from "react";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Menu, X } from "lucide-react";
+import { CURRENT_USER } from "../data/matches";
+import "./AppNavbar.css";
 
 function AppNavbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -21,17 +21,19 @@ function AppNavbar() {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('mym_authed');
-    navigate('/');
+    localStorage.removeItem("mym_authed");
+    localStorage.removeItem("token");
+    window.dispatchEvent(new Event("tokenChanged"));
+    navigate("/");
   };
 
   const navLinkClass = ({ isActive }) =>
-    `app-navbar__link${isActive ? ' app-navbar__link--active' : ''}`;
+    `app-navbar__link${isActive ? " app-navbar__link--active" : ""}`;
 
   return (
     <header className="app-navbar">
@@ -87,7 +89,7 @@ function AppNavbar() {
           <button
             type="button"
             className="app-navbar__hamburger"
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
             onClick={() => setMenuOpen((o) => !o)}
           >
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -95,14 +97,28 @@ function AppNavbar() {
         </div>
       </nav>
 
-      <div className={`app-navbar__drawer${menuOpen ? ' app-navbar__drawer--open' : ''}`}>
-        <NavLink to="/app/quick-match" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+      <div
+        className={`app-navbar__drawer${menuOpen ? " app-navbar__drawer--open" : ""}`}
+      >
+        <NavLink
+          to="/app/quick-match"
+          className={navLinkClass}
+          onClick={() => setMenuOpen(false)}
+        >
           QUICK MATCH
         </NavLink>
-        <NavLink to="/app/deep-match" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+        <NavLink
+          to="/app/deep-match"
+          className={navLinkClass}
+          onClick={() => setMenuOpen(false)}
+        >
           DEEP MATCH
         </NavLink>
-        <NavLink to="/app/events" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+        <NavLink
+          to="/app/events"
+          className={navLinkClass}
+          onClick={() => setMenuOpen(false)}
+        >
           EVENTS
         </NavLink>
         <Link
@@ -112,10 +128,18 @@ function AppNavbar() {
         >
           + CREATE EVENT
         </Link>
-        <Link to="/app/profile" className="app-navbar__drawer-link" onClick={() => setMenuOpen(false)}>
+        <Link
+          to="/app/profile"
+          className="app-navbar__drawer-link"
+          onClick={() => setMenuOpen(false)}
+        >
           My Profile
         </Link>
-        <button type="button" className="app-navbar__drawer-logout" onClick={handleLogout}>
+        <button
+          type="button"
+          className="app-navbar__drawer-logout"
+          onClick={handleLogout}
+        >
           Logout
         </button>
       </div>

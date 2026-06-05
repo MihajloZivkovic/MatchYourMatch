@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Zap,
   Brain,
@@ -8,34 +8,41 @@ import {
   MessageCircle,
   ChevronRight,
   Users,
-} from 'lucide-react';
-import { CURRENT_USER, suggestedConnections } from '../../data/matches';
-import { events } from '../../data/events';
-import './Dashboard.css';
+} from "lucide-react";
+import { suggestedConnections } from "../../data/matches";
+import { events } from "../../data/events";
+import "./Dashboard.css";
 
 const INTEREST_PILLS = [
-  'Late Night Drives',
-  'Coffee Dates',
-  'Gaming',
-  'Music',
-  'Gym',
-  'Design',
-  'Fashion',
-  'Photography',
-  'Art',
-  'Tech',
-  'Travel',
-  'Anime',
-  'Nature',
-  'Festivals',
+  "Late Night Drives",
+  "Coffee Dates",
+  "Gaming",
+  "Music",
+  "Gym",
+  "Design",
+  "Fashion",
+  "Photography",
+  "Art",
+  "Tech",
+  "Travel",
+  "Anime",
+  "Nature",
+  "Festivals",
 ];
 
-const VIBE_OPTIONS = ['Chill', 'Adventurous', 'Creative', 'Social', 'Deep Thinker', 'Spontaneous'];
+const VIBE_OPTIONS = [
+  "Chill",
+  "Adventurous",
+  "Creative",
+  "Social",
+  "Deep Thinker",
+  "Spontaneous",
+];
 
-const DEFAULT_INTERESTS = ['Music', 'Coffee Dates', 'Design', 'Travel'];
-const DEFAULT_VIBE = 'Creative';
+const DEFAULT_INTERESTS = ["Music", "Coffee Dates", "Design", "Travel"];
+const DEFAULT_VIBE = "Creative";
 
-function Dashboard() {
+function Dashboard(props) {
   const [interests, setInterests] = useState(DEFAULT_INTERESTS);
   const [vibe, setVibe] = useState(DEFAULT_VIBE);
 
@@ -56,21 +63,30 @@ function Dashboard() {
         </div>
         <div className="dashboard__hero-content">
           <p className="dashboard__welcome">WELCOME BACK,</p>
-          <h1 className="dashboard__name">{CURRENT_USER.name.toUpperCase()}</h1>
+          <h1 className="dashboard__name">{props.currentUser.username}</h1>
           <p className="dashboard__subtext">
             Your next meaningful connection might already be here.
           </p>
           <span className="glass-pill glass-pill--online">ONLINE</span>
           <div className="dashboard__quick-actions">
-            <Link to="/app/quick-match" className="dashboard__action app-interactive app-tilt-hover">
+            <Link
+              to="/app/quick-match"
+              className="dashboard__action app-interactive app-tilt-hover"
+            >
               <Zap size={18} />
               <span>QUICK MATCH</span>
             </Link>
-            <Link to="/app/deep-match" className="dashboard__action app-interactive app-tilt-hover">
+            <Link
+              to="/app/deep-match"
+              className="dashboard__action app-interactive app-tilt-hover"
+            >
               <Brain size={18} />
               <span>DEEP MATCH</span>
             </Link>
-            <Link to="/app/events" className="dashboard__action app-interactive app-tilt-hover">
+            <Link
+              to="/app/events"
+              className="dashboard__action app-interactive app-tilt-hover"
+            >
               <Calendar size={18} />
               <span>EXPLORE EVENTS</span>
             </Link>
@@ -85,7 +101,10 @@ function Dashboard() {
           Two paths. One platform. Choose how you want to connect today.
         </p>
         <div className="dashboard__match-types">
-          <Link to="/app/quick-match" className="dashboard__type-card app-tilt-hover">
+          <Link
+            to="/app/quick-match"
+            className="dashboard__type-card app-tilt-hover"
+          >
             <div className="dashboard__type-icon">
               <Zap size={28} />
             </div>
@@ -107,14 +126,17 @@ function Dashboard() {
             </div>
           </Link>
 
-          <Link to="/app/deep-match" className="dashboard__type-card dashboard__type-card--deep app-tilt-hover">
+          <Link
+            to="/app/deep-match"
+            className="dashboard__type-card dashboard__type-card--deep app-tilt-hover"
+          >
             <div className="dashboard__type-icon dashboard__type-icon--deep">
               <Brain size={28} />
             </div>
             <h3>DEEP MATCH</h3>
             <p>
-              Deeper personality alignment and intentional matching built on values,
-              lifestyle, and long-term compatibility.
+              Deeper personality alignment and intentional matching built on
+              values, lifestyle, and long-term compatibility.
             </p>
             <div className="dashboard__type-tags">
               <span>PERSONALITY</span>
@@ -124,7 +146,7 @@ function Dashboard() {
             <div className="dashboard__graph-mock">
               {[88, 72, 95, 64].map((v, i) => (
                 <div key={i} className="dashboard__graph-bar">
-                  <span style={{ '--h': `${v}%` }} />
+                  <span style={{ "--h": `${v}%` }} />
                   <small>{v}%</small>
                 </div>
               ))}
@@ -137,7 +159,8 @@ function Dashboard() {
       <section className="dashboard__section dashboard__prefs">
         <h2 className="app-section-title">YOUR PREFERENCES</h2>
         <p className="dashboard__section-desc">
-          Tap what feels like you — we&apos;ll surface people and moments that match your vibe.
+          Tap what feels like you — we&apos;ll surface people and moments that
+          match your vibe.
         </p>
         <div className="dashboard__prefs-card">
           <h4>What are you into?</h4>
@@ -146,7 +169,7 @@ function Dashboard() {
               <button
                 key={pill}
                 type="button"
-                className={`dashboard__pref-pill app-pill-select${interests.includes(pill) ? ' dashboard__pref-pill--on' : ''}`}
+                className={`dashboard__pref-pill app-pill-select${interests.includes(pill) ? " dashboard__pref-pill--on" : ""}`}
                 onClick={() => toggleInterest(pill)}
               >
                 {pill}
@@ -160,7 +183,7 @@ function Dashboard() {
               <button
                 key={option}
                 type="button"
-                className={`dashboard__vibe-pill app-pill-select${vibe === option ? ' dashboard__vibe-pill--on' : ''}`}
+                className={`dashboard__vibe-pill app-pill-select${vibe === option ? " dashboard__vibe-pill--on" : ""}`}
                 onClick={() => setVibe(option)}
               >
                 {option}
@@ -173,22 +196,30 @@ function Dashboard() {
       {/* Section 4 — Suggested Connections */}
       <section className="dashboard__section">
         <h2 className="app-section-title">SUGGESTED CONNECTIONS</h2>
-        <p className="dashboard__section-desc">Profiles aligned with your energy and interests.</p>
+        <p className="dashboard__section-desc">
+          Profiles aligned with your energy and interests.
+        </p>
         <div className="dashboard__feed">
           {suggestedConnections.map((person, i) => (
             <article
               key={person.id}
               className="dashboard__connection app-tilt-hover"
-              style={{ '--i': i }}
+              style={{ "--i": i }}
             >
-              <div className={`dashboard__conn-avatar${person.online ? ' dashboard__conn-avatar--live' : ''}`}>
+              <div
+                className={`dashboard__conn-avatar${person.online ? " dashboard__conn-avatar--live" : ""}`}
+              >
                 {person.initials}
               </div>
               <div className="dashboard__conn-body">
                 <div className="dashboard__conn-head">
                   <h3>{person.name}</h3>
-                  <span className="dashboard__conn-compat">{person.compatibility}%</span>
-                  {person.online && <span className="dashboard__conn-online">Online</span>}
+                  <span className="dashboard__conn-compat">
+                    {person.compatibility}%
+                  </span>
+                  {person.online && (
+                    <span className="dashboard__conn-online">Online</span>
+                  )}
                 </div>
                 <p className="dashboard__conn-bio">{person.bio}</p>
                 <div className="dashboard__conn-mutual">
@@ -198,10 +229,18 @@ function Dashboard() {
                 </div>
               </div>
               <div className="dashboard__conn-actions">
-                <button type="button" className="dashboard__conn-btn app-interactive" aria-label="Message">
+                <button
+                  type="button"
+                  className="dashboard__conn-btn app-interactive"
+                  aria-label="Message"
+                >
                   <MessageCircle size={16} />
                 </button>
-                <button type="button" className="dashboard__conn-btn dashboard__conn-btn--match app-interactive" aria-label="Match">
+                <button
+                  type="button"
+                  className="dashboard__conn-btn dashboard__conn-btn--match app-interactive"
+                  aria-label="Match"
+                >
                   <Heart size={16} />
                 </button>
               </div>
@@ -214,7 +253,10 @@ function Dashboard() {
       <section className="dashboard__section dashboard__events-section">
         <div className="dashboard__events-head">
           <h2 className="app-section-title">EVENTS FOR YOU</h2>
-          <Link to="/app/events" className="dashboard__view-all app-interactive">
+          <Link
+            to="/app/events"
+            className="dashboard__view-all app-interactive"
+          >
             VIEW ALL EVENTS
             <ChevronRight size={16} />
           </Link>
@@ -224,7 +266,7 @@ function Dashboard() {
             <article
               key={event.id}
               className="dashboard__event-mini app-tilt-hover"
-              style={{ '--i': i }}
+              style={{ "--i": i }}
             >
               <span className="dashboard__event-cat">{event.category}</span>
               <h4>{event.title}</h4>
