@@ -70,6 +70,48 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("Interests");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.QuickMatchPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Activity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("QuickMatchPosts");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -160,6 +202,17 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.QuickMatchPost", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("QuickMatchPosts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserInterest", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.Interest", "Interest")
@@ -200,6 +253,8 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("FreeTimeSlots");
 
                     b.Navigation("Profile");
+
+                    b.Navigation("QuickMatchPosts");
 
                     b.Navigation("UserInterests");
                 });

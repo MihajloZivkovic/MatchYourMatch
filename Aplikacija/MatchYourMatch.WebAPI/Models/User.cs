@@ -11,5 +11,6 @@
         public UserProfile? Profile { get; set; }
         public List<FreeTimeSlot> FreeTimeSlots { get; set; } = new();
         public List<UserInterest> UserInterests { get; set; } = new();
+        public List<QuickMatchPost> QuickMatchPosts {get; set;} = new();
     }
 }

@@ -10,6 +10,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<FreeTimeSlot> FreeTimeSlots { get; set; }
         public DbSet<Interest> Interests { get; set; }
         public DbSet<UserInterest> UserInterests { get; set; }
+        public DbSet<QuickMatchPost> QuickMatchPosts { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -26,6 +27,10 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(u => u.User).WithMany(u => u.UserInterests).HasForeignKey(u => u.UserId);
             modelBuilder.Entity<UserInterest>()
                 .HasOne(u => u.Interest).WithMany(i => i.UserInterests).HasForeignKey(i => i.InterestId);
+
+            modelBuilder.Entity<QuickMatchPost>().HasOne(q => q.User).WithMany(u => u.QuickMatchPosts).HasForeignKey(q => q.UserId);
+            modelBuilder.Entity<QuickMatchPost>().Property(q => q.Activity).IsRequired().HasMaxLength(100);
+            modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
         }
     }
 }
