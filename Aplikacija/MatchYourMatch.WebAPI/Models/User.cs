@@ -12,5 +12,6 @@
         public List<FreeTimeSlot> FreeTimeSlots { get; set; } = new();
         public List<UserInterest> UserInterests { get; set; } = new();
         public List<Event> Events { get; set; } = new();
+        public List<QuickMatchPost> QuickMatchPosts {get; set;} = new();
     }
 }

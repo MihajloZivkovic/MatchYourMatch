@@ -11,6 +11,9 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<Interest> Interests { get; set; }
         public DbSet<UserInterest> UserInterests { get; set; }
         public DbSet<Event> Events { get; set; }
+        public DbSet<QuickMatchPost> QuickMatchPosts { get; set; }
+        public DbSet<ActivityCategory> ActivityCategories { get; set; }
+        public DbSet<Activity> Activities { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -36,6 +39,38 @@ namespace MatchYourMatch.WebAPI.Data
             // Event
             modelBuilder.Entity<Event>()
                 .HasOne(e => e.Interest).WithMany(i => i.Events).HasForeignKey(e => e.InterestId).OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<QuickMatchPost>().HasOne(q => q.User).WithMany(u => u.QuickMatchPosts).HasForeignKey(q => q.UserId);
+            modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
+
+            modelBuilder.Entity<ActivityCategory>()
+                .HasMany(c => c.Activities)
+                .WithOne(a => a.ActivityCategory)
+                .HasForeignKey(a => a.ActivityCategoryId);
+
+            modelBuilder.Entity<Activity>()
+                .HasMany(a => a.QuickMatchPosts)
+                .WithOne(q => q.Activity)
+                .HasForeignKey(q => q.ActivityId);
+
+            modelBuilder.Entity<ActivityCategory>()
+                .Property(c => c.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<ActivityCategory>()
+                .Property(c => c.DisplayName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Activity>()
+                .Property(a => a.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<Activity>()
+                .Property(a => a.DisplayName)
+                .IsRequired()
+                .HasMaxLength(100);
         }
     }
 }
