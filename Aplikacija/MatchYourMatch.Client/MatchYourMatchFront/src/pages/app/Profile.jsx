@@ -30,9 +30,8 @@ const CONVERSATION = "Thoughtful & playful";
 function Profile(props) {
   const [tab, setTab] = useState("ABOUT");
   const [eventSegment, setEventSegment] = useState("Upcoming");
-  const navigate = useNavigate();
-
   
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.removeItem("mym_authed");
@@ -41,11 +40,6 @@ function Profile(props) {
     navigate("/");
   };
 
-  const [userProfile, setUserProfile] = useState({
-    bio: "biography",
-    profilePicture: "",
-    location: "texas",
-  });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -63,7 +57,7 @@ function Profile(props) {
         if (!response.ok) return;
 
         const data = await response.json();
-        setUserProfile((prev) => ({
+        props.setUserProfile((prev) => ({
           ...prev,
           bio: data.bio ?? prev.bio,
           location: data.location ?? prev.location,
@@ -100,14 +94,14 @@ function Profile(props) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        Bio: userProfile.bio,
+        Bio: props.userProfile.bio,
         ProfilePicture: convertedImage,
-        Location: userProfile.location,
+        Location: props.userProfile.location,
       }),
     });
 
     if (response.ok) {
-      setUserProfile((prev) => ({
+      props.setUserProfile((prev) => ({
         ...prev,
         profilePicture: convertedImage,
       }));
@@ -141,11 +135,8 @@ function Profile(props) {
                   accept="image/*"
                   onChange={sendImg}
                 />
-                {userProfile.profilePicture ? (
-                  <img
-                    src={userProfile.profilePicture}
-                    alt="Profile"
-                  />
+                {props.userProfile.profilePicture ? (
+                  <img src={props.userProfile.profilePicture} alt="Profile" />
                 ) : (
                   "+"
                 )}

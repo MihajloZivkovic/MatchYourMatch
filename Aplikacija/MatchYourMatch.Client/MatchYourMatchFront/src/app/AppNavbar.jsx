@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import { CURRENT_USER } from "../data/matches";
 import "./AppNavbar.css";
 
-function AppNavbar() {
+function AppNavbar(props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -69,7 +68,7 @@ function AppNavbar() {
               aria-expanded={dropdownOpen}
               onClick={() => setDropdownOpen((o) => !o)}
             >
-              {/* slika  */}
+              <img src={props.picture} alt="profile picture" className="profilePicture"/>
             </button>
             {dropdownOpen && (
               <div className="app-navbar__dropdown">
