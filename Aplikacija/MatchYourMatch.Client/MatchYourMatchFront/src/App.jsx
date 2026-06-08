@@ -158,7 +158,7 @@ function App() {
         <div className="page__noise" />
       </div>
 
-      <Navbar isExiting={isExiting} onAboutClick={handleAboutClick} />
+      <Navbar isExiting={isExiting} onAboutClick={handleAboutClick} picture={1}/>
       <Routes>
         <Route path="/" element={<Home isExiting={isExiting} />} />
         <Route path="/login" element={<Login />} />

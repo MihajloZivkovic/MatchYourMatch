@@ -69,7 +69,7 @@ function AppNavbar() {
               aria-expanded={dropdownOpen}
               onClick={() => setDropdownOpen((o) => !o)}
             >
-              {CURRENT_USER.initials}
+              {/* slika  */}
             </button>
             {dropdownOpen && (
               <div className="app-navbar__dropdown">

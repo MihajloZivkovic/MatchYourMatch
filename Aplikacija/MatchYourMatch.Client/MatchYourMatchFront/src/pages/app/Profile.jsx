@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -32,6 +32,8 @@ function Profile(props) {
   const [eventSegment, setEventSegment] = useState("Upcoming");
   const navigate = useNavigate();
 
+  
+
   const handleLogout = () => {
     localStorage.removeItem("mym_authed");
     localStorage.removeItem("token");
@@ -40,34 +42,77 @@ function Profile(props) {
   };
 
   const [userProfile, setUserProfile] = useState({
-    bio: "",
+    bio: "biography",
     profilePicture: "",
-    location: "",
+    location: "texas",
   });
-    const sendImg = async (event) => {
-      const img = event.target.files[0];
-      if (!img) return;
 
-      const formData = new FormData();
-      formData.append("bio", userProfile.bio);
-      formData.append("profilePicture", img);
-      formData.append("location", userProfile.location);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-      const response = await fetch("/api/UserProfile/me", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", accept: "*/*" },
-        body: formData,
-      });
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch("/api/UserProfile/me", {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (response.ok) {
+        if (!response.ok) return;
+
         const data = await response.json();
-        console.log("sucess", data);
-        // setUserProfile((prev) => ({
-        //   ...prev,
-        //   profilePicture: data.imageUrl,
-        // }))
+        setUserProfile((prev) => ({
+          ...prev,
+          bio: data.bio ?? prev.bio,
+          location: data.location ?? prev.location,
+          profilePicture: data.profilePicture ?? prev.profilePicture,
+        }));
+      } catch (error) {
+        console.error("Failed to load profile:", error);
       }
-    }; //TODO autorizuj i lepo postavi state
+    };
+
+    fetchProfile();
+  }, []);
+  const sendImg = async (event) => {
+    const img = event.target.files[0];
+    if (!img) return;
+
+    const convertToBase64 = (fileObj) => {
+      return new Promise((resolve, reject) => {
+        const fileReader = new FileReader();
+        fileReader.readAsDataURL(fileObj);
+        fileReader.onload = () => resolve(fileReader.result);
+        fileReader.onerror = (error) => reject(error);
+      });
+    };
+
+    const convertedImage = await convertToBase64(img);
+
+    const token = localStorage.getItem("token");
+    const response = await fetch("/api/UserProfile/me", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        Bio: userProfile.bio,
+        ProfilePicture: convertedImage,
+        Location: userProfile.location,
+      }),
+    });
+
+    if (response.ok) {
+      setUserProfile((prev) => ({
+        ...prev,
+        profilePicture: convertedImage,
+      }));
+    }
+  };
 
   const statCards = [
     { icon: Heart, label: "Matches", value: "24" },
@@ -96,7 +141,14 @@ function Profile(props) {
                   accept="image/*"
                   onChange={sendImg}
                 />
-                +
+                {userProfile.profilePicture ? (
+                  <img
+                    src={userProfile.profilePicture}
+                    alt="Profile"
+                  />
+                ) : (
+                  "+"
+                )}
               </div>
             </div>
             <div className="profile__identity-text">
