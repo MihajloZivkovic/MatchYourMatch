@@ -20,6 +20,9 @@ import DeepMatch from "./pages/app/DeepMatch";
 import Events from "./pages/app/Events";
 import CreateEvent from "./pages/app/CreateEvent";
 import Profile from "./pages/app/Profile";
+import SearchResults from "./pages/app/SearchResults";
+import PublicProfile from "./pages/app/PublicProfile";
+import Chat from "./pages/app/Chat";
 import "./App.css";
 
 function App() {
@@ -142,6 +145,9 @@ function App() {
           <Route path="deep-match" element={<DeepMatch />} />
           <Route path="events" element={<Events />} />
           <Route path="events/create" element={<CreateEvent />} />
+          <Route path="search" element={<SearchResults />} />
+          <Route path="users/:id" element={<PublicProfile />} />
+          <Route path="chat" element={<Chat />} />
           <Route
             path="profile"
             element={<Profile currentUser={currentUser} />}

@@ -14,6 +14,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<QuickMatchPost> QuickMatchPosts { get; set; }
         public DbSet<ActivityCategory> ActivityCategories { get; set; }
         public DbSet<Activity> Activities { get; set; }
+        public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -27,6 +28,27 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasIndex(u => u.Username).IsUnique();
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Profile).WithOne(p => p.User).HasForeignKey<UserProfile>(u => u.UserId);
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.DeepMatchPreference)
+                .WithOne(p => p.User)
+                .HasForeignKey<UserDeepMatchPreference>(p => p.UserId);
+
+            modelBuilder.Entity<UserProfile>()
+                .Property(p => p.LocationDisplayName)
+                .HasMaxLength(160);
+
+            modelBuilder.Entity<UserProfile>()
+                .Property(p => p.LocationCity)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserProfile>()
+                .Property(p => p.LocationCountry)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserProfile>()
+                .Property(p => p.LocationPrivacy)
+                .IsRequired()
+                .HasMaxLength(30);
             
             // UserInterest
             modelBuilder.Entity<UserInterest>()
@@ -70,6 +92,30 @@ namespace MatchYourMatch.WebAPI.Data
             modelBuilder.Entity<Activity>()
                 .Property(a => a.DisplayName)
                 .IsRequired()
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserDeepMatchPreference>()
+                .HasIndex(p => p.UserId)
+                .IsUnique();
+
+            modelBuilder.Entity<UserDeepMatchPreference>()
+                .Property(p => p.RelationshipValue)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserDeepMatchPreference>()
+                .Property(p => p.CommunicationStyle)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserDeepMatchPreference>()
+                .Property(p => p.FreeTimePreference)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserDeepMatchPreference>()
+                .Property(p => p.SocialEnergy)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<UserDeepMatchPreference>()
+                .Property(p => p.RelationshipPace)
                 .HasMaxLength(100);
         }
     }

@@ -11,6 +11,8 @@ import {
   Moon,
 } from 'lucide-react';
 import EventCard from '../../components/EventCard';
+import AvailabilityScheduleEditor from '../../components/profile/AvailabilityScheduleEditor';
+import DeepPreferencesSection from '../../components/profile/DeepPreferencesSection';
 import { CURRENT_USER, matches, LITTLE_THINGS } from '../../data/matches';
 import { events } from '../../data/events';
 import './Profile.css';
@@ -25,7 +27,36 @@ const CONVERSATION = 'Thoughtful & playful';
 function Profile(props) {
   const [tab, setTab] = useState('ABOUT');
   const [eventSegment, setEventSegment] = useState('Upcoming');
+  const [profileEditing, setProfileEditing] = useState(false);
+  const [bioDraft, setBioDraft] = useState('');
+  const [locationDraft, setLocationDraft] = useState('');
+  const [locationPrivacyDraft, setLocationPrivacyDraft] = useState('CityOnly');
+  const [coordinatesDraft, setCoordinatesDraft] = useState({ latitude: null, longitude: null });
+  const [profileLocation, setProfileLocation] = useState('');
+  const [profileBio, setProfileBio] = useState('');
+  const [profileLocationPrivacy, setProfileLocationPrivacy] = useState('CityOnly');
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const location = props.currentUser?.locationDisplayName || props.currentUser?.location || '';
+    const bio = props.currentUser?.bio || '';
+    const privacy = props.currentUser?.locationPrivacy || 'CityOnly';
+    setProfileLocation(location);
+    setLocationDraft(location);
+    setProfileBio(bio);
+    setBioDraft(bio);
+    setProfileLocationPrivacy(privacy);
+    setLocationPrivacyDraft(privacy);
+    setCoordinatesDraft({ latitude: null, longitude: null });
+  }, [
+    props.currentUser?.bio,
+    props.currentUser?.location,
+    props.currentUser?.locationDisplayName,
+    props.currentUser?.locationPrivacy,
+  ]);
 
   const handleLogout = () => {
     localStorage.removeItem('mym_authed');
@@ -47,6 +78,93 @@ function Profile(props) {
     Saved: events.slice(4, 6),
   };
 
+  const handleProfileEdit = () => {
+    setLocationDraft(profileLocation);
+    setBioDraft(profileBio);
+    setLocationPrivacyDraft(profileLocationPrivacy);
+    setCoordinatesDraft({ latitude: null, longitude: null });
+    setProfileError('');
+    setProfileEditing(true);
+  };
+
+  const handleProfileCancel = () => {
+    setLocationDraft(profileLocation);
+    setBioDraft(profileBio);
+    setLocationPrivacyDraft(profileLocationPrivacy);
+    setCoordinatesDraft({ latitude: null, longitude: null });
+    setProfileError('');
+    setProfileEditing(false);
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setProfileError('Browser geolocation is not available.');
+      return;
+    }
+
+    setGeoLoading(true);
+    setProfileError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinatesDraft({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setGeoLoading(false);
+      },
+      () => {
+        setProfileError('Location permission was not granted. You can still enter city and country manually.');
+        setGeoLoading(false);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000,
+      },
+    );
+  };
+
+  const handleProfileSave = async () => {
+    setProfileSaving(true);
+    setProfileError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/UserProfile/me', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bio: bioDraft.trim() || null,
+          profilePicture: props.currentUser?.profilePicture || null,
+          locationDisplayName: locationDraft.trim() || null,
+          location: locationDraft.trim() || null,
+          latitude: coordinatesDraft.latitude,
+          longitude: coordinatesDraft.longitude,
+          locationPrivacy: locationPrivacyDraft,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || 'Profile could not be saved.');
+      }
+
+      setProfileLocation(locationPrivacyDraft === 'Hidden' ? 'Location hidden' : locationDraft.trim());
+      setProfileBio(bioDraft.trim());
+      setProfileLocationPrivacy(locationPrivacyDraft);
+      setProfileEditing(false);
+      window.dispatchEvent(new Event('tokenChanged'));
+    } catch (err) {
+      setProfileError(err.message || 'Profile could not be saved.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   return (
     <div className="page-fade-in profile">
       <header className="profile__header">
@@ -61,8 +179,67 @@ function Profile(props) {
               <p className="profile__username">@{props.currentUser.username}</p>
               <p className="profile__location">
                 <MapPin size={14} />
-                {CURRENT_USER.location}
+                {profileLocation || 'Add location'}
               </p>
+              {profileEditing && (
+                <div className="profile__location-editor">
+                  <div className="profile__editor-section">
+                    <h4>Basic info</h4>
+                    <label>
+                      <span>About me</span>
+                      <textarea
+                        value={bioDraft}
+                        onChange={(event) => setBioDraft(event.target.value)}
+                        placeholder="Tell people a little about you"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="profile__editor-section">
+                    <h4>Location & privacy</h4>
+                  <label>
+                    <span>Location</span>
+                    <input
+                      type="text"
+                      value={locationDraft}
+                      onChange={(event) => setLocationDraft(event.target.value)}
+                      placeholder="City, country"
+                    />
+                  </label>
+                    <label>
+                      <span>Privacy</span>
+                      <select
+                        value={locationPrivacyDraft}
+                        onChange={(event) => setLocationPrivacyDraft(event.target.value)}
+                      >
+                        <option value="CityOnly">Show city only</option>
+                        <option value="Hidden">Hide location</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="profile__geo-btn"
+                      onClick={handleUseCurrentLocation}
+                      disabled={geoLoading}
+                    >
+                      {geoLoading ? 'Getting location...' : 'Use my current location'}
+                    </button>
+                    {coordinatesDraft.latitude != null && coordinatesDraft.longitude != null && (
+                      <p className="profile__location-note">Current location saved privately for distance matching.</p>
+                    )}
+                  <p>Only your approximate location is shown. Exact coordinates are used privately for distance matching and are never shown to other users.</p>
+                  </div>
+                  {profileError && <span className="profile__location-error">{profileError}</span>}
+                  <div className="profile__location-actions">
+                    <button type="button" className="app-btn-pill" onClick={handleProfileSave} disabled={profileSaving}>
+                      {profileSaving ? 'Saving...' : 'Save location'}
+                    </button>
+                    <button type="button" className="profile__quiet-btn" onClick={handleProfileCancel}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="profile__badges-row">
                 <span className="glass-pill glass-pill--online">ACTIVE TODAY</span>
                 <span className="profile__completion">{CURRENT_USER.completion}% complete</span>
@@ -90,7 +267,11 @@ function Profile(props) {
           </div>
 
           <div className="profile__header-actions">
-            <button type="button" className="app-btn-pill app-btn-pill--outline app-interactive">
+            <button
+              type="button"
+              className="app-btn-pill app-btn-pill--outline app-interactive"
+              onClick={handleProfileEdit}
+            >
               EDIT PROFILE
             </button>
             <button type="button" className="profile__logout" onClick={handleLogout}>
@@ -124,7 +305,7 @@ function Profile(props) {
                 <h3>About Me</h3>
                 <textarea
                   readOnly
-                  defaultValue="Designer and music lover based in Brooklyn. Always up for a rooftop sunset, live jazz, or a spontaneous road trip. Looking for genuine connection and good conversation."
+                  value={profileBio || 'Add a short bio from Edit Profile.'}
                 />
               </section>
 
@@ -192,6 +373,9 @@ function Profile(props) {
                   </div>
                 </section>
               </div>
+
+              <DeepPreferencesSection />
+              <AvailabilityScheduleEditor />
             </div>
           )}
 

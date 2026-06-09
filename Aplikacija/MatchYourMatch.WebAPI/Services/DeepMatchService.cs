@@ -1,0 +1,404 @@
+using MatchYourMatch.WebAPI.Data;
+using MatchYourMatch.WebAPI.DTOs.Match;
+using MatchYourMatch.WebAPI.Models;
+using MatchYourMatch.WebAPI.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace MatchYourMatch.WebAPI.Services
+{
+    public class DeepMatchService : IDeepMatchService
+    {
+        private readonly AppDbContext _context;
+
+        private const int MaxRawScore = 125;
+
+        public DeepMatchService(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<List<DeepMatchDto>> GetMatchesAsync(int userId)
+        {
+            var currentUser = await _context.Users
+                .Include(u => u.Profile)
+                .Include(u => u.DeepMatchPreference)
+                .Include(u => u.FreeTimeSlots)
+                .Include(u => u.UserInterests)
+                    .ThenInclude(ui => ui.Interest)
+                .Include(u => u.QuickMatchPosts)
+                    .ThenInclude(p => p.Activity)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (currentUser == null)
+                throw new Exception("User does not exist.");
+
+            var candidates = await _context.Users
+                .Include(u => u.Profile)
+                .Include(u => u.DeepMatchPreference)
+                .Include(u => u.FreeTimeSlots)
+                .Include(u => u.UserInterests)
+                    .ThenInclude(ui => ui.Interest)
+                .Include(u => u.QuickMatchPosts)
+                    .ThenInclude(p => p.Activity)
+                .Where(u => u.Id != userId && u.IsActive)
+                .ToListAsync();
+
+            return candidates
+                .Select(candidate => ScoreCandidate(currentUser, candidate))
+                .Where(match => match.CompatibilityScore > 0)
+                .OrderByDescending(match => match.CompatibilityScore)
+                .ThenBy(match => match.Username)
+                .ToList();
+        }
+
+        private DeepMatchDto ScoreCandidate(User currentUser, User candidate)
+        {
+            var score = 0;
+            var reasons = new List<string>();
+
+            var sharedInterests = currentUser.UserInterests
+                .Select(ui => ui.Interest?.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Intersect(
+                    candidate.UserInterests
+                        .Select(ui => ui.Interest?.Name)
+                        .Where(name => !string.IsNullOrWhiteSpace(name)),
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (sharedInterests.Count > 0)
+            {
+                score += Math.Min(32, sharedInterests.Count * 8);
+                reasons.Add($"Shared interest: {sharedInterests[0]}");
+            }
+
+            var sharedActivities = currentUser.QuickMatchPosts
+                .Select(p => p.Activity?.DisplayName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Intersect(
+                    candidate.QuickMatchPosts
+                        .Select(p => p.Activity?.DisplayName)
+                        .Where(name => !string.IsNullOrWhiteSpace(name)),
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(name => name!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (sharedActivities.Count > 0)
+            {
+                score += Math.Min(20, sharedActivities.Count * 10);
+                reasons.Add($"Both like {sharedActivities[0]}");
+            }
+
+            var overlaps = CalculateAvailabilityOverlaps(
+                currentUser.FreeTimeSlots,
+                candidate.FreeTimeSlots);
+
+            if (overlaps.TotalMinutes >= 120)
+            {
+                score += 20;
+                reasons.Add("Free at very similar times");
+            }
+            else if (overlaps.TotalMinutes > 0)
+            {
+                var overlapScore = Math.Clamp(overlaps.TotalMinutes / 12, 5, 15);
+                score += overlapScore;
+                reasons.Add("Some free time overlap");
+            }
+
+            var preferenceScore = ScorePreferences(
+                currentUser.DeepMatchPreference,
+                candidate.DeepMatchPreference,
+                reasons);
+
+            score += preferenceScore;
+
+            var locationMatch = ScoreLocation(
+                currentUser.Profile?.Location,
+                currentUser.Profile,
+                candidate.Profile,
+                candidate.Profile?.Location,
+                reasons);
+            score += locationMatch.Score;
+
+            if (candidate.IsActive)
+                score += 3;
+
+            return new DeepMatchDto
+            {
+                UserId = candidate.Id,
+                Username = candidate.Username,
+                DisplayName = candidate.Username,
+                Initials = GetInitials(candidate.Username),
+                Location = GetPublicLocation(candidate.Profile),
+                ApproximateDistanceLabel = locationMatch.Label,
+                LocationReason = locationMatch.Reason,
+                About = candidate.Profile?.Bio,
+                CompatibilityScore = Math.Clamp(score * 100 / MaxRawScore, 0, 100),
+                SharedActivities = sharedActivities,
+                SharedInterests = sharedInterests,
+                OverlappingAvailability = overlaps.Labels,
+                Reasons = reasons.Take(4).ToList()
+            };
+        }
+
+        private static int ScorePreferences(
+            UserDeepMatchPreference? current,
+            UserDeepMatchPreference? candidate,
+            List<string> reasons)
+        {
+            if (current == null || candidate == null)
+                return 0;
+
+            var score = 0;
+
+            score += ScorePreferencePair(
+                current.RelationshipValue,
+                candidate.RelationshipValue,
+                "Both value similar relationship foundations",
+                reasons);
+
+            score += ScorePreferencePair(
+                current.CommunicationStyle,
+                candidate.CommunicationStyle,
+                "Communication styles align",
+                reasons);
+
+            score += ScorePreferencePair(
+                current.FreeTimePreference,
+                candidate.FreeTimePreference,
+                "Similar way of spending free time",
+                reasons);
+
+            score += ScorePreferencePair(
+                current.SocialEnergy,
+                candidate.SocialEnergy,
+                "Similar social energy",
+                reasons);
+
+            score += ScorePreferencePair(
+                current.RelationshipPace,
+                candidate.RelationshipPace,
+                "Similar relationship pace",
+                reasons);
+
+            return Math.Min(score, 35);
+        }
+
+        private static int ScorePreferencePair(
+            string? current,
+            string? candidate,
+            string reason,
+            List<string> reasons)
+        {
+            if (string.IsNullOrWhiteSpace(current) || string.IsNullOrWhiteSpace(candidate))
+                return 0;
+
+            if (Normalize(current) == Normalize(candidate))
+            {
+                reasons.Add(reason);
+                return 10;
+            }
+
+            return SharesAnyWord(current, candidate) ? 5 : 0;
+        }
+
+        private static (int TotalMinutes, List<string> Labels) CalculateAvailabilityOverlaps(
+            List<FreeTimeSlot> currentSlots,
+            List<FreeTimeSlot> candidateSlots)
+        {
+            var total = 0;
+            var labels = new List<string>();
+
+            foreach (var current in currentSlots)
+            {
+                foreach (var candidate in candidateSlots.Where(slot => slot.DayOfWeek == current.DayOfWeek))
+                {
+                    var start = current.StartTime > candidate.StartTime
+                        ? current.StartTime
+                        : candidate.StartTime;
+                    var end = current.EndTime < candidate.EndTime
+                        ? current.EndTime
+                        : candidate.EndTime;
+
+                    if (start >= end)
+                        continue;
+
+                    var minutes = (int)(end.ToTimeSpan() - start.ToTimeSpan()).TotalMinutes;
+                    total += minutes;
+                    labels.Add($"{DayName(current.DayOfWeek)} {start:HH:mm}-{end:HH:mm}");
+                }
+            }
+
+            return (total, labels.Take(3).ToList());
+        }
+
+        private static (int Score, string? Label, string? Reason) ScoreLocation(
+            string? current,
+            UserProfile? currentProfile,
+            UserProfile? candidateProfile,
+            string? candidate,
+            List<string> reasons)
+        {
+            if (HasCoordinates(currentProfile) && HasCoordinates(candidateProfile))
+            {
+                var distanceKm = CalculateDistanceKm(
+                    currentProfile!.Latitude!.Value,
+                    currentProfile.Longitude!.Value,
+                    candidateProfile!.Latitude!.Value,
+                    candidateProfile.Longitude!.Value);
+
+                var distanceScore = distanceKm switch
+                {
+                    <= 5 => 15,
+                    <= 15 => 12,
+                    <= 50 => 8,
+                    <= 100 => 4,
+                    _ => 0
+                };
+
+                if (distanceScore > 0)
+                {
+                    var label = distanceKm <= 15
+                        ? "Nearby"
+                        : $"Around {Math.Round(distanceKm / 10) * 10:0} km away";
+                    var reason = distanceKm <= 15 ? "You are nearby" : "Similar area";
+                    reasons.Add(reason);
+                    return (distanceScore, label, reason);
+                }
+
+                return (0, "Far away", null);
+            }
+
+            if (string.IsNullOrWhiteSpace(current) || string.IsNullOrWhiteSpace(candidate))
+                return (0, null, "Location is not set");
+
+            var currentParts = ParseLocation(current);
+            var candidateParts = ParseLocation(candidate);
+
+            if (!string.IsNullOrWhiteSpace(currentParts.City) &&
+                !string.IsNullOrWhiteSpace(candidateParts.City) &&
+                Normalize(currentParts.City) == Normalize(candidateParts.City))
+            {
+                reasons.Add("Same city");
+                return (10, "Same city", "Same city");
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentParts.Region) &&
+                !string.IsNullOrWhiteSpace(candidateParts.Region) &&
+                Normalize(currentParts.Region) == Normalize(candidateParts.Region))
+            {
+                reasons.Add("Similar area");
+                return (2, "Similar area", "Similar area");
+            }
+
+            var normalizedCurrent = Normalize(current);
+            var normalizedCandidate = Normalize(candidate);
+
+            if (normalizedCurrent == normalizedCandidate)
+            {
+                reasons.Add("Location preference match");
+                return (10, "Same city", "Location preference match");
+            }
+
+            return (0, null, null);
+        }
+
+        private static (string City, string Region) ParseLocation(string location)
+        {
+            var parts = location
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            if (parts.Count == 0)
+                return (string.Empty, string.Empty);
+
+            if (parts.Count == 1)
+                return (parts[0], string.Empty);
+
+            return (parts[0], parts[^1]);
+        }
+
+        private static bool HasCoordinates(UserProfile? profile)
+        {
+            return profile?.Latitude != null && profile.Longitude != null;
+        }
+
+        private static double CalculateDistanceKm(
+            double firstLatitude,
+            double firstLongitude,
+            double secondLatitude,
+            double secondLongitude)
+        {
+            const double earthRadiusKm = 6371;
+            var dLat = DegreesToRadians(secondLatitude - firstLatitude);
+            var dLon = DegreesToRadians(secondLongitude - firstLongitude);
+            var lat1 = DegreesToRadians(firstLatitude);
+            var lat2 = DegreesToRadians(secondLatitude);
+
+            var a =
+                Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1) * Math.Cos(lat2) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+            return earthRadiusKm * c;
+        }
+
+        private static double DegreesToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180;
+        }
+
+        private static string? GetPublicLocation(UserProfile? profile)
+        {
+            if (profile == null)
+                return null;
+
+            if (profile.LocationPrivacy == "Hidden")
+                return "Location hidden";
+
+            return profile.LocationDisplayName ?? profile.Location;
+        }
+
+        private static bool SharesAnyWord(string current, string candidate)
+        {
+            var currentWords = Normalize(current)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var candidateWords = Normalize(candidate)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            return currentWords.Intersect(candidateWords).Any();
+        }
+
+        private static string Normalize(string text)
+        {
+            return text.Trim().ToLowerInvariant();
+        }
+
+        private static string GetInitials(string username)
+        {
+            return username.Trim().Length <= 2
+                ? username.Trim().ToUpperInvariant()
+                : username.Trim()[..2].ToUpperInvariant();
+        }
+
+        private static string DayName(int dayOfWeek)
+        {
+            return dayOfWeek switch
+            {
+                0 => "Sunday",
+                1 => "Monday",
+                2 => "Tuesday",
+                3 => "Wednesday",
+                4 => "Thursday",
+                5 => "Friday",
+                6 => "Saturday",
+                _ => "Day"
+            };
+        }
+    }
+}

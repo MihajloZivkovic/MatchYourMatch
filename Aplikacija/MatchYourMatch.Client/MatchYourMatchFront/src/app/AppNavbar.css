@@ -91,6 +91,19 @@
   }
 }
 
+.app-navbar__search {
+  display: none;
+  flex: 1 1 320px;
+  max-width: 430px;
+  min-width: 260px;
+}
+
+@media (min-width: 900px) {
+  .app-navbar__search {
+    display: block;
+  }
+}
+
 .app-navbar__link {
   font-size: 0.78rem;
   font-weight: 600;
@@ -302,6 +315,17 @@
 .app-navbar__drawer .app-navbar__link {
   font-size: 0.85rem;
   padding: 0.5rem 0;
+}
+
+.app-navbar__drawer-search {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+@media (min-width: 900px) {
+  .app-navbar__drawer-search {
+    display: none;
+  }
 }
 
 .app-navbar__drawer-create {

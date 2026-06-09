@@ -249,7 +249,7 @@ namespace MatchYourMatch.WebAPI.Services
                 Id = post.Id,
                 UserId = post.UserId,
                 Username = post.User.Username,
-                Location = post.User.Profile?.Location,
+                Location = GetPublicLocation(post.User.Profile),
 
                 ActivityId = post.ActivityId,
                 ActivityName = post.Activity.DisplayName,
@@ -274,6 +274,17 @@ namespace MatchYourMatch.WebAPI.Services
                 .Replace("č", "c")
                 .Replace("ć", "c")
                 .Replace("ž", "z");
+        }
+
+        private static string? GetPublicLocation(UserProfile? profile)
+        {
+            if (profile == null)
+                return null;
+
+            if (profile.LocationPrivacy == "Hidden")
+                return "Location hidden";
+
+            return profile.LocationDisplayName ?? profile.Location;
         }
     }
 }

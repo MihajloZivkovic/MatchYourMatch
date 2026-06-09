@@ -9,6 +9,7 @@
         public string Role { get; set; } = "User";
         public bool IsActive { get; set; } = true;
         public UserProfile? Profile { get; set; }
+        public UserDeepMatchPreference? DeepMatchPreference { get; set; }
         public List<FreeTimeSlot> FreeTimeSlots { get; set; } = new();
         public List<UserInterest> UserInterests { get; set; } = new();
         public List<Event> Events { get; set; } = new();

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import AppNavbar from './AppNavbar';
 import AppFooter from './AppFooter';
+import FloatingChat from '../components/chat/FloatingChat';
 import './app-global.css';
 import './app-polish.css';
 
@@ -17,6 +18,7 @@ function AppShell() {
         <Outlet />
         <AppFooter />
       </main>
+      <FloatingChat />
     </div>
   );
 }
