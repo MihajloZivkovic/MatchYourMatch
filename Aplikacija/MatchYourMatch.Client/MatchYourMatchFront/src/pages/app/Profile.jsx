@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -30,7 +30,7 @@ const CONVERSATION = "Thoughtful & playful";
 function Profile(props) {
   const [tab, setTab] = useState("ABOUT");
   const [eventSegment, setEventSegment] = useState("Upcoming");
-  
+
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -39,7 +39,6 @@ function Profile(props) {
     window.dispatchEvent(new Event("tokenChanged"));
     navigate("/");
   };
-
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -120,6 +119,44 @@ function Profile(props) {
     Past: events.slice(2, 4),
     Saved: events.slice(4, 6),
   };
+
+  const [bio, setBio] = useState(props.userProfile.bio);
+
+  const [state, formAction] = useActionState(handleBioSave, {
+      error: null,
+      values: { biography:"" },
+    });
+
+  async function handleBioSave(prevState, formData){
+    const bioText = formData.get("bio");
+    
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch("/api/UserProfile/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          Bio: bioText,
+          ProfilePicture: props.userProfile.profilePicture,
+          Location: props.userProfile.location,
+        }),
+      });
+
+      if (response.ok) {
+        setBio(bioText);
+        props.setUserProfile((prev) => ({
+          ...prev,
+          bio: bioText,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to save bio:", error);
+    }
+  }
 
   return (
     <div className="page-fade-in profile">
@@ -220,13 +257,11 @@ function Profile(props) {
         <div key={tab} className="profile__tab-panel">
           {tab === "ABOUT" && (
             <div className="profile__about">
-              <section className="profile__block">
+              <form className="profile__block" action={formAction}>
                 <h3>About Me</h3>
-                <textarea
-                  readOnly
-                  defaultValue="Designer and music lover based in Brooklyn. Always up for a rooftop sunset, live jazz, or a spontaneous road trip. Looking for genuine connection and good conversation."
-                />
-              </section>
+                <textarea name="bio" placeholder="Designer and music lover based in Brooklyn. Always up for a rooftop sunset, live jazz, or a spontaneous road trip. Looking for genuine connection and good conversation." value={bio} onChange={(e) => setBio(e.target.value)} />
+                <button type="submit" className="saveButton">Save</button>
+              </form>
 
               <section className="profile__block profile__little-things">
                 <h3>LITTLE THINGS ABOUT ME</h3>

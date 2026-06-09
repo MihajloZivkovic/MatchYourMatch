@@ -13,14 +13,26 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 80% at 20% 30%, rgba(244, 163, 0, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(120, 120, 255, 0.06) 0%, transparent 45%),
-    radial-gradient(ellipse 40% 50% at 60% 80%, rgba(140, 100, 200, 0.05) 0%, transparent 50%),
+    radial-gradient(
+      ellipse 60% 80% at 20% 30%,
+      rgba(244, 163, 0, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 50% 60% at 80% 20%,
+      rgba(120, 120, 255, 0.06) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      ellipse 40% 50% at 60% 80%,
+      rgba(140, 100, 200, 0.05) 0%,
+      transparent 50%
+    ),
     linear-gradient(180deg, rgba(12, 12, 16, 0.95) 0%, rgba(0, 0, 0, 0.35) 100%);
 }
 
 .profile__header-mesh::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   backdrop-filter: blur(40px);
@@ -66,7 +78,11 @@
   font-size: 2rem;
   letter-spacing: 0.04em;
   border: 3px solid var(--accent);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(120, 120, 255, 0.05));
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(120, 120, 255, 0.05)
+  );
   box-shadow:
     0 0 40px rgba(244, 163, 0, 0.15),
     0 8px 32px rgba(0, 0, 0, 0.4);
@@ -105,7 +121,7 @@
 }
 
 .profile__avatar-wrap::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -6px;
   border-radius: 50%;
@@ -346,7 +362,11 @@
 .profile__block textarea {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(120, 120, 255, 0.015));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(120, 120, 255, 0.015)
+  );
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   color: var(--text-muted);
@@ -522,7 +542,12 @@
   );
   border: 1px solid var(--card-border);
   text-align: center;
-  transition: var(--transition-card, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease, border-color 0.35s ease);
+  transition: var(
+    --transition-card,
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s ease,
+    border-color 0.35s ease
+  );
 }
 
 .profile__match-card:hover {
@@ -538,7 +563,7 @@
 }
 
 .profile__match-ring::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: -4px;
   border-radius: 50%;
@@ -659,3 +684,10 @@
   border-left: 3px solid var(--accent);
 }
 
+.saveButton {
+  color: var(--text);
+  background: rgba(244, 163, 0, 0.12);
+  width: 5rem;
+  aspect-ratio: 2;
+  border-radius: var(--radius-pill);
+}
