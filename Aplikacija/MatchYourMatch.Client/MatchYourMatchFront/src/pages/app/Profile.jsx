@@ -120,7 +120,24 @@ function Profile(props) {
     Saved: events.slice(4, 6),
   };
 
+  const [saveButtonText, setSaveButtonText] = useState("Save")
+  function styleButton(){
+      setSaveButtonText("Saved!");
+      const button = document.getElementById("saveBtn");
+      button.classList.add("saveAnimation");
+
+    setTimeout(() => {
+      setSaveButtonText("Save"); 
+      button.classList.remove("saveAnimation");
+    }, 2000);
+  }
+
   const [bio, setBio] = useState(props.userProfile.bio);
+
+  // sync kada se refreshuje
+  useEffect(() => {
+    setBio(props.userProfile.bio);
+  }, [props.userProfile.bio]);
 
   const [state, formAction] = useActionState(handleBioSave, {
       error: null,
@@ -152,6 +169,8 @@ function Profile(props) {
           ...prev,
           bio: bioText,
         }));
+
+        styleButton();
       }
     } catch (error) {
       console.error("Failed to save bio:", error);
@@ -260,7 +279,7 @@ function Profile(props) {
               <form className="profile__block" action={formAction}>
                 <h3>About Me</h3>
                 <textarea name="bio" placeholder="Designer and music lover based in Brooklyn. Always up for a rooftop sunset, live jazz, or a spontaneous road trip. Looking for genuine connection and good conversation." value={bio} onChange={(e) => setBio(e.target.value)} />
-                <button type="submit" className="saveButton">Save</button>
+                <button id="saveBtn" type="submit" className="saveButton">{saveButtonText}</button>
               </form>
 
               <section className="profile__block profile__little-things">

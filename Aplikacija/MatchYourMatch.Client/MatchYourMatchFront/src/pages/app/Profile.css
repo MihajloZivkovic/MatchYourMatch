@@ -691,3 +691,8 @@
   aspect-ratio: 2;
   border-radius: var(--radius-pill);
 }
+
+.saveAnimation{
+  background-color: green;
+  transition: var(--transition);
+}
