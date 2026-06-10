@@ -6,7 +6,7 @@ import {
   useLocation,
   Navigate,
 } from "react-router-dom";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppShell from "./app/AppShell";
@@ -28,6 +28,11 @@ import "./App.css";
 function App() {
   const [isExiting, setIsExiting] = useState(false);
   const [currentUser, setCurrentUser] = useState("");
+  const [userProfile, setUserProfile] = useState({
+    bio: "",
+    profilePicture: null,
+    location: "",
+  });
   const exitTimerRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,6 +105,63 @@ function App() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
+    const loadUserProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        if (mounted) {
+          setUserProfile({
+            bio: "",
+            profilePicture: "",
+            location: "",
+          });
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/UserProfile/me", {
+          headers: {
+            accept: "*/*",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (mounted) {
+          setUserProfile({
+            bio: data.bio ?? "",
+            location: data.location ?? "",
+            profilePicture: data.profilePicture ?? "",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load user profile:", error);
+      }
+    };
+
+    // Load profile on first load and when token changes
+    loadUserProfile();
+
+    const onTokenChanged = () => loadUserProfile();
+    window.addEventListener("tokenChanged", onTokenChanged);
+
+    const onStorage = (e) => {
+      if (e.key === "token") loadUserProfile();
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("tokenChanged", onTokenChanged);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  useEffect(() => {
     if (location.pathname === "/") {
       setIsExiting(false);
     }
@@ -136,7 +198,7 @@ function App() {
           path="/app"
           element={
             <ProtectedRoute>
-              <AppShell />
+              <AppShell userProfile = {userProfile}/>
             </ProtectedRoute>
           }
         >
@@ -154,7 +216,7 @@ function App() {
           <Route path="chat" element={<Chat />} />
           <Route
             path="profile"
-            element={<Profile currentUser={currentUser} />}
+            element={<Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>}
           />
         </Route>
       </Routes>
@@ -168,7 +230,7 @@ function App() {
         <div className="page__noise" />
       </div>
 
-      <Navbar isExiting={isExiting} onAboutClick={handleAboutClick} />
+      <Navbar isExiting={isExiting} onAboutClick={handleAboutClick}/>
       <Routes>
         <Route path="/" element={<Home isExiting={isExiting} />} />
         <Route path="/login" element={<Login />} />
