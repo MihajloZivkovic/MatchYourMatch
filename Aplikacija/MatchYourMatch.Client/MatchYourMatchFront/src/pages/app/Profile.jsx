@@ -31,32 +31,87 @@ function Profile(props) {
   const [bioDraft, setBioDraft] = useState('');
   const [locationDraft, setLocationDraft] = useState('');
   const [locationPrivacyDraft, setLocationPrivacyDraft] = useState('CityOnly');
-  const [coordinatesDraft, setCoordinatesDraft] = useState({ latitude: null, longitude: null });
   const [profileLocation, setProfileLocation] = useState('');
   const [profileBio, setProfileBio] = useState('');
   const [profileLocationPrivacy, setProfileLocationPrivacy] = useState('CityOnly');
-  const [geoLoading, setGeoLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [locationSuggestionsLoading, setLocationSuggestionsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const location = props.currentUser?.locationDisplayName || props.currentUser?.location || '';
+    const locationInput = props.currentUser?.locationRawInput || location;
     const bio = props.currentUser?.bio || '';
     const privacy = props.currentUser?.locationPrivacy || 'CityOnly';
     setProfileLocation(location);
-    setLocationDraft(location);
+    setLocationDraft(locationInput);
     setProfileBio(bio);
     setBioDraft(bio);
     setProfileLocationPrivacy(privacy);
     setLocationPrivacyDraft(privacy);
-    setCoordinatesDraft({ latitude: null, longitude: null });
   }, [
     props.currentUser?.bio,
     props.currentUser?.location,
     props.currentUser?.locationDisplayName,
+    props.currentUser?.locationRawInput,
     props.currentUser?.locationPrivacy,
   ]);
+
+  useEffect(() => {
+    if (!profileEditing) {
+      setLocationSuggestions([]);
+      setLocationSuggestionsLoading(false);
+      return;
+    }
+
+    const query = locationDraft.trim();
+
+    if (query.length < 3) {
+      setLocationSuggestions([]);
+      setLocationSuggestionsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      setLocationSuggestionsLoading(true);
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(
+          `/api/UserProfile/location-suggestions?query=${encodeURIComponent(query)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) {
+          setLocationSuggestions([]);
+          return;
+        }
+
+        const suggestions = await response.json();
+        setLocationSuggestions(Array.isArray(suggestions) ? suggestions : []);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setLocationSuggestions([]);
+        }
+      } finally {
+        setLocationSuggestionsLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [locationDraft, profileEditing]);
 
   const handleLogout = () => {
     localStorage.removeItem('mym_authed');
@@ -79,55 +134,41 @@ function Profile(props) {
   };
 
   const handleProfileEdit = () => {
-    setLocationDraft(profileLocation);
+    setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
     setBioDraft(profileBio);
     setLocationPrivacyDraft(profileLocationPrivacy);
-    setCoordinatesDraft({ latitude: null, longitude: null });
     setProfileError('');
+    setProfileSuccess('');
+    setLocationSuggestions([]);
     setProfileEditing(true);
   };
 
   const handleProfileCancel = () => {
-    setLocationDraft(profileLocation);
+    setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
     setBioDraft(profileBio);
     setLocationPrivacyDraft(profileLocationPrivacy);
-    setCoordinatesDraft({ latitude: null, longitude: null });
     setProfileError('');
+    setProfileSuccess('');
+    setLocationSuggestions([]);
     setProfileEditing(false);
   };
 
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setProfileError('Browser geolocation is not available.');
-      return;
-    }
+  const handleLocationDraftChange = (event) => {
+    setLocationDraft(event.target.value);
+    setProfileSuccess('');
+  };
 
-    setGeoLoading(true);
+  const handleLocationSuggestionSelect = (suggestion) => {
+    setLocationDraft(suggestion.locationInput || suggestion.displayName);
     setProfileError('');
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCoordinatesDraft({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setGeoLoading(false);
-      },
-      () => {
-        setProfileError('Location permission was not granted. You can still enter city and country manually.');
-        setGeoLoading(false);
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 300000,
-      },
-    );
+    setProfileSuccess('');
+    setLocationSuggestions([]);
   };
 
   const handleProfileSave = async () => {
     setProfileSaving(true);
     setProfileError('');
+    setProfileSuccess('');
 
     try {
       const token = localStorage.getItem('token');
@@ -140,26 +181,35 @@ function Profile(props) {
         body: JSON.stringify({
           bio: bioDraft.trim() || null,
           profilePicture: props.currentUser?.profilePicture || null,
-          locationDisplayName: locationDraft.trim() || null,
           location: locationDraft.trim() || null,
-          latitude: coordinatesDraft.latitude,
-          longitude: coordinatesDraft.longitude,
           locationPrivacy: locationPrivacyDraft,
         }),
       });
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error(body || 'Profile could not be saved.');
+        throw new Error(body || "We couldn't find that location. Try entering city and country.");
       }
 
-      setProfileLocation(locationPrivacyDraft === 'Hidden' ? 'Location hidden' : locationDraft.trim());
+      const profileResponse = await fetch('/api/UserProfile/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const savedProfile = profileResponse.ok ? await profileResponse.json() : null;
+      const savedLocation =
+        savedProfile?.locationDisplayName ||
+        savedProfile?.location ||
+        (locationPrivacyDraft === 'Hidden' ? 'Location hidden' : locationDraft.trim());
+
+      setProfileLocation(savedLocation);
       setProfileBio(bioDraft.trim());
       setProfileLocationPrivacy(locationPrivacyDraft);
-      setProfileEditing(false);
+      setProfileSuccess(`Location saved as ${savedLocation || 'your profile location'}.`);
+      setLocationSuggestions([]);
       window.dispatchEvent(new Event('tokenChanged'));
     } catch (err) {
-      setProfileError(err.message || 'Profile could not be saved.');
+      setProfileError(err.message || "We couldn't find that location. Try entering city and country.");
     } finally {
       setProfileSaving(false);
     }
@@ -202,9 +252,27 @@ function Profile(props) {
                     <input
                       type="text"
                       value={locationDraft}
-                      onChange={(event) => setLocationDraft(event.target.value)}
-                      placeholder="City, country"
+                      onChange={handleLocationDraftChange}
+                      placeholder="Enter your city or address"
+                      autoComplete="off"
                     />
+                    {(locationSuggestionsLoading || locationSuggestions.length > 0) && (
+                      <div className="profile__location-suggestions">
+                        {locationSuggestionsLoading && (
+                          <span className="profile__location-suggestion-note">Finding places...</span>
+                        )}
+                        {!locationSuggestionsLoading && locationSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.locationInput}
+                            type="button"
+                            onClick={() => handleLocationSuggestionSelect(suggestion)}
+                          >
+                            <strong>{suggestion.displayName}</strong>
+                            <span>{suggestion.locationInput}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </label>
                     <label>
                       <span>Privacy</span>
@@ -216,23 +284,13 @@ function Profile(props) {
                         <option value="Hidden">Hide location</option>
                       </select>
                     </label>
-                    <button
-                      type="button"
-                      className="profile__geo-btn"
-                      onClick={handleUseCurrentLocation}
-                      disabled={geoLoading}
-                    >
-                      {geoLoading ? 'Getting location...' : 'Use my current location'}
-                    </button>
-                    {coordinatesDraft.latitude != null && coordinatesDraft.longitude != null && (
-                      <p className="profile__location-note">Current location saved privately for distance matching.</p>
-                    )}
-                  <p>Only your approximate location is shown. Exact coordinates are used privately for distance matching and are never shown to other users.</p>
+                  <p>You can enter a city or address. Only your approximate location will be shown publicly. Exact coordinates are used privately for distance matching.</p>
                   </div>
                   {profileError && <span className="profile__location-error">{profileError}</span>}
+                  {profileSuccess && <span className="profile__location-success">{profileSuccess}</span>}
                   <div className="profile__location-actions">
                     <button type="button" className="app-btn-pill" onClick={handleProfileSave} disabled={profileSaving}>
-                      {profileSaving ? 'Saving...' : 'Save location'}
+                      {profileSaving ? 'Finding location...' : 'Save'}
                     </button>
                     <button type="button" className="profile__quiet-btn" onClick={handleProfileCancel}>
                       Cancel

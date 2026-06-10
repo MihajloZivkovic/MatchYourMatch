@@ -13,7 +13,7 @@ namespace MatchYourMatch.WebAPI.Services
         private const int PointsPerOverlapMinute = 2;
         private const int ExactActivityBonus = 150;
         private const int SameCategoryActivityBonus = 70;
-        private const int SameLocationBonus = 40;
+        private const int SameLocationBonus = 80;
 
         public QuickMatchService(AppDbContext context)
         {
@@ -198,8 +198,8 @@ namespace MatchYourMatch.WebAPI.Services
             );
 
             var locationScore = CalculateLocationScore(
-                currentUser.Profile?.Location,
-                postUser.Profile?.Location
+                currentUser.Profile,
+                postUser.Profile
             );
 
             var ageScore = 0;
@@ -221,21 +221,25 @@ namespace MatchYourMatch.WebAPI.Services
         }
 
         private int CalculateLocationScore(
-            string? currentUserLocation,
-            string? postUserLocation)
+            UserProfile? currentUserProfile,
+            UserProfile? postUserProfile)
         {
-            if (string.IsNullOrWhiteSpace(currentUserLocation) ||
-                string.IsNullOrWhiteSpace(postUserLocation))
+            if (currentUserProfile == null || postUserProfile == null)
                 return 0;
 
-            var current = NormalizeText(currentUserLocation);
-            var other = NormalizeText(postUserLocation);
-
-            if (current == other)
+            if (!string.IsNullOrWhiteSpace(currentUserProfile.LocationCity) &&
+                !string.IsNullOrWhiteSpace(postUserProfile.LocationCity) &&
+                NormalizeText(currentUserProfile.LocationCity) == NormalizeText(postUserProfile.LocationCity))
+            {
                 return SameLocationBonus;
+            }
 
-            if (current.Contains(other) || other.Contains(current))
-                return SameLocationBonus / 2;
+            if (!string.IsNullOrWhiteSpace(currentUserProfile.LocationCountry) &&
+                !string.IsNullOrWhiteSpace(postUserProfile.LocationCountry) &&
+                NormalizeText(currentUserProfile.LocationCountry) == NormalizeText(postUserProfile.LocationCountry))
+            {
+                return SameLocationBonus / 4;
+            }
 
             return 0;
         }
@@ -284,7 +288,14 @@ namespace MatchYourMatch.WebAPI.Services
             if (profile.LocationPrivacy == "Hidden")
                 return "Location hidden";
 
-            return profile.LocationDisplayName ?? profile.Location;
+            if (!string.IsNullOrWhiteSpace(profile.LocationDisplayName))
+                return profile.LocationDisplayName;
+
+            var parts = new[] { profile.LocationCity, profile.LocationCountry }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
     }
 }

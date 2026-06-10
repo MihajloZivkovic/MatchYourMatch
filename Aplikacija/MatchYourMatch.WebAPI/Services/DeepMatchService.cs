@@ -10,7 +10,7 @@ namespace MatchYourMatch.WebAPI.Services
     {
         private readonly AppDbContext _context;
 
-        private const int MaxRawScore = 125;
+        private const int MaxRawScore = 150;
 
         public DeepMatchService(AppDbContext context)
         {
@@ -116,10 +116,8 @@ namespace MatchYourMatch.WebAPI.Services
             score += preferenceScore;
 
             var locationMatch = ScoreLocation(
-                currentUser.Profile?.Location,
                 currentUser.Profile,
                 candidate.Profile,
-                candidate.Profile?.Location,
                 reasons);
             score += locationMatch.Score;
 
@@ -236,10 +234,8 @@ namespace MatchYourMatch.WebAPI.Services
         }
 
         private static (int Score, string? Label, string? Reason) ScoreLocation(
-            string? current,
             UserProfile? currentProfile,
             UserProfile? candidateProfile,
-            string? candidate,
             List<string> reasons)
         {
             if (HasCoordinates(currentProfile) && HasCoordinates(candidateProfile))
@@ -252,10 +248,10 @@ namespace MatchYourMatch.WebAPI.Services
 
                 var distanceScore = distanceKm switch
                 {
-                    <= 5 => 15,
-                    <= 15 => 12,
-                    <= 50 => 8,
-                    <= 100 => 4,
+                    <= 5 => 40,
+                    <= 15 => 32,
+                    <= 50 => 20,
+                    <= 100 => 8,
                     _ => 0
                 };
 
@@ -272,54 +268,26 @@ namespace MatchYourMatch.WebAPI.Services
                 return (0, "Far away", null);
             }
 
-            if (string.IsNullOrWhiteSpace(current) || string.IsNullOrWhiteSpace(candidate))
+            if (currentProfile == null || candidateProfile == null)
                 return (0, null, "Location is not set");
 
-            var currentParts = ParseLocation(current);
-            var candidateParts = ParseLocation(candidate);
-
-            if (!string.IsNullOrWhiteSpace(currentParts.City) &&
-                !string.IsNullOrWhiteSpace(candidateParts.City) &&
-                Normalize(currentParts.City) == Normalize(candidateParts.City))
+            if (!string.IsNullOrWhiteSpace(currentProfile.LocationCity) &&
+                !string.IsNullOrWhiteSpace(candidateProfile.LocationCity) &&
+                Normalize(currentProfile.LocationCity) == Normalize(candidateProfile.LocationCity))
             {
                 reasons.Add("Same city");
-                return (10, "Same city", "Same city");
+                return (25, "Same city", "Same city");
             }
 
-            if (!string.IsNullOrWhiteSpace(currentParts.Region) &&
-                !string.IsNullOrWhiteSpace(candidateParts.Region) &&
-                Normalize(currentParts.Region) == Normalize(candidateParts.Region))
+            if (!string.IsNullOrWhiteSpace(currentProfile.LocationCountry) &&
+                !string.IsNullOrWhiteSpace(candidateProfile.LocationCountry) &&
+                Normalize(currentProfile.LocationCountry) == Normalize(candidateProfile.LocationCountry))
             {
                 reasons.Add("Similar area");
-                return (2, "Similar area", "Similar area");
-            }
-
-            var normalizedCurrent = Normalize(current);
-            var normalizedCandidate = Normalize(candidate);
-
-            if (normalizedCurrent == normalizedCandidate)
-            {
-                reasons.Add("Location preference match");
-                return (10, "Same city", "Location preference match");
+                return (4, "Similar area", "Similar area");
             }
 
             return (0, null, null);
-        }
-
-        private static (string City, string Region) ParseLocation(string location)
-        {
-            var parts = location
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .ToList();
-
-            if (parts.Count == 0)
-                return (string.Empty, string.Empty);
-
-            if (parts.Count == 1)
-                return (parts[0], string.Empty);
-
-            return (parts[0], parts[^1]);
         }
 
         private static bool HasCoordinates(UserProfile? profile)
@@ -361,7 +329,14 @@ namespace MatchYourMatch.WebAPI.Services
             if (profile.LocationPrivacy == "Hidden")
                 return "Location hidden";
 
-            return profile.LocationDisplayName ?? profile.Location;
+            if (!string.IsNullOrWhiteSpace(profile.LocationDisplayName))
+                return profile.LocationDisplayName;
+
+            var parts = new[] { profile.LocationCity, profile.LocationCountry }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
 
         private static bool SharesAnyWord(string current, string candidate)

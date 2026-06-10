@@ -11,17 +11,25 @@ namespace MatchYourMatch.WebAPI.Controllers
     public class UserProfileController: ControllerBase
     {
         private readonly IUserProfilesService _service;
+        private readonly IGeocodingService _geocodingService;
 
-        public UserProfileController(IUserProfilesService service)
+        public UserProfileController(IUserProfilesService service, IGeocodingService geocodingService)
         {
             _service = service;
+            _geocodingService = geocodingService;
         }
 
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProfile(int id)
         {
             try
             {
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+                if (id != currentUserId)
+                    return Forbid();
+
                 var profile = await _service.GetProfileAsync(id);
                 return Ok(profile);
             }
@@ -76,6 +84,26 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [Authorize]
+        [HttpGet("location-suggestions")]
+        public async Task<IActionResult> GetLocationSuggestions([FromQuery] string? query)
+        {
+            var trimmedQuery = query?.Trim() ?? string.Empty;
+
+            if (trimmedQuery.Length < 3)
+                return Ok(new List<LocationSuggestionDto>());
+
+            var suggestions = await _geocodingService.SearchAsync(trimmedQuery, 5);
+
+            return Ok(suggestions.Select(suggestion => new LocationSuggestionDto
+            {
+                LocationInput = suggestion.LocationInput,
+                DisplayName = suggestion.DisplayName,
+                City = suggestion.City,
+                Country = suggestion.Country
+            }));
         }
 
         [Authorize]

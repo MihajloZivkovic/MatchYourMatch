@@ -167,7 +167,8 @@ namespace MatchYourMatch.WebAPI.Controllers
             score = Math.Max(score, ScoreText(user.Username, query, 100, 80));
             score = Math.Max(score, ScoreText(user.Profile?.Bio, query, 0, 25));
             score = Math.Max(score, ScoreText(user.Profile?.LocationDisplayName, query, 0, 45));
-            score = Math.Max(score, ScoreText(user.Profile?.Location, query, 0, 35));
+            score = Math.Max(score, ScoreText(user.Profile?.LocationCity, query, 0, 35));
+            score = Math.Max(score, ScoreText(user.Profile?.LocationCountry, query, 0, 25));
 
             foreach (var interest in user.UserInterests.Select(ui => ui.Interest?.Name))
             {
@@ -230,9 +231,16 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return null;
             }
 
-            return !string.IsNullOrWhiteSpace(profile.LocationDisplayName)
-                ? profile.LocationDisplayName
-                : profile.Location;
+            if (!string.IsNullOrWhiteSpace(profile.LocationDisplayName))
+            {
+                return profile.LocationDisplayName;
+            }
+
+            var parts = new[] { profile.LocationCity, profile.LocationCountry }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
     }
 }

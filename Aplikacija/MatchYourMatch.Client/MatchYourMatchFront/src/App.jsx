@@ -33,10 +33,14 @@ function App() {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
 
-  async function getFullName(id) {
-    const response = await fetch(`/api/UserProfile/${id}`, {
+  async function getFullName() {
+    const token = localStorage.getItem("token");
+    const response = await fetch("/api/UserProfile/me", {
       method: "GET",
-      headers: { accept: "*/*" },
+      headers: {
+        accept: "*/*",
+        Authorization: `Bearer ${token}`,
+      },
     });
     const data = await response.json();
     return data;
@@ -69,7 +73,7 @@ function App() {
           if (mounted) setCurrentUser("");
           return;
         }
-        const data = await getFullName(id);
+        const data = await getFullName();
         if (mounted) setCurrentUser(data);
       } catch (err) {
         if (mounted) setCurrentUser("");

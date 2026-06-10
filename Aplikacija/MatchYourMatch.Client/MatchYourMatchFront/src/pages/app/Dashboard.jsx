@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Zap,
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Users,
 } from "lucide-react";
-import { suggestedConnections } from "../../data/matches";
 import { events } from "../../data/events";
 import "./Dashboard.css";
 
@@ -41,16 +40,152 @@ const VIBE_OPTIONS = [
 
 const DEFAULT_INTERESTS = ["Music", "Coffee Dates", "Design", "Travel"];
 const DEFAULT_VIBE = "Creative";
+const NO_BIO_TEXT = "No bio added yet.";
+
+function getMatchName(match) {
+  return match.displayName || match.username || "MYM user";
+}
+
+function getInitials(value) {
+  const source = value || "MY";
+  const parts = source.trim().split(/[\s._-]+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+  }
+
+  return source.trim().slice(0, 2).toUpperCase() || "MY";
+}
+
+function getMatchTags(match) {
+  return [
+    ...(match.sharedActivities || []),
+    ...(match.sharedInterests || []),
+    ...(match.reasons || []),
+  ]
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function mapDeepMatchToConnection(match) {
+  const name = getMatchName(match);
+
+  return {
+    id: match.userId,
+    username: match.username || name,
+    name,
+    initials: match.initials || getInitials(name),
+    compatibility: Number(match.compatibilityScore) || 0,
+    bio: match.about || NO_BIO_TEXT,
+    location: match.location,
+    tags: getMatchTags(match),
+  };
+}
 
 function Dashboard(props) {
   const [interests, setInterests] = useState(DEFAULT_INTERESTS);
   const [vibe, setVibe] = useState(DEFAULT_VIBE);
+  const [suggestedConnections, setSuggestedConnections] = useState([]);
+  const [suggestedStatus, setSuggestedStatus] = useState("loading");
+  const [suggestedMessage, setSuggestedMessage] = useState("");
 
   const toggleInterest = (pill) => {
     setInterests((prev) =>
       prev.includes(pill) ? prev.filter((p) => p !== pill) : [...prev, pill],
     );
   };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSuggestedConnections = async () => {
+      setSuggestedStatus("loading");
+      setSuggestedMessage("");
+
+      try {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          throw new Error("Please log in again.");
+        }
+
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        const [preferencesResponse, availabilityResponse] = await Promise.all([
+          fetch("/api/UserProfile/me/deep-preferences", { headers }),
+          fetch("/api/UserProfile/me/availability", { headers }),
+        ]);
+
+        if (
+          preferencesResponse.status === 401 ||
+          preferencesResponse.status === 403 ||
+          availabilityResponse.status === 401 ||
+          availabilityResponse.status === 403
+        ) {
+          throw new Error("Please log in again.");
+        }
+
+        if (!preferencesResponse.ok || !availabilityResponse.ok) {
+          throw new Error("Suggested connections could not be loaded.");
+        }
+
+        const preferencesData = await preferencesResponse.json();
+        const availabilityData = await availabilityResponse.json();
+
+        if (!preferencesData.isComplete || availabilityData.length === 0) {
+          if (mounted) {
+            setSuggestedConnections([]);
+            setSuggestedStatus("incomplete");
+            setSuggestedMessage(
+              "No suggested connections yet. Complete your Deep Match preferences to get better matches.",
+            );
+          }
+          return;
+        }
+
+        const matchesResponse = await fetch("/api/DeepMatch/matches", { headers });
+
+        if (matchesResponse.status === 401 || matchesResponse.status === 403) {
+          throw new Error("Please log in again.");
+        }
+
+        if (!matchesResponse.ok) {
+          const body = await matchesResponse.text();
+          throw new Error(body || "Suggested connections could not be loaded.");
+        }
+
+        const matchesData = await matchesResponse.json();
+        const connections = matchesData
+          .map(mapDeepMatchToConnection)
+          .sort((first, second) => second.compatibility - first.compatibility)
+          .slice(0, 5);
+
+        if (mounted) {
+          setSuggestedConnections(connections);
+          setSuggestedStatus(connections.length > 0 ? "ready" : "empty");
+          setSuggestedMessage(
+            connections.length > 0
+              ? ""
+              : "No suggested connections yet. Complete your Deep Match preferences to get better matches.",
+          );
+        }
+      } catch (err) {
+        if (mounted) {
+          setSuggestedConnections([]);
+          setSuggestedStatus("error");
+          setSuggestedMessage(err.message || "Suggested connections could not be loaded.");
+        }
+      }
+    };
+
+    loadSuggestedConnections();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="page-fade-in dashboard">
@@ -200,46 +335,71 @@ function Dashboard(props) {
           Profiles aligned with your energy and interests.
         </p>
         <div className="dashboard__feed">
-          {suggestedConnections.map((person, i) => (
+          {suggestedStatus === "loading" && (
+            <div className="dashboard__connections-state">
+              Loading suggested connections...
+            </div>
+          )}
+
+          {suggestedStatus === "incomplete" && (
+            <div className="dashboard__connections-state">
+              <p>{suggestedMessage}</p>
+              <Link to="/app/profile" className="dashboard__state-link app-interactive">
+                Edit profile
+              </Link>
+            </div>
+          )}
+
+          {suggestedStatus === "empty" && (
+            <div className="dashboard__connections-state">
+              {suggestedMessage}
+            </div>
+          )}
+
+          {suggestedStatus === "error" && (
+            <div className="dashboard__connections-state dashboard__connections-state--error">
+              {suggestedMessage}
+            </div>
+          )}
+
+          {suggestedStatus === "ready" && suggestedConnections.map((person, i) => (
             <article
               key={person.id}
               className="dashboard__connection app-tilt-hover"
               style={{ "--i": i }}
             >
-              <div
-                className={`dashboard__conn-avatar${person.online ? " dashboard__conn-avatar--live" : ""}`}
-              >
+              <div className="dashboard__conn-avatar">
                 {person.initials}
               </div>
               <div className="dashboard__conn-body">
                 <div className="dashboard__conn-head">
-                  <h3>{person.name}</h3>
+                  <Link to={`/app/users/${person.id}`} className="dashboard__conn-name">
+                    {person.name}
+                  </Link>
                   <span className="dashboard__conn-compat">
                     {person.compatibility}%
                   </span>
-                  {person.online && (
-                    <span className="dashboard__conn-online">Online</span>
-                  )}
                 </div>
                 <p className="dashboard__conn-bio">{person.bio}</p>
                 <div className="dashboard__conn-mutual">
-                  {person.mutualInterests.map((tag) => (
+                  {person.tags.map((tag) => (
                     <span key={tag}>{tag}</span>
                   ))}
                 </div>
               </div>
               <div className="dashboard__conn-actions">
-                <button
-                  type="button"
+                <Link
+                  to={`/app/chat?userId=${person.id}&username=${encodeURIComponent(person.username)}`}
                   className="dashboard__conn-btn app-interactive"
                   aria-label="Message"
                 >
                   <MessageCircle size={16} />
-                </button>
+                </Link>
                 <button
                   type="button"
                   className="dashboard__conn-btn dashboard__conn-btn--match app-interactive"
-                  aria-label="Match"
+                  aria-label="Like unavailable"
+                  disabled
                 >
                   <Heart size={16} />
                 </button>

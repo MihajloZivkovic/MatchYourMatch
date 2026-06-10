@@ -9,10 +9,12 @@ namespace MatchYourMatch.WebAPI.Services
     public class UserProfilesService : IUserProfilesService
     {
         private readonly AppDbContext _context;
+        private readonly IGeocodingService _geocodingService;
 
-        public UserProfilesService(AppDbContext context)
+        public UserProfilesService(AppDbContext context, IGeocodingService geocodingService)
         {
             _context = context;
+            _geocodingService = geocodingService;
         }
 
         public async Task EditProfileAsync(int userId, EditProfileDto dto)
@@ -29,19 +31,43 @@ namespace MatchYourMatch.WebAPI.Services
                 _context.UserProfiles.Add(user.Profile);
             }
 
-            var displayLocation = NormalizeApproximateLocation(
-                dto.LocationDisplayName ?? dto.Location);
-            var parsedLocation = ParseLocation(displayLocation);
+            var locationInput = NormalizeLocationInput(dto.Location ?? dto.LocationDisplayName);
 
             user.Profile.Bio = dto.Bio;
             user.Profile.ProfilePicture = dto.ProfilePicture;
-            user.Profile.Location = displayLocation;
-            user.Profile.LocationDisplayName = displayLocation;
-            user.Profile.LocationCity = parsedLocation.City;
-            user.Profile.LocationCountry = parsedLocation.Country;
-            user.Profile.Latitude = IsValidLatitude(dto.Latitude) ? dto.Latitude : null;
-            user.Profile.Longitude = IsValidLongitude(dto.Longitude) ? dto.Longitude : null;
             user.Profile.LocationPrivacy = NormalizeLocationPrivacy(dto.LocationPrivacy);
+
+            if (string.IsNullOrWhiteSpace(locationInput))
+            {
+                user.Profile.Location = null;
+                user.Profile.LocationRawInput = null;
+                user.Profile.LocationDisplayName = null;
+                user.Profile.LocationCity = null;
+                user.Profile.LocationCountry = null;
+                user.Profile.Latitude = null;
+                user.Profile.Longitude = null;
+            }
+            else if (!IsSameLocationInput(user.Profile.LocationRawInput ?? user.Profile.Location, locationInput) ||
+                     !HasCoordinates(user.Profile) ||
+                     string.IsNullOrWhiteSpace(user.Profile.LocationDisplayName))
+            {
+                var geocodedLocation = await _geocodingService.GeocodeAsync(locationInput);
+
+                if (geocodedLocation == null)
+                    throw new Exception("We couldn't find that location. Try entering city and country.");
+
+                user.Profile.LocationRawInput = locationInput;
+                user.Profile.Location = geocodedLocation.DisplayName;
+                user.Profile.LocationDisplayName = geocodedLocation.DisplayName;
+                user.Profile.LocationCity = geocodedLocation.City;
+                user.Profile.LocationCountry = geocodedLocation.Country;
+                user.Profile.Latitude = geocodedLocation.Latitude;
+                user.Profile.Longitude = geocodedLocation.Longitude;
+            }
+            else
+            {
+                user.Profile.LocationRawInput = locationInput;
+            }
 
             await _context.SaveChangesAsync();
         }
@@ -62,6 +88,7 @@ namespace MatchYourMatch.WebAPI.Services
                 Bio = user.Profile?.Bio,
                 ProfilePicture = user.Profile?.ProfilePicture,
                 Location = GetPublicLocation(user.Profile),
+                LocationRawInput = user.Profile?.LocationRawInput ?? user.Profile?.Location,
                 LocationDisplayName = GetPublicLocation(user.Profile),
                 LocationPrivacy = user.Profile?.LocationPrivacy ?? "CityOnly"
             };
@@ -287,45 +314,20 @@ namespace MatchYourMatch.WebAPI.Services
             return dto;
         }
 
-        private static string? NormalizeApproximateLocation(string? location)
+        private static string? NormalizeLocationInput(string? location)
         {
             if (string.IsNullOrWhiteSpace(location))
                 return null;
 
-            var parts = location
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .ToList();
-
-            if (parts.Count == 0)
-                return null;
-
-            if (parts.Count == 1)
-                return parts[0];
-
-            if (parts.Count == 2)
-                return $"{parts[0]}, {parts[1]}";
-
-            return $"{parts[^2]}, {parts[^1]}";
+            return location.Trim();
         }
 
-        private static (string? City, string? Country) ParseLocation(string? location)
+        private static bool IsSameLocationInput(string? currentLocation, string locationInput)
         {
-            if (string.IsNullOrWhiteSpace(location))
-                return (null, null);
-
-            var parts = location
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(part => !string.IsNullOrWhiteSpace(part))
-                .ToList();
-
-            if (parts.Count == 0)
-                return (null, null);
-
-            if (parts.Count == 1)
-                return (parts[0], null);
-
-            return (parts[0], parts[^1]);
+            return string.Equals(
+                currentLocation?.Trim(),
+                locationInput.Trim(),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizeLocationPrivacy(string? privacy)
@@ -333,14 +335,10 @@ namespace MatchYourMatch.WebAPI.Services
             return privacy is "Hidden" or "CityOnly" ? privacy : "CityOnly";
         }
 
-        private static bool IsValidLatitude(double? latitude)
+        private static bool HasCoordinates(UserProfile profile)
         {
-            return latitude is >= -90 and <= 90;
-        }
-
-        private static bool IsValidLongitude(double? longitude)
-        {
-            return longitude is >= -180 and <= 180;
+            return profile.Latitude is >= -90 and <= 90 &&
+                   profile.Longitude is >= -180 and <= 180;
         }
 
         private static string? GetPublicLocation(UserProfile? profile)
@@ -351,7 +349,14 @@ namespace MatchYourMatch.WebAPI.Services
             if (profile.LocationPrivacy == "Hidden")
                 return "Location hidden";
 
-            return profile.LocationDisplayName ?? profile.Location;
+            if (!string.IsNullOrWhiteSpace(profile.LocationDisplayName))
+                return profile.LocationDisplayName;
+
+            var parts = new[] { profile.LocationCity, profile.LocationCountry }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : null;
         }
     }
 }

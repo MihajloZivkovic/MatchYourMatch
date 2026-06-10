@@ -185,6 +185,53 @@
   box-shadow: 0 0 0 3px rgba(244, 163, 0, 0.08);
 }
 
+.profile__location-suggestions {
+  margin-top: 0.45rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 7, 10, 0.96);
+}
+
+.profile__location-suggestions button {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: var(--transition);
+}
+
+.profile__location-suggestions button:last-child {
+  border-bottom: 0;
+}
+
+.profile__location-suggestions button:hover {
+  background: rgba(244, 163, 0, 0.1);
+}
+
+.profile__location-suggestions strong,
+.profile__location-suggestion-note {
+  display: block;
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.profile__location-editor .profile__location-suggestions button span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.profile__location-suggestion-note {
+  padding: 0.65rem 0.75rem;
+  color: var(--text-muted);
+}
+
 .profile__location-editor option {
   color: #0a0a0a;
 }
@@ -235,6 +282,13 @@
   display: block;
   margin-top: 0.55rem;
   color: #ffb3b3;
+  font-size: 0.78rem;
+}
+
+.profile__location-success {
+  display: block;
+  margin-top: 0.55rem;
+  color: var(--accent);
   font-size: 0.78rem;
 }
 

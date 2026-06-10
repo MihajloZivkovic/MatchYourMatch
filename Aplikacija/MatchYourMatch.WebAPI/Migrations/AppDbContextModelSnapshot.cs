@@ -347,6 +347,10 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("varchar(30)");
 
+                    b.Property<string>("LocationRawInput")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
                     b.Property<double?>("Longitude")
                         .HasColumnType("double");
 

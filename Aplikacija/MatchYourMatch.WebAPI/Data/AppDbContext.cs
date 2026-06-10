@@ -38,6 +38,10 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasMaxLength(160);
 
             modelBuilder.Entity<UserProfile>()
+                .Property(p => p.LocationRawInput)
+                .HasMaxLength(300);
+
+            modelBuilder.Entity<UserProfile>()
                 .Property(p => p.LocationCity)
                 .HasMaxLength(100);
 
