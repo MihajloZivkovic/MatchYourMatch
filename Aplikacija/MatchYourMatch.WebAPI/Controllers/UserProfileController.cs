@@ -32,6 +32,21 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [Authorize]
+        [HttpGet("public/{id}")]
+        public async Task<IActionResult> GetPublicProfile(int id)
+        {
+            try
+            {
+                var profile = await _service.GetPublicProfileAsync(id);
+                return Ok(profile);
+            }
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> GetMyProfile()
         {
@@ -110,6 +125,70 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return BadRequest(ex.Message);
             }
         } 
+
+        [Authorize]
+        [HttpGet("me/availability")]
+        public async Task<IActionResult> GetAvailability()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var timeslots = await _service.GetTimeSlotsAsync(userId);
+                return Ok(timeslots);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("me/availability")]
+        public async Task<IActionResult> UpdateAvailability(UpdateAvailabilityDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var timeslots = await _service.UpdateAvailabilityAsync(userId, dto);
+                return Ok(timeslots);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpGet("me/deep-preferences")]
+        public async Task<IActionResult> GetDeepMatchPreferences()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var preferences = await _service.GetDeepMatchPreferenceAsync(userId);
+                return Ok(preferences);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("me/deep-preferences")]
+        public async Task<IActionResult> UpdateDeepMatchPreferences(DeepMatchPreferenceDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var preferences = await _service.UpdateDeepMatchPreferenceAsync(userId, dto);
+                return Ok(preferences);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
         [HttpGet("interests")]
         public async Task<IActionResult> GetAllInterests()

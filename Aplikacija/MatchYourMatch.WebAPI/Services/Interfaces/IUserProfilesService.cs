@@ -5,10 +5,14 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
     public interface IUserProfilesService
     {
         Task<UserProfileDto> GetProfileAsync(int userId);
+        Task<PublicUserProfileDto> GetPublicProfileAsync(int userId);
         Task EditProfileAsync(int userId, EditProfileDto dto);
         Task<List<FreeTimeSlotDto>> GetTimeSlotsAsync(int userId);
         Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto);
         Task RemoveTimeSlotAsync(int userId, int timeslotId);
+        Task<List<FreeTimeSlotDto>> UpdateAvailabilityAsync(int userId, UpdateAvailabilityDto dto);
+        Task<DeepMatchPreferenceDto> GetDeepMatchPreferenceAsync(int userId);
+        Task<DeepMatchPreferenceDto> UpdateDeepMatchPreferenceAsync(int userId, DeepMatchPreferenceDto dto);
         Task<List<InterestDto>> GetInterestsAsync();
         Task<List<InterestDto>> GetUserInterestsAsync(int userId);
         Task AddInterestAsync(int userId, int interestId);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import GlobalSearch from "../components/GlobalSearch";
 import "./AppNavbar.css";
 
 function AppNavbar(props) {
@@ -43,6 +44,10 @@ function AppNavbar(props) {
           <span className="app-navbar__logo-m">M</span>
         </Link>
 
+        <div className="app-navbar__search">
+          <GlobalSearch />
+        </div>
+
         <div className="app-navbar__center">
           <NavLink to="/app/quick-match" className={navLinkClass}>
             QUICK MATCH
@@ -52,6 +57,9 @@ function AppNavbar(props) {
           </NavLink>
           <NavLink to="/app/events" className={navLinkClass}>
             EVENTS
+          </NavLink>
+          <NavLink to="/app/chat" className={navLinkClass}>
+            CHAT
           </NavLink>
         </div>
 
@@ -68,7 +76,7 @@ function AppNavbar(props) {
               aria-expanded={dropdownOpen}
               onClick={() => setDropdownOpen((o) => !o)}
             >
-              <img src={props.picture} alt="profile picture" className="profilePicture"/>
+              {props.picture ? <img src={props.picture} alt="profile picture" className="profilePicture"/> : null}
             </button>
             {dropdownOpen && (
               <div className="app-navbar__dropdown">
@@ -99,6 +107,10 @@ function AppNavbar(props) {
       <div
         className={`app-navbar__drawer${menuOpen ? " app-navbar__drawer--open" : ""}`}
       >
+        <div className="app-navbar__drawer-search">
+          <GlobalSearch onNavigate={() => setMenuOpen(false)} />
+        </div>
+
         <NavLink
           to="/app/quick-match"
           className={navLinkClass}
@@ -119,6 +131,13 @@ function AppNavbar(props) {
           onClick={() => setMenuOpen(false)}
         >
           EVENTS
+        </NavLink>
+        <NavLink
+          to="/app/chat"
+          className={navLinkClass}
+          onClick={() => setMenuOpen(false)}
+        >
+          CHAT
         </NavLink>
         <Link
           to="/app/events/create"

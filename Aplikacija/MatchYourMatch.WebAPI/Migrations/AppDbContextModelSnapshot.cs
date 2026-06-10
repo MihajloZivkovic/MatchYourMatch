@@ -22,6 +22,103 @@ namespace MatchYourMatch.WebAPI.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Activity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActivityCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivityCategoryId");
+
+                    b.ToTable("Activities");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ActivityCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ActivityCategories");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("InterestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("MaxAttendees")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrganizerId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("Time")
+                        .HasColumnType("time(6)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InterestId");
+
+                    b.HasIndex("OrganizerId");
+
+                    b.ToTable("Events");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
                 {
                     b.Property<int>("Id")
@@ -70,6 +167,48 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("Interests");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.QuickMatchPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActivityId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivityId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("QuickMatchPosts");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -108,6 +247,57 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserDeepMatchPreference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CommunicationStyle")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("FreeTimePreference")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("ImportantValues")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("LifestylePreferences")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("RelationshipPace")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("RelationshipValue")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("SocialEnergy")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserDeepMatchPreferences");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserInterest", b =>
                 {
                     b.Property<int>("UserId")
@@ -134,8 +324,31 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Property<string>("Bio")
                         .HasColumnType("longtext");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double");
+
                     b.Property<string>("Location")
                         .HasColumnType("longtext");
+
+                    b.Property<string>("LocationCity")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("LocationCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("LocationDisplayName")
+                        .HasMaxLength(160)
+                        .HasColumnType("varchar(160)");
+
+                    b.Property<string>("LocationPrivacy")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double");
 
                     b.Property<string>("ProfilePicture")
                         .HasColumnType("longtext");
@@ -151,6 +364,33 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("UserProfiles");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Activity", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.ActivityCategory", "ActivityCategory")
+                        .WithMany("Activities")
+                        .HasForeignKey("ActivityCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ActivityCategory");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Interest", "Interest")
+                        .WithMany("Events")
+                        .HasForeignKey("InterestId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "Organizer")
+                        .WithMany("Events")
+                        .HasForeignKey("OrganizerId");
+
+                    b.Navigation("Interest");
+
+                    b.Navigation("Organizer");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", null)
@@ -158,6 +398,36 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.QuickMatchPost", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Activity", "Activity")
+                        .WithMany("QuickMatchPosts")
+                        .HasForeignKey("ActivityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("QuickMatchPosts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Activity");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserDeepMatchPreference", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithOne("DeepMatchPreference")
+                        .HasForeignKey("MatchYourMatch.WebAPI.Models.UserDeepMatchPreference", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserInterest", b =>
@@ -190,16 +460,34 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Activity", b =>
+                {
+                    b.Navigation("QuickMatchPosts");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ActivityCategory", b =>
+                {
+                    b.Navigation("Activities");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Interest", b =>
                 {
+                    b.Navigation("Events");
+
                     b.Navigation("UserInterests");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
+                    b.Navigation("DeepMatchPreference");
+
+                    b.Navigation("Events");
+
                     b.Navigation("FreeTimeSlots");
 
                     b.Navigation("Profile");
+
+                    b.Navigation("QuickMatchPosts");
 
                     b.Navigation("UserInterests");
                 });

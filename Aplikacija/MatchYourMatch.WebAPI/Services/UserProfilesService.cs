@@ -29,9 +29,19 @@ namespace MatchYourMatch.WebAPI.Services
                 _context.UserProfiles.Add(user.Profile);
             }
 
+            var displayLocation = NormalizeApproximateLocation(
+                dto.LocationDisplayName ?? dto.Location);
+            var parsedLocation = ParseLocation(displayLocation);
+
             user.Profile.Bio = dto.Bio;
             user.Profile.ProfilePicture = dto.ProfilePicture;
-            user.Profile.Location = dto.Location;
+            user.Profile.Location = displayLocation;
+            user.Profile.LocationDisplayName = displayLocation;
+            user.Profile.LocationCity = parsedLocation.City;
+            user.Profile.LocationCountry = parsedLocation.Country;
+            user.Profile.Latitude = IsValidLatitude(dto.Latitude) ? dto.Latitude : null;
+            user.Profile.Longitude = IsValidLongitude(dto.Longitude) ? dto.Longitude : null;
+            user.Profile.LocationPrivacy = NormalizeLocationPrivacy(dto.LocationPrivacy);
 
             await _context.SaveChangesAsync();
         }
@@ -51,7 +61,41 @@ namespace MatchYourMatch.WebAPI.Services
                 Email = user.Email,
                 Bio = user.Profile?.Bio,
                 ProfilePicture = user.Profile?.ProfilePicture,
-                Location = user.Profile?.Location
+                Location = GetPublicLocation(user.Profile),
+                LocationDisplayName = GetPublicLocation(user.Profile),
+                LocationPrivacy = user.Profile?.LocationPrivacy ?? "CityOnly"
+            };
+        }
+
+        public async Task<PublicUserProfileDto> GetPublicProfileAsync(int userId)
+        {
+            var user = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.Profile)
+                .Include(u => u.UserInterests)
+                    .ThenInclude(ui => ui.Interest)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+            if (user == null)
+                throw new Exception("Korisnik nije pronadjen");
+
+            return new PublicUserProfileDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Bio = user.Profile?.Bio,
+                ProfilePicture = user.Profile?.ProfilePicture,
+                LocationDisplayName = GetPublicLocation(user.Profile),
+                Interests = user.UserInterests
+                    .Where(ui => ui.Interest != null)
+                    .Select(ui => new InterestDto
+                    {
+                        Id = ui.Interest!.Id,
+                        Name = ui.Interest.Name,
+                        Category = ui.Interest.Category
+                    })
+                    .OrderBy(i => i.Name)
+                    .ToList()
             };
         }
 
@@ -92,6 +136,74 @@ namespace MatchYourMatch.WebAPI.Services
             
             _context.FreeTimeSlots.Remove(timeslot);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<FreeTimeSlotDto>> UpdateAvailabilityAsync(
+            int userId,
+            UpdateAvailabilityDto dto)
+        {
+            foreach (var slot in dto.Slots)
+            {
+                ValidateTimeSlot(slot);
+            }
+
+            var current = await _context.FreeTimeSlots
+                .Where(s => s.UserId == userId)
+                .ToListAsync();
+
+            _context.FreeTimeSlots.RemoveRange(current);
+
+            _context.FreeTimeSlots.AddRange(dto.Slots.Select(slot => new FreeTimeSlot
+            {
+                UserId = userId,
+                DayOfWeek = slot.DayOfWeek,
+                StartTime = slot.StartTime,
+                EndTime = slot.EndTime
+            }));
+
+            await _context.SaveChangesAsync();
+
+            return await GetTimeSlotsAsync(userId);
+        }
+
+        public async Task<DeepMatchPreferenceDto> GetDeepMatchPreferenceAsync(int userId)
+        {
+            var preference = await _context.UserDeepMatchPreferences
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            return MapPreference(preference);
+        }
+
+        public async Task<DeepMatchPreferenceDto> UpdateDeepMatchPreferenceAsync(
+            int userId,
+            DeepMatchPreferenceDto dto)
+        {
+            var preference = await _context.UserDeepMatchPreferences
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (preference == null)
+            {
+                preference = new UserDeepMatchPreference
+                {
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.UserDeepMatchPreferences.Add(preference);
+            }
+
+            preference.RelationshipValue = dto.RelationshipValue;
+            preference.CommunicationStyle = dto.CommunicationStyle;
+            preference.FreeTimePreference = dto.FreeTimePreference;
+            preference.SocialEnergy = dto.SocialEnergy;
+            preference.RelationshipPace = dto.RelationshipPace;
+            preference.ImportantValues = dto.ImportantValues;
+            preference.LifestylePreferences = dto.LifestylePreferences;
+            preference.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapPreference(preference);
         }
 
         public async Task<List<InterestDto>> GetInterestsAsync()
@@ -141,6 +253,105 @@ namespace MatchYourMatch.WebAPI.Services
                 return;
             _context.UserInterests.Remove(interest);
             await _context.SaveChangesAsync();
+        }
+
+        private static void ValidateTimeSlot(CreateFreeTimeSlotDto dto)
+        {
+            if (dto.DayOfWeek < 0 || dto.DayOfWeek > 6)
+                throw new Exception("Day of week must be between 0 and 6.");
+
+            if (dto.StartTime >= dto.EndTime)
+                throw new Exception("Start time must be before end time.");
+        }
+
+        private static DeepMatchPreferenceDto MapPreference(UserDeepMatchPreference? preference)
+        {
+            var dto = new DeepMatchPreferenceDto
+            {
+                RelationshipValue = preference?.RelationshipValue,
+                CommunicationStyle = preference?.CommunicationStyle,
+                FreeTimePreference = preference?.FreeTimePreference,
+                SocialEnergy = preference?.SocialEnergy,
+                RelationshipPace = preference?.RelationshipPace,
+                ImportantValues = preference?.ImportantValues,
+                LifestylePreferences = preference?.LifestylePreferences
+            };
+
+            dto.IsComplete =
+                !string.IsNullOrWhiteSpace(dto.RelationshipValue) &&
+                !string.IsNullOrWhiteSpace(dto.CommunicationStyle) &&
+                !string.IsNullOrWhiteSpace(dto.FreeTimePreference) &&
+                !string.IsNullOrWhiteSpace(dto.SocialEnergy) &&
+                !string.IsNullOrWhiteSpace(dto.RelationshipPace);
+
+            return dto;
+        }
+
+        private static string? NormalizeApproximateLocation(string? location)
+        {
+            if (string.IsNullOrWhiteSpace(location))
+                return null;
+
+            var parts = location
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            if (parts.Count == 0)
+                return null;
+
+            if (parts.Count == 1)
+                return parts[0];
+
+            if (parts.Count == 2)
+                return $"{parts[0]}, {parts[1]}";
+
+            return $"{parts[^2]}, {parts[^1]}";
+        }
+
+        private static (string? City, string? Country) ParseLocation(string? location)
+        {
+            if (string.IsNullOrWhiteSpace(location))
+                return (null, null);
+
+            var parts = location
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .ToList();
+
+            if (parts.Count == 0)
+                return (null, null);
+
+            if (parts.Count == 1)
+                return (parts[0], null);
+
+            return (parts[0], parts[^1]);
+        }
+
+        private static string NormalizeLocationPrivacy(string? privacy)
+        {
+            return privacy is "Hidden" or "CityOnly" ? privacy : "CityOnly";
+        }
+
+        private static bool IsValidLatitude(double? latitude)
+        {
+            return latitude is >= -90 and <= 90;
+        }
+
+        private static bool IsValidLongitude(double? longitude)
+        {
+            return longitude is >= -180 and <= 180;
+        }
+
+        private static string? GetPublicLocation(UserProfile? profile)
+        {
+            if (profile == null)
+                return null;
+
+            if (profile.LocationPrivacy == "Hidden")
+                return "Location hidden";
+
+            return profile.LocationDisplayName ?? profile.Location;
         }
     }
 }

@@ -33,6 +33,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserProfilesService, UserProfilesService>();
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IQuickMatchService, QuickMatchService>();
+builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
