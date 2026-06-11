@@ -15,6 +15,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<ActivityCategory> ActivityCategories { get; set; }
         public DbSet<Activity> Activities { get; set; }
         public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
+        public DbSet<Follow> Follows { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -63,6 +64,12 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(e => e.Interest).WithMany(i => i.Events).HasForeignKey(e => e.InterestId).OnDelete(DeleteBehavior.SetNull);
             modelBuilder.Entity<QuickMatchPost>().HasOne(q => q.User).WithMany(u => u.QuickMatchPosts).HasForeignKey(q => q.UserId);
             modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
+
+            // Follow
+            modelBuilder.Entity<Follow>()
+                .HasOne(u => u.Follower).WithMany(u => u.Following).HasForeignKey(f => f.FollowerId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Follow>()
+                .HasOne(u => u.Following).WithMany(u => u.Followers).HasForeignKey(f => f.FollowingId).OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<ActivityCategory>()
                 .HasMany(c => c.Activities)
