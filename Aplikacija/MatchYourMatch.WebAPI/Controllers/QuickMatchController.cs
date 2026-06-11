@@ -8,7 +8,7 @@ namespace MatchYourMatch.WebAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "User")]
     public class QuickMatchController : ControllerBase
     {
         private readonly IQuickMatchService _quickMatchService;
