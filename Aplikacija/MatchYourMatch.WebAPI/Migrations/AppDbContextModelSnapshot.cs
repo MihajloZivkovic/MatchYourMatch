@@ -119,6 +119,29 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("Events");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Follow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FollowerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FollowingId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FollowerId");
+
+                    b.HasIndex("FollowingId");
+
+                    b.ToTable("Follows");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
                 {
                     b.Property<int>("Id")
@@ -395,6 +418,25 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("Organizer");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Follow", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "Follower")
+                        .WithMany("Following")
+                        .HasForeignKey("FollowerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "Following")
+                        .WithMany("Followers")
+                        .HasForeignKey("FollowingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Follower");
+
+                    b.Navigation("Following");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", null)
@@ -486,6 +528,10 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("DeepMatchPreference");
 
                     b.Navigation("Events");
+
+                    b.Navigation("Followers");
+
+                    b.Navigation("Following");
 
                     b.Navigation("FreeTimeSlots");
 
