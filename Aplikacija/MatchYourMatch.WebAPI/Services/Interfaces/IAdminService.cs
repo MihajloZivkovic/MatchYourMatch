@@ -9,6 +9,5 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task ActivateUserAsync(int userId);
         Task DeleteUserAsync(int userId);
         Task DeleteEventAsync(int eventId);
-        // TODO: brisanje quickmatch post
     }
 }
