@@ -37,6 +37,7 @@ builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IQuickMatchService, QuickMatchService>();
 builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 builder.Services.AddScoped<IFollowService, FollowService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
