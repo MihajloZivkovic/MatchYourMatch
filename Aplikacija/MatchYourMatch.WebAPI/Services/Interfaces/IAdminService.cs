@@ -1,0 +1,14 @@
+using MatchYourMatch.WebAPI.DTOs.Admin;
+
+namespace MatchYourMatch.WebAPI.Services.Interfaces
+{
+    public interface IAdminService
+    {
+        Task<List<CheckUserDto>> GetUserInfoAsync();
+        Task DeactivateUserAsync(int userId);
+        Task ActivateUserAsync(int userId);
+        Task DeleteUserAsync(int userId);
+        Task DeleteEventAsync(int eventId);
+        // TODO: brisanje quickmatch post
+    }
+}
