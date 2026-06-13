@@ -8,5 +8,6 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<List<FollowDto>> GetFollowingAsync(int userId);
         Task FollowAsync(int followerId, int followingId);
         Task UnfollowAsync(int followerId, int followingId);
+        Task<bool> IsFollowingAsync(int followerId, int followingId);
     }
 }
