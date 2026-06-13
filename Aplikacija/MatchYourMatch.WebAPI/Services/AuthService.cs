@@ -59,6 +59,9 @@ namespace MatchYourMatch.WebAPI.Services
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 throw new Exception("Pogresna lozinka.");
 
+            if (!user.IsActive) 
+                throw new Exception("Nalog je deaktiviran.");
+
             return GenerateResponse(user);
         }
 
