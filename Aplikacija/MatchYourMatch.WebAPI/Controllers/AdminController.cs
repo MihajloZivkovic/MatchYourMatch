@@ -21,7 +21,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
-                var users = _service.GetUserInfoAsync();
+                var users = await _service.GetUserInfoAsync();
                 return Ok(users);
             }
             catch (Exception ex)
