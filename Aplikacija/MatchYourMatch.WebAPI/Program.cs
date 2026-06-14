@@ -38,6 +38,7 @@ builder.Services.AddScoped<IQuickMatchService, QuickMatchService>();
 builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 builder.Services.AddScoped<IFollowService, FollowService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<EmailService>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
