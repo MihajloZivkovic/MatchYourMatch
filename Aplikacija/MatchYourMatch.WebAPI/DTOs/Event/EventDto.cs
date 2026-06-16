@@ -11,6 +11,11 @@
         public int MaxAttendees { get; set; }
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
-        public required string OrganizerUsername { get; set; }
+        public int? CreatedByUserId { get; set; }
+        public string? OrganizerUsername { get; set; }
+        public string EventType { get; set; } = "UserCreated";
+        public int ParticipantsCount { get; set; }
+        public List<string> ParticipantInitials { get; set; } = new();
+        public bool IsJoinedByCurrentUser { get; set; }
     }
 }

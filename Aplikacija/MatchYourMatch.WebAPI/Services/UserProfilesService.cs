@@ -80,6 +80,11 @@ namespace MatchYourMatch.WebAPI.Services
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
 
+            var responseRatePercent = await CalculateResponseRateAsync(userId);
+            var matchesCount = await CalculateMatchesCountAsync(userId);
+            var eventsJoinedCount = await CalculateEventsJoinedCountAsync(userId);
+            var profileScorePercent = await CalculateProfileScoreAsync(userId);
+
             return new UserProfileDto
             {
                 Id = user.Id,
@@ -90,7 +95,11 @@ namespace MatchYourMatch.WebAPI.Services
                 Location = GetPublicLocation(user.Profile),
                 LocationRawInput = user.Profile?.LocationRawInput ?? user.Profile?.Location,
                 LocationDisplayName = GetPublicLocation(user.Profile),
-                LocationPrivacy = user.Profile?.LocationPrivacy ?? "CityOnly"
+                LocationPrivacy = user.Profile?.LocationPrivacy ?? "CityOnly",
+                MatchesCount = matchesCount,
+                EventsJoinedCount = eventsJoinedCount,
+                ProfileScorePercent = profileScorePercent,
+                ResponseRatePercent = responseRatePercent
             };
         }
 
@@ -106,6 +115,11 @@ namespace MatchYourMatch.WebAPI.Services
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
 
+            var responseRatePercent = await CalculateResponseRateAsync(userId);
+            var matchesCount = await CalculateMatchesCountAsync(userId);
+            var eventsJoinedCount = await CalculateEventsJoinedCountAsync(userId);
+            var profileScorePercent = await CalculateProfileScoreAsync(userId);
+
             return new PublicUserProfileDto
             {
                 Id = user.Id,
@@ -113,6 +127,10 @@ namespace MatchYourMatch.WebAPI.Services
                 Bio = user.Profile?.Bio,
                 ProfilePicture = user.Profile?.ProfilePicture,
                 LocationDisplayName = GetPublicLocation(user.Profile),
+                MatchesCount = matchesCount,
+                EventsJoinedCount = eventsJoinedCount,
+                ProfileScorePercent = profileScorePercent,
+                ResponseRatePercent = responseRatePercent,
                 Interests = user.UserInterests
                     .Where(ui => ui.Interest != null)
                     .Select(ui => new InterestDto
@@ -339,6 +357,113 @@ namespace MatchYourMatch.WebAPI.Services
         {
             return profile.Latitude is >= -90 and <= 90 &&
                    profile.Longitude is >= -180 and <= 180;
+        }
+
+        private async Task<int?> CalculateResponseRateAsync(int userId)
+        {
+            var messages = await _context.ChatMessages
+                .AsNoTracking()
+                .Where(message => message.SenderId == userId || message.ReceiverId == userId)
+                .Select(message => new
+                {
+                    message.Id,
+                    message.ConversationId,
+                    message.SenderId,
+                    message.ReceiverId,
+                    message.CreatedAt
+                })
+                .OrderBy(message => message.ConversationId)
+                .ThenBy(message => message.CreatedAt)
+                .ThenBy(message => message.Id)
+                .ToListAsync();
+
+            var receivedMessages = messages
+                .Where(message => message.ReceiverId == userId)
+                .ToList();
+
+            if (receivedMessages.Count == 0)
+            {
+                return null;
+            }
+
+            var answeredMessages = receivedMessages.Count(received =>
+                messages.Any(message =>
+                    message.ConversationId == received.ConversationId &&
+                    message.SenderId == userId &&
+                    (message.CreatedAt > received.CreatedAt ||
+                     (message.CreatedAt == received.CreatedAt && message.Id > received.Id))));
+
+            return (int)Math.Round(answeredMessages * 100.0 / receivedMessages.Count);
+        }
+
+        private async Task<int> CalculateMatchesCountAsync(int userId)
+        {
+            return await _context.ChatConversations
+                .AsNoTracking()
+                .CountAsync(conversation =>
+                    (conversation.UserAId == userId && !conversation.IsHiddenForUserA) ||
+                    (conversation.UserBId == userId && !conversation.IsHiddenForUserB));
+        }
+
+        private Task<int> CalculateEventsJoinedCountAsync(int userId)
+        {
+            return _context.EventParticipants
+                .AsNoTracking()
+                .CountAsync(participant => participant.UserId == userId);
+        }
+
+        private async Task<int> CalculateProfileScoreAsync(int userId)
+        {
+            var user = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.Profile)
+                .Include(u => u.UserInterests)
+                .Include(u => u.DeepMatchPreference)
+                .Include(u => u.FreeTimeSlots)
+                .Include(u => u.QuickMatchPosts)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+            {
+                return 0;
+            }
+
+            var score = 0;
+            var profile = user.Profile;
+
+            if (!string.IsNullOrWhiteSpace(profile?.Bio))
+                score += 15;
+
+            if (!string.IsNullOrWhiteSpace(profile?.LocationDisplayName) ||
+                !string.IsNullOrWhiteSpace(profile?.Location))
+                score += 15;
+
+            if (!string.IsNullOrWhiteSpace(profile?.ProfilePicture))
+                score += 10;
+
+            if (user.UserInterests.Any())
+                score += 15;
+
+            if (IsDeepMatchPreferenceComplete(user.DeepMatchPreference))
+                score += 20;
+
+            if (user.FreeTimeSlots.Any())
+                score += 15;
+
+            if (user.QuickMatchPosts.Any(post => post.IsActive))
+                score += 10;
+
+            return Math.Min(score, 100);
+        }
+
+        private static bool IsDeepMatchPreferenceComplete(UserDeepMatchPreference? preference)
+        {
+            return preference != null &&
+                   !string.IsNullOrWhiteSpace(preference.RelationshipValue) &&
+                   !string.IsNullOrWhiteSpace(preference.CommunicationStyle) &&
+                   !string.IsNullOrWhiteSpace(preference.FreeTimePreference) &&
+                   !string.IsNullOrWhiteSpace(preference.SocialEnergy) &&
+                   !string.IsNullOrWhiteSpace(preference.RelationshipPace);
         }
 
         private static string? GetPublicLocation(UserProfile? profile)

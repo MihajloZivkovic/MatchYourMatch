@@ -11,5 +11,9 @@
         public string? LocationRawInput { get; set; }
         public string? LocationDisplayName { get; set; }
         public string? LocationPrivacy { get; set; }
+        public int MatchesCount { get; set; }
+        public int EventsJoinedCount { get; set; }
+        public int ProfileScorePercent { get; set; }
+        public int? ResponseRatePercent { get; set; }
     }
 }

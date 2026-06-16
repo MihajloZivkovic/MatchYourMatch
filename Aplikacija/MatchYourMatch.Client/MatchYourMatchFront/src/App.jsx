@@ -25,6 +25,15 @@ import PublicProfile from "./pages/app/PublicProfile";
 import Chat from "./pages/app/Chat";
 import "./App.css";
 
+const USER_ID_CLAIMS = [
+  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+  "nameid",
+  "sub",
+  "userId",
+  "userid",
+  "id",
+];
+
 function App() {
   const [isExiting, setIsExiting] = useState(false);
   const [currentUser, setCurrentUser] = useState("");
@@ -32,6 +41,10 @@ function App() {
     bio: "",
     profilePicture: null,
     location: "",
+    matchesCount: null,
+    eventsJoinedCount: null,
+    profileScorePercent: null,
+    responseRatePercent: null,
   });
   const exitTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -55,11 +68,7 @@ function App() {
     const token = localStorage.getItem("token");
     if (!token) return null;
     const decoded = jwtDecode(token);
-    const userId =
-      decoded[
-        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-      ];
-    return userId;
+    return USER_ID_CLAIMS.map((claim) => decoded[claim]).find(Boolean) || null;
   }
 
   useEffect(() => {
@@ -115,6 +124,10 @@ function App() {
             bio: "",
             profilePicture: "",
             location: "",
+            matchesCount: null,
+            eventsJoinedCount: null,
+            profileScorePercent: null,
+            responseRatePercent: null,
           });
         }
         return;
@@ -136,6 +149,10 @@ function App() {
             bio: data.bio ?? "",
             location: data.location ?? "",
             profilePicture: data.profilePicture ?? "",
+            matchesCount: data.matchesCount ?? null,
+            eventsJoinedCount: data.eventsJoinedCount ?? null,
+            profileScorePercent: data.profileScorePercent ?? null,
+            responseRatePercent: data.responseRatePercent ?? null,
           });
         }
       } catch (error) {

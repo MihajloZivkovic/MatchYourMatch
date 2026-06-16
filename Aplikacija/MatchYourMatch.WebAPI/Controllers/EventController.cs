@@ -8,6 +8,7 @@ namespace MatchYourMatch.WebAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Route("api/Events")]
     public class EventController: ControllerBase
     {
         private readonly IEventService _service;
@@ -23,7 +24,8 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
-                var events = await _service.GetByQueryAsync(category);
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var events = await _service.GetByQueryAsync(userId, category);
                 return Ok(events);
             }
             catch (Exception ex)
@@ -38,7 +40,8 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
-                var e = await _service.GetByIdAsync(id);
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var e = await _service.GetByIdAsync(id, userId);
                 return Ok(e);
             }
             catch (Exception ex)
@@ -47,14 +50,30 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "Organizer")]
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create(CreateEventDto dto)
         {
             try
             {
-                var organizerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                var e = await _service.CreateAsync(organizerId, dto);
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var e = await _service.CreateAsync(userId, dto);
+                return Ok(e);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPost("{id}/join")]
+        public async Task<IActionResult> Join(int id)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var e = await _service.JoinAsync(id, userId);
                 return Ok(e);
             }
             catch (Exception ex)

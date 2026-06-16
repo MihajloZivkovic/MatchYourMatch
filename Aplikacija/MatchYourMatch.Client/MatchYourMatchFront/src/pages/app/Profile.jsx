@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -30,6 +30,7 @@ const SOCIAL_ENERGY = 72;
 const CONVERSATION = "Thoughtful & playful";
 
 function Profile(props) {
+  const { setUserProfile } = props;
   const [tab, setTab] = useState("ABOUT");
   const [eventSegment, setEventSegment] = useState("Upcoming");
   const [profileEditing, setProfileEditing] = useState(false);
@@ -47,6 +48,8 @@ function Profile(props) {
   const [locationSuggestionsLoading, setLocationSuggestionsLoading] = useState(false);
   const [saveButtonText, setSaveButtonText] = useState("Save");
   const [saveButtonAnimating, setSaveButtonAnimating] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLoadError, setProfileLoadError] = useState("");
   const navigate = useNavigate();
 
   const styleButton = () => {
@@ -135,35 +138,52 @@ function Profile(props) {
     };
   }, [locationDraft, profileEditing]);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    const fetchProfile = async () => {
-      try {
-        const response = await fetch("/api/UserProfile/me", {
-          headers: {
-            accept: "*/*",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    setProfileLoading(true);
+    setProfileLoadError("");
 
-        if (!response.ok) return;
+    try {
+      const response = await fetch("/api/UserProfile/me", {
+        headers: {
+          accept: "*/*",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        const data = await response.json();
-        props.setUserProfile((prev) => ({
-          ...prev,
-          bio: data.bio ?? prev.bio,
-          location: data.location ?? prev.location,
-          profilePicture: data.profilePicture ?? prev.profilePicture,
-        }));
-      } catch (error) {
-        console.error("Failed to load profile:", error);
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || `Profile request failed (${response.status}).`);
       }
-    };
 
+      const data = await response.json();
+      setUserProfile((prev) => ({
+        ...prev,
+        bio: data.bio ?? prev.bio,
+        location: data.location ?? prev.location,
+        profilePicture: data.profilePicture ?? prev.profilePicture,
+        matchesCount: data.matchesCount ?? null,
+        eventsJoinedCount: data.eventsJoinedCount ?? null,
+        profileScorePercent: data.profileScorePercent ?? null,
+        responseRatePercent: data.responseRatePercent ?? null,
+      }));
+    } catch (error) {
+      console.error("[Profile API] /api/UserProfile/me failed", {
+        message: error.message,
+      });
+      setProfileLoadError(
+        "Backend is not available. Please start the API server and try again.",
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [setUserProfile]);
+
+  useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [fetchProfile]);
 
   const handleLogout = () => {
     localStorage.removeItem("mym_authed");
@@ -292,6 +312,10 @@ function Profile(props) {
         ...prev,
         bio: bioDraft.trim(),
         location: savedProfile?.location ?? locationDraft.trim(),
+        matchesCount: savedProfile?.matchesCount ?? prev.matchesCount,
+        eventsJoinedCount: savedProfile?.eventsJoinedCount ?? prev.eventsJoinedCount,
+        profileScorePercent: savedProfile?.profileScorePercent ?? prev.profileScorePercent,
+        responseRatePercent: savedProfile?.responseRatePercent ?? prev.responseRatePercent,
       }));
       setProfileSuccess(`Location saved as ${savedLocation || "your profile location"}.`);
       setLocationSuggestions([]);
@@ -331,11 +355,26 @@ function Profile(props) {
     }
   };
 
+  const responseRateValue =
+    props.currentUser?.responseRatePercent ?? props.userProfile?.responseRatePercent;
+  const responseRateDisplay =
+    typeof responseRateValue === "number" ? `${responseRateValue}%` : "—";
+  const matchesValue = props.currentUser?.matchesCount ?? props.userProfile?.matchesCount;
+  const eventsJoinedValue =
+    props.currentUser?.eventsJoinedCount ?? props.userProfile?.eventsJoinedCount;
+  const profileScoreValue =
+    props.currentUser?.profileScorePercent ?? props.userProfile?.profileScorePercent;
+  const matchesDisplay = typeof matchesValue === "number" ? String(matchesValue) : "—";
+  const eventsJoinedDisplay =
+    typeof eventsJoinedValue === "number" ? String(eventsJoinedValue) : "—";
+  const profileScoreDisplay =
+    typeof profileScoreValue === "number" ? `${profileScoreValue}%` : "—";
+
   const statCards = [
-    { icon: Heart, label: "Matches", value: "24" },
-    { icon: Calendar, label: "Events Joined", value: "7" },
-    { icon: Star, label: "Profile Score", value: "91%" },
-    { icon: MessageCircle, label: "Response Rate", value: "94%" },
+    { icon: Heart, label: "Matches", value: matchesDisplay },
+    { icon: Calendar, label: "Events Joined", value: eventsJoinedDisplay },
+    { icon: Star, label: "Profile Score", value: profileScoreDisplay },
+    { icon: MessageCircle, label: "Response Rate", value: responseRateDisplay },
   ];
 
   const eventLists = {
@@ -490,6 +529,14 @@ function Profile(props) {
               </div>
             ))}
           </div>
+          {profileLoadError && (
+            <div className="profile__api-error">
+              <span>{profileLoadError}</span>
+              <button type="button" onClick={fetchProfile} disabled={profileLoading}>
+                {profileLoading ? "Retrying..." : "Retry"}
+              </button>
+            </div>
+          )}
 
           <div className="profile__header-actions">
             <button

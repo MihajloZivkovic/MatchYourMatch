@@ -27,6 +27,11 @@
   );
 }
 
+:root[data-theme="light"] .app-shell__bg::after {
+  background: none;
+  opacity: 0;
+}
+
 /* Unified interactive surfaces */
 .app-shell .app-tilt-hover {
   transition: var(--transition-card);

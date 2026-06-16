@@ -1,11 +1,15 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import AppNavbar from './AppNavbar';
 import AppFooter from './AppFooter';
 import FloatingChat from '../components/chat/FloatingChat';
+import { ChatProvider } from '../context/ChatContext';
 import './app-global.css';
 import './app-polish.css';
 
 function AppShell(props) {
+  const location = useLocation();
+  const isChatRoute = location.pathname === '/app/chat';
+
   return (
     <div className="app-shell">
       <div className="app-shell__bg" aria-hidden="true">
@@ -14,11 +18,13 @@ function AppShell(props) {
         <span className="app-shell__glow app-shell__glow--br" />
       </div>
       <AppNavbar picture={props.userProfile.profilePicture} />
-      <main className="app-shell__main">
-        <Outlet />
-        <AppFooter />
-      </main>
-      <FloatingChat />
+      <ChatProvider>
+        <main className={`app-shell__main${isChatRoute ? ' app-shell__main--chat' : ''}`}>
+          <Outlet />
+          {!isChatRoute && <AppFooter />}
+        </main>
+        {!isChatRoute && <FloatingChat />}
+      </ChatProvider>
     </div>
   );
 }

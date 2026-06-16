@@ -48,6 +48,16 @@
   margin-bottom: 1.5rem;
 }
 
+.create-event__error {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 99, 99, 0.28);
+  background: rgba(255, 99, 99, 0.08);
+  color: #ffb3b3;
+  font-size: 0.84rem;
+}
+
 .create-event__field {
   display: block;
   margin-bottom: 1.15rem;
@@ -150,6 +160,11 @@
 
 .create-event__cancel:hover {
   color: var(--text);
+}
+
+.create-event__actions .app-btn-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 @media (max-width: 520px) {

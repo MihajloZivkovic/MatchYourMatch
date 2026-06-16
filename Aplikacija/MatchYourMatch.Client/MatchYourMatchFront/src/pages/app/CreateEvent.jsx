@@ -1,18 +1,55 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle, Upload } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import './CreateEvent.css';
 
-const CATEGORIES = ['Music', 'Social', 'Sports', 'Art', 'Other'];
+const CATEGORIES = ['Study', 'Gaming', 'Coffee', 'Social', 'Sport'];
 
 function CreateEvent() {
   const navigate = useNavigate();
-  const [category, setCategory] = useState('Music');
+  const [category, setCategory] = useState('Study');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handlePublish = (e) => {
-    e.preventDefault();
-    setSuccess(true);
+  const handlePublish = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      title: form.get('title')?.toString().trim(),
+      category,
+      date: form.get('date')?.toString(),
+      time: form.get('time')?.toString(),
+      location: form.get('location')?.toString().trim(),
+      maxAttendees: Number(form.get('maxAttendees') || 10),
+      description: form.get('description')?.toString().trim(),
+      imageUrl: null,
+    };
+
+    try {
+      const response = await fetch('/api/Events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Event could not be created.');
+      }
+
+      setSuccess(true);
+    } catch (err) {
+      setError(err.message || 'Event could not be created.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (success) {
@@ -21,7 +58,7 @@ function CreateEvent() {
         <div className="create-event__card create-event__card--success">
           <CheckCircle size={56} className="create-event__check" />
           <h2>Event Created!</h2>
-          <p>Your event is now live.</p>
+          <p>Your community event is now live.</p>
           <Link to="/app/events" className="app-btn-pill">
             VIEW EVENTS
           </Link>
@@ -35,12 +72,14 @@ function CreateEvent() {
       <form className="create-event__card" onSubmit={handlePublish}>
         <header className="create-event__header">
           <h1>CREATE EVENT</h1>
-          <p>Bring people together</p>
+          <p>Bring MYM people together for a community meetup.</p>
         </header>
+
+        {error && <div className="create-event__error">{error}</div>}
 
         <label className="create-event__field">
           <span>Event Title</span>
-          <input type="text" name="title" required placeholder="Give your event a name" />
+          <input type="text" name="title" required placeholder="Coffee & coding session" />
         </label>
 
         <fieldset className="create-event__field">
@@ -72,31 +111,30 @@ function CreateEvent() {
 
         <label className="create-event__field">
           <span>Location</span>
-          <input type="text" name="location" required placeholder="Venue or address" />
+          <input type="text" name="location" required placeholder="Nis, Serbia" />
         </label>
 
         <label className="create-event__field">
           <span>Max Attendees</span>
-          <input type="number" name="maxAttendees" min="2" defaultValue="20" />
+          <input type="number" name="maxAttendees" min="2" defaultValue="10" />
         </label>
 
         <label className="create-event__field">
           <span>Description</span>
-          <textarea name="description" rows={4} required placeholder="What should people expect?" />
+          <textarea
+            name="description"
+            rows={4}
+            required
+            placeholder="What should people expect?"
+          />
         </label>
-
-        <div className="create-event__upload">
-          <Upload size={24} />
-          <p>Drop image or click to upload</p>
-          <input type="file" accept="image/*" aria-label="Cover image" />
-        </div>
 
         <div className="create-event__actions">
           <button type="button" className="create-event__cancel" onClick={() => navigate('/app/events')}>
             Cancel
           </button>
-          <button type="submit" className="app-btn-pill">
-            PUBLISH EVENT
+          <button type="submit" className="app-btn-pill" disabled={submitting}>
+            {submitting ? 'PUBLISHING...' : 'PUBLISH EVENT'}
           </button>
         </div>
       </form>

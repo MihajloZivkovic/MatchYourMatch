@@ -11,11 +11,14 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<Interest> Interests { get; set; }
         public DbSet<UserInterest> UserInterests { get; set; }
         public DbSet<Event> Events { get; set; }
+        public DbSet<EventParticipant> EventParticipants { get; set; }
         public DbSet<QuickMatchPost> QuickMatchPosts { get; set; }
         public DbSet<ActivityCategory> ActivityCategories { get; set; }
         public DbSet<Activity> Activities { get; set; }
         public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
         public DbSet<Follow> Follows { get; set; }
+        public DbSet<ChatConversation> ChatConversations { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -66,6 +69,14 @@ namespace MatchYourMatch.WebAPI.Data
             // Event
             modelBuilder.Entity<Event>()
                 .HasOne(e => e.Interest).WithMany(i => i.Events).HasForeignKey(e => e.InterestId).OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Event>()
+                .HasOne(e => e.Organizer).WithMany(u => u.Events).HasForeignKey(e => e.OrganizerId).OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<EventParticipant>()
+                .HasKey(p => new { p.EventId, p.UserId });
+            modelBuilder.Entity<EventParticipant>()
+                .HasOne(p => p.Event).WithMany(e => e.Participants).HasForeignKey(p => p.EventId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventParticipant>()
+                .HasOne(p => p.User).WithMany(u => u.EventParticipations).HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<QuickMatchPost>().HasOne(q => q.User).WithMany(u => u.QuickMatchPosts).HasForeignKey(q => q.UserId);
             modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
 
@@ -74,6 +85,28 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(u => u.Follower).WithMany(u => u.Following).HasForeignKey(f => f.FollowerId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<Follow>()
                 .HasOne(u => u.Following).WithMany(u => u.Followers).HasForeignKey(f => f.FollowingId).OnDelete(DeleteBehavior.Restrict);
+
+            // Chat
+            modelBuilder.Entity<ChatConversation>()
+                .HasIndex(c => new { c.UserAId, c.UserBId })
+                .IsUnique();
+            modelBuilder.Entity<ChatConversation>()
+                .HasOne(c => c.UserA).WithMany(u => u.ChatConversationsAsUserA).HasForeignKey(c => c.UserAId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatConversation>()
+                .HasOne(c => c.UserB).WithMany(u => u.ChatConversationsAsUserB).HasForeignKey(c => c.UserBId).OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Conversation).WithMany(c => c.Messages).HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Sender).WithMany(u => u.SentChatMessages).HasForeignKey(m => m.SenderId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatMessage>()
+                .HasOne(m => m.Receiver).WithMany(u => u.ReceivedChatMessages).HasForeignKey(m => m.ReceiverId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatMessage>()
+                .Property(m => m.Body)
+                .IsRequired()
+                .HasMaxLength(2000);
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => new { m.ConversationId, m.CreatedAt });
 
             modelBuilder.Entity<ActivityCategory>()
                 .HasMany(c => c.Activities)

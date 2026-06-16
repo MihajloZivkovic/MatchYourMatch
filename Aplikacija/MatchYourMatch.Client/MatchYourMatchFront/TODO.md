@@ -1,20 +1,7 @@
-[ X ] Korisnik moze da unese profilnu sliku klikom na svoju sliku u profile tabu
-[ X ] Korisnik moze da promeni svoj about me(bio)
-[ X ] konfirmacija o uspesnom cuvanju kada se klikne Save 
-[  ] Pita za lokaciju kad se registrujes i to stavi u bazu, prati ako se promeni i menja u bazu(dependency array), ako korisnik iskljucio permisije za lokaciju u medjuvremenu onda pitaj opet(ali ostavi staru)
-[  ] Pri registrovanju korisnik unosi username, a full name menja u profilu(za ovo trebamo da pitamo dobrog ciku koji radi backend da unese jos jedan prop u tabelu korisnici koji se zove fullName)
+TBD - [  ] Pri registrovanju korisnik unosi username, a full name menja u profilu(za ovo trebamo da pitamo dobrog ciku koji radi backend da unese jos jedan prop u tabelu korisnici koji se zove fullName) verovatno ce svaki fetch da se sjebe pa ce mora dodajemo za svako telo i to.
+Mihajlo - [  ] Izmeniti edit profile u edit location(izbaci opciju da se menja bio unutra), prikazi na profil lokaciju koja treba
 
 
 
 
-
-
-
-
-
-
-[  ]
-[  ]
-[  ]
-[  ]
-[  ]
+stavi + u zagradu ako radis trenutno taj feature, x kad zavrsis(ili samo obrisi)

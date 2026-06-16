@@ -1,85 +1,256 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { MessageCircle, Minus, Send, X } from "lucide-react";
+import { Check, CheckCheck, Clock, MessageCircle, Minus, Send, X } from "lucide-react";
+import ConfirmModal from "../ConfirmModal";
+import { useChat } from "../../context/ChatContext";
 import "./FloatingChat.css";
-
-const conversations = [
-  {
-    id: "demo03",
-    name: "lena.demo03",
-    initials: "LD",
-    online: true,
-    unread: 2,
-    messages: [
-      { id: 1, from: "them", text: "Saturday afternoon sounds good.", time: "18:08" },
-      { id: 2, from: "me", text: "Perfect. Coffee first?", time: "18:09" },
-    ],
-  },
-  {
-    id: "demo15",
-    name: "nina.demo15",
-    initials: "ND",
-    online: false,
-    unread: 0,
-    messages: [
-      { id: 1, from: "them", text: "That live music event looks fun.", time: "16:20" },
-    ],
-  },
-  {
-    id: "demo18",
-    name: "aleksandar.demo18",
-    initials: "AD",
-    online: true,
-    unread: 0,
-    messages: [
-      { id: 1, from: "them", text: "Board games or coffee first?", time: "12:10" },
-    ],
-  },
-];
 
 function FloatingChat() {
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const [activeId, setActiveId] = useState(conversations[0].id);
   const [draft, setDraft] = useState("");
-  const [localMessages, setLocalMessages] = useState({});
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [messageMenu, setMessageMenu] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const typingTimeoutRef = useRef(null);
+  const messagesViewportRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const previousConversationIdRef = useRef(null);
+  const isNearBottomRef = useRef(true);
+  const {
+    auth,
+    canSendMessages,
+    conversations,
+    messagesByConversation,
+    activeConversationId: activeId,
+    loadingMessages: loading,
+    error,
+    setError,
+    setActiveConversationId,
+    loadMessages,
+    sendMessage,
+    editMessage,
+    deleteMessageForMe,
+    deleteMessageForEveryone,
+    setTyping,
+    getTypingState,
+  } = useChat();
+
+  useEffect(() => {
+    if (!open || !activeId) return;
+    loadMessages(activeId);
+  }, [activeId, loadMessages, open]);
+
+  useEffect(() => {
+    if (!open || !activeId) return;
+
+    let cancelled = false;
+
+    const pollTyping = async () => {
+      try {
+        const result = await getTypingState(activeId);
+        if (!cancelled) {
+          setOtherUserTyping(result);
+        }
+      } catch {
+        if (!cancelled) {
+          setOtherUserTyping(false);
+        }
+      }
+    };
+
+    pollTyping();
+    const intervalId = window.setInterval(pollTyping, 1400);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [activeId, getTypingState, open]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const activeConversation =
-    conversations.find((conversation) => conversation.id === activeId) || conversations[0];
+    conversations.find((conversation) => conversation.conversationId === activeId) ||
+    conversations[0] ||
+    null;
+  const messages = messagesByConversation[activeConversation?.conversationId] || [];
 
-  const activeMessages = useMemo(
-    () => [...activeConversation.messages, ...(localMessages[activeConversation.id] || [])],
-    [activeConversation, localMessages],
+  const scrollMessagesToBottom = useCallback((behavior = "auto") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
+
+  useEffect(() => {
+    if (!open || minimized) return;
+
+    const conversationId = activeConversation?.conversationId || null;
+    const conversationChanged = previousConversationIdRef.current !== conversationId;
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageIsMine = isMessageMine(lastMessage, auth.userId);
+
+    if (conversationChanged || lastMessageIsMine || isNearBottomRef.current) {
+      window.requestAnimationFrame(() => scrollMessagesToBottom(conversationChanged ? "auto" : "smooth"));
+    }
+
+    previousConversationIdRef.current = conversationId;
+  }, [activeConversation?.conversationId, auth.userId, messages, minimized, open, scrollMessagesToBottom]);
+
+  const handleMessagesScroll = () => {
+    const element = messagesViewportRef.current;
+    if (!element) return;
+
+    isNearBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 72;
+  };
+
+  const unreadTotal = conversations.reduce(
+    (total, conversation) => total + conversation.unreadCount,
+    0,
   );
 
-  const unreadTotal = conversations.reduce((total, conversation) => total + conversation.unread, 0);
-
-  const handleSend = (event) => {
+  const handleSend = async (event) => {
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text) {
+    if (!text || !activeConversation || !canSendMessages) {
       return;
     }
 
-    const time = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    setError("");
 
-    setLocalMessages((current) => ({
-      ...current,
-      [activeConversation.id]: [
-        ...(current[activeConversation.id] || []),
-        {
-          id: Date.now(),
-          from: "me",
-          text,
-          time,
-        },
-      ],
-    }));
-    setDraft("");
+    try {
+      if (editingMessage) {
+        await editMessage(editingMessage, text);
+        setEditingMessage(null);
+      } else {
+        await sendMessage(activeConversation.conversationId, text);
+      }
+      setDraft("");
+      notifyTyping(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const notifyTyping = useCallback(
+    (isTyping) => {
+      if (!activeConversation || !canSendMessages) return;
+
+      setTyping(activeConversation.conversationId, isTyping);
+    },
+    [activeConversation, canSendMessages, setTyping],
+  );
+
+  const handleDraftChange = (event) => {
+    const value = event.target.value;
+    setDraft(value);
+
+    if (!value.trim()) {
+      notifyTyping(false);
+      return;
+    }
+
+    notifyTyping(true);
+
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = window.setTimeout(() => {
+      notifyTyping(false);
+    }, 2200);
+  };
+
+  useEffect(() => {
+    if (!messageMenu) return undefined;
+
+    const closeMenu = () => setMessageMenu(null);
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setMessageMenu(null);
+        setEditingMessage(null);
+        setDraft("");
+      }
+    };
+
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [messageMenu]);
+
+  const openMessageMenu = (event, message) => {
+    event.preventDefault();
+    const width = 190;
+    const height = 132;
+    setMessageMenu({
+      message,
+      x: Math.min(event.clientX, window.innerWidth - width - 8),
+      y: Math.min(event.clientY, window.innerHeight - height - 8),
+    });
+  };
+
+  const handleEditMessage = (message) => {
+    setEditingMessage(message);
+    setDraft(message.displayBody ?? message.body ?? "");
+    setMessageMenu(null);
+  };
+
+  const handleDeleteForMe = (message) => {
+    setMessageMenu(null);
+    setConfirmDialog({
+      action: "forMe",
+      message,
+      title: "Delete message?",
+      body: "This message will be removed only for you.",
+      confirmText: "Delete",
+    });
+  };
+
+  const handleDeleteForEveryone = (message) => {
+    setMessageMenu(null);
+    setConfirmDialog({
+      action: "forEveryone",
+      message,
+      title: "Delete message for everyone?",
+      body: "This action will remove the message for all conversation participants.",
+      confirmText: "Delete for everyone",
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDialog || confirmLoading) return;
+
+    setConfirmLoading(true);
+
+    try {
+      if (confirmDialog.action === "forEveryone") {
+        await deleteMessageForEveryone(confirmDialog.message);
+      } else {
+        await deleteMessageForMe(confirmDialog.message);
+      }
+      setConfirmDialog(null);
+    } catch (err) {
+      setError(err.message || "Message could not be deleted.");
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleCancelConfirm = () => {
+    if (confirmLoading) return;
+    setConfirmDialog(null);
   };
 
   if (!open) {
@@ -104,12 +275,15 @@ function FloatingChat() {
       <header className="floating-chat__head">
         <button type="button" className="floating-chat__person" onClick={() => setMinimized(false)}>
           <span className="floating-chat__avatar">
-            {activeConversation.initials}
-            {activeConversation.online && <i />}
+            {activeConversation?.otherAvatar ? (
+              <img src={activeConversation.otherAvatar} alt="" />
+            ) : (
+              activeConversation?.otherInitials || "MY"
+            )}
           </span>
           <span>
-            <strong>{activeConversation.name}</strong>
-            <small>{activeConversation.online ? "Active now" : "Frontend preview"}</small>
+            <strong>{activeConversation?.otherDisplayName || activeConversation?.otherUsername || "Chat"}</strong>
+            <small>{activeConversation ? "Messages" : "No conversations"}</small>
           </span>
         </button>
         <div className="floating-chat__controls">
@@ -129,50 +303,212 @@ function FloatingChat() {
               {conversations.map((conversation) => (
                 <button
                   type="button"
-                  key={conversation.id}
-                  className={`floating-chat__thread${conversation.id === activeConversation.id ? " floating-chat__thread--active" : ""}`}
-                  onClick={() => setActiveId(conversation.id)}
-                  aria-label={`Open chat with ${conversation.name}`}
+                  key={conversation.conversationId}
+                  className={`floating-chat__thread${
+                    conversation.conversationId === activeConversation?.conversationId
+                      ? " floating-chat__thread--active"
+                      : ""
+                  }`}
+                  onClick={() => setActiveConversationId(conversation.conversationId)}
+                  aria-label={`Open chat with ${conversation.otherUsername}`}
                 >
                   <span className="floating-chat__avatar floating-chat__avatar--small">
-                    {conversation.initials}
-                    {conversation.online && <i />}
+                    {conversation.otherAvatar ? (
+                      <img src={conversation.otherAvatar} alt="" />
+                    ) : (
+                      conversation.otherInitials || getInitials(conversation.otherUsername)
+                    )}
                   </span>
-                  {conversation.unread > 0 && <b>{conversation.unread}</b>}
+                  {conversation.unreadCount > 0 && <b>{conversation.unreadCount}</b>}
                 </button>
               ))}
             </div>
 
-            <div className="floating-chat__messages">
-              {activeMessages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`floating-chat__message floating-chat__message--${message.from}`}
-                >
-                  <p>{message.text}</p>
-                  <span>{message.time}</span>
-                </div>
-              ))}
+            <div
+              className="floating-chat__messages"
+              ref={messagesViewportRef}
+              onScroll={handleMessagesScroll}
+            >
+              {loading && messages.length === 0 && (
+                <div className="floating-chat__state">Loading messages...</div>
+              )}
+              {!loading && !activeConversation && (
+                <div className="floating-chat__state">No conversations yet.</div>
+              )}
+              {!loading &&
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`floating-chat__message floating-chat__message--${
+                      isMessageMine(message, auth.userId) ? "me" : "them"
+                    }${message.isDeletedForEveryone ? " floating-chat__message--deleted" : ""}`}
+                    onContextMenu={(event) => openMessageMenu(event, message)}
+                  >
+                    <p>{message.isDeletedForEveryone ? "This message was deleted" : message.displayBody ?? message.body}</p>
+                    <div className="floating-chat__message-meta">
+                      <span>{formatTime(message.createdAt)}</span>
+                      {message.editedAt && !message.isDeletedForEveryone && <span title={formatTime(message.editedAt)}>edited</span>}
+                      {isMessageMine(message, auth.userId) && (
+                        <MessageStatusIcon message={message} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              {!loading && otherUserTyping && (
+                <TypingIndicator className="floating-chat__message floating-chat__message--them" />
+              )}
+              {error && <div className="floating-chat__error">{error}</div>}
+              <div ref={messagesEndRef} aria-hidden="true" />
             </div>
           </div>
 
-          <form className="floating-chat__composer" onSubmit={handleSend}>
-            <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Message..."
-            />
-            <button type="submit" aria-label="Send message">
-              <Send size={16} />
-            </button>
-          </form>
+          {canSendMessages && activeConversation ? (
+            <form className="floating-chat__composer" onSubmit={handleSend}>
+              {editingMessage && (
+                <div className="floating-chat__editing">
+                  <span>Editing message</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingMessage(null);
+                      setDraft("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              <input
+                value={draft}
+                onChange={handleDraftChange}
+                placeholder="Message..."
+                maxLength={2000}
+              />
+              <button type="submit" aria-label="Send message" disabled={!draft.trim()}>
+                <Send size={16} />
+              </button>
+            </form>
+          ) : (
+            <div className="floating-chat__disabled">
+              {canSendMessages ? "Open a profile to start chatting." : "Only ordinary users can send messages."}
+            </div>
+          )}
 
           <Link className="floating-chat__full" to="/app/chat">
             View all messages
           </Link>
         </>
       )}
+      {messageMenu && (
+        <MessageContextMenu
+          menu={messageMenu}
+          currentUserId={auth.userId}
+          onEdit={handleEditMessage}
+          onDeleteForMe={handleDeleteForMe}
+          onDeleteForEveryone={handleDeleteForEveryone}
+        />
+      )}
+      <ConfirmModal
+        isOpen={Boolean(confirmDialog)}
+        title={confirmDialog?.title}
+        message={confirmDialog?.body}
+        confirmText={confirmDialog?.confirmText}
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={confirmLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelConfirm}
+      />
     </aside>
+  );
+}
+
+function MessageContextMenu({ menu, currentUserId, onEdit, onDeleteForMe, onDeleteForEveryone }) {
+  const isMine = isMessageMine(menu.message, currentUserId);
+
+  return createPortal(
+    <div
+      className="chat-message-menu"
+      style={{ left: menu.x, top: menu.y }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {isMine && !menu.message.isDeletedForEveryone && (
+        <button type="button" onClick={() => onEdit(menu.message)}>
+          Edit message
+        </button>
+      )}
+      <button type="button" onClick={() => onDeleteForMe(menu.message)}>
+        Delete for myself
+      </button>
+      {isMine && !menu.message.isDeletedForEveryone && (
+        <button type="button" className="chat-message-menu__danger" onClick={() => onDeleteForEveryone(menu.message)}>
+          Delete for everyone
+        </button>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+function isMessageMine(message, currentUserId) {
+  if (!message) return false;
+  if (typeof message.isMine === "boolean") return message.isMine;
+  return Number(message.senderId) === Number(currentUserId);
+}
+
+function TypingIndicator({ className }) {
+  return (
+    <div className={`${className} floating-chat__typing`} aria-label="Typing">
+      <p>
+        <i />
+        <i />
+        <i />
+      </p>
+    </div>
+  );
+}
+
+function MessageStatusIcon({ message }) {
+  const status = getMessageStatus(message);
+  const Icon = status === "Read" ? CheckCheck : status === "Delivered" ? CheckCheck : status === "Sent" ? Check : Clock;
+
+  return (
+    <span className="floating-chat__message-status" title={status} aria-label={status}>
+      <Icon size={12} strokeWidth={2.4} />
+    </span>
+  );
+}
+
+function getMessageStatus(message) {
+  if (message.readAt) return "Read";
+  if (message.id) return "Delivered";
+  return "Sending";
+}
+
+function formatTime(value) {
+  if (!value) return "";
+  return parseServerDate(value).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function parseServerDate(value) {
+  if (typeof value === "string" && !/[zZ]|[+-]\d{2}:\d{2}$/.test(value)) {
+    return new Date(`${value}Z`);
+  }
+
+  return new Date(value);
+}
+
+function getInitials(value) {
+  return (
+    value
+      ?.split(/[.\s_-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "MY"
   );
 }
 

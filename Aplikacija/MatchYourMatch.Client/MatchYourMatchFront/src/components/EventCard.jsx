@@ -1,8 +1,18 @@
 import { MapPin, Clock } from 'lucide-react';
 
 function EventCard({ event, style, mini = false, onJoin }) {
-  const { title, category, date, time, location, description, attendees, attendeeCount } = event;
-  const extra = attendeeCount - attendees.length;
+  const {
+    title,
+    category,
+    date,
+    time,
+    location,
+    description,
+    attendees = [],
+    attendeeCount = 0,
+    isJoinedByCurrentUser = false,
+  } = event;
+  const extra = Math.max(0, attendeeCount - attendees.length);
 
   if (mini) {
     return (
@@ -45,8 +55,13 @@ function EventCard({ event, style, mini = false, onJoin }) {
           ))}
           {extra > 0 && <span className="event-card__more">+{extra} more</span>}
         </div>
-        <button type="button" className="event-card__join" onClick={onJoin}>
-          JOIN EVENT
+        <button
+          type="button"
+          className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
+          onClick={onJoin}
+          disabled={isJoinedByCurrentUser}
+        >
+          {isJoinedByCurrentUser ? 'JOINED' : 'JOIN EVENT'}
         </button>
       </div>
     </article>

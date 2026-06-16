@@ -14,5 +14,6 @@ namespace MatchYourMatch.WebAPI.Models
         public string? ImageUrl { get; set; }
         public User? Organizer { get; set; }
         public Interest? Interest { get; set; }
+        public List<EventParticipant> Participants { get; set; } = new();
     }
 }

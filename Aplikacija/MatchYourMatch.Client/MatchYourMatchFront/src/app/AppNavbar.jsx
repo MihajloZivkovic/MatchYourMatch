@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, Monitor, Moon, Sun, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
+import { useTheme } from "../context/ThemeContext";
 import "./AppNavbar.css";
 
 function AppNavbar(props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const themeRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     setMenuOpen(false);
@@ -19,6 +23,9 @@ function AppNavbar(props) {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
+      }
+      if (themeRef.current && !themeRef.current.contains(e.target)) {
+        setThemeMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -34,6 +41,7 @@ function AppNavbar(props) {
 
   const navLinkClass = ({ isActive }) =>
     `app-navbar__link${isActive ? " app-navbar__link--active" : ""}`;
+  const ThemeIcon = theme === "system" ? Monitor : resolvedTheme === "light" ? Sun : Moon;
 
   return (
     <header className="app-navbar">
@@ -76,7 +84,7 @@ function AppNavbar(props) {
               aria-expanded={dropdownOpen}
               onClick={() => setDropdownOpen((o) => !o)}
             >
-              <img src={props.picture} alt="profile picture" className="profilePicture"/>
+              {props.picture ? <img src={props.picture} alt="profile picture" className="profilePicture"/> : null}
             </button>
             {dropdownOpen && (
               <div className="app-navbar__dropdown">
@@ -88,6 +96,56 @@ function AppNavbar(props) {
                 </button>
                 <button type="button" onClick={handleLogout}>
                   Logout
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="app-navbar__theme" ref={themeRef}>
+            <button
+              type="button"
+              className="app-navbar__theme-btn"
+              aria-label="Theme"
+              aria-expanded={themeMenuOpen}
+              onClick={() => setThemeMenuOpen((open) => !open)}
+            >
+              <ThemeIcon size={17} />
+              <span>Theme</span>
+            </button>
+            {themeMenuOpen && (
+              <div className="app-navbar__theme-menu">
+                <button
+                  type="button"
+                  className={theme === "system" ? "app-navbar__theme-option--active" : ""}
+                  onClick={() => {
+                    setTheme("system");
+                    setThemeMenuOpen(false);
+                  }}
+                >
+                  <Monitor size={15} />
+                  System
+                </button>
+                <button
+                  type="button"
+                  className={theme === "light" ? "app-navbar__theme-option--active" : ""}
+                  onClick={() => {
+                    setTheme("light");
+                    setThemeMenuOpen(false);
+                  }}
+                >
+                  <Sun size={15} />
+                  Light
+                </button>
+                <button
+                  type="button"
+                  className={theme === "dark" ? "app-navbar__theme-option--active" : ""}
+                  onClick={() => {
+                    setTheme("dark");
+                    setThemeMenuOpen(false);
+                  }}
+                >
+                  <Moon size={15} />
+                  Dark
                 </button>
               </div>
             )}
@@ -153,6 +211,21 @@ function AppNavbar(props) {
         >
           My Profile
         </Link>
+        <div className="app-navbar__drawer-theme">
+          <span>Theme</span>
+          <div>
+            {["system", "light", "dark"].map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={theme === option ? "app-navbar__drawer-theme-active" : ""}
+                onClick={() => setTheme(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           type="button"
           className="app-navbar__drawer-logout"
