@@ -77,5 +77,21 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [Authorize]
+        [HttpGet("{userId}/is-following")]
+        public async Task<IActionResult> IsFollowing(int userId)
+        {
+            try
+            {
+                var followerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var res = await _service.IsFollowingAsync(followerId, userId);
+                return Ok(res);
+            }
+            catch(Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

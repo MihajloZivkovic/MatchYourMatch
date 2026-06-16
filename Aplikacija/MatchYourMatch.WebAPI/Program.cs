@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
+DotNetEnv.Env.Load();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -37,6 +38,9 @@ builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IQuickMatchService, QuickMatchService>();
 builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 builder.Services.AddHttpClient<IGeocodingService, GeocodingService>();
+builder.Services.AddScoped<IFollowService, FollowService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<EmailService>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();

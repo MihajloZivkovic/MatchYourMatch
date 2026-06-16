@@ -59,5 +59,10 @@ namespace MatchYourMatch.WebAPI.Services
             _context.Follows.Remove(exists);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<bool> IsFollowingAsync(int followerId, int followingId)
+        {
+            return await _context.Follows.AnyAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
+        }
     }
 }

@@ -42,5 +42,33 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return Unauthorized(ex.Message);
             }
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
+        {
+            try
+            {
+                await _authService.ForgotPasswordAsync(dto);
+                return Ok("Email sa tokenom je poslat.");
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(ex.Message);
+            }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
+        {
+            try
+            {
+                await _authService.ResetPasswordAsync(dto);
+                return Ok("Lozinka uspesno promenjena.");
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(ex.Message);
+            }
+        }
     }
 }

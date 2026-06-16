@@ -14,16 +14,18 @@ namespace MatchYourMatch.WebAPI.Services
     {
         private readonly IConfiguration _config;
         private readonly AppDbContext _context;
+        private readonly EmailService _emailService;
 
         private readonly string _issuer;
         private readonly string _audience;
         private readonly string _secret;
         private readonly int _expires;
 
-        public AuthService(IConfiguration config, AppDbContext context)
+        public AuthService(IConfiguration config, AppDbContext context, EmailService service)
         {
             _config = config;
             _context = context;
+            _emailService = service;
 
             _issuer = _config["JwtSettings:Issuer"]!;
             _audience = _config["JwtSettings:Audience"]!;
@@ -58,6 +60,9 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 throw new Exception("Pogresna lozinka.");
+
+            if (!user.IsActive) 
+                throw new Exception("Nalog je deaktiviran.");
 
             return GenerateResponse(user);
         }
@@ -100,6 +105,34 @@ namespace MatchYourMatch.WebAPI.Services
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null)
+                throw new Exception("Korisnik nije pronadjen");
+            
+            user.ResetToken = Guid.NewGuid().ToString();
+            user.ResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+            await _context.SaveChangesAsync();
+
+            await _emailService.SendResetEmailAsync(dto.Email, user.ResetToken);
+        }
+
+        public async Task ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.ResetToken == dto.Token);
+            if (user == null)
+                throw new Exception("Token ne postoji");
+
+            if (user.ResetTokenExpiry < DateTime.UtcNow)
+                throw new Exception("Token istekao");
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.ResetToken = null;
+            user.ResetTokenExpiry = null;
+            await _context.SaveChangesAsync();
         }
     }
 }
