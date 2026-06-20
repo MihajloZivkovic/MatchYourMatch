@@ -19,6 +19,7 @@ import AvailabilityScheduleEditor from "../../components/profile/AvailabilitySch
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
 import { CURRENT_USER, LITTLE_THINGS } from "../../data/matches";
 import "./Profile.css";
+import { useTranslation } from '../../hooks/useTranslation';
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
 const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
@@ -33,6 +34,7 @@ const SOCIAL_ENERGY = 72;
 const CONVERSATION = "Thoughtful & playful";
 
 function Profile(props) {
+  const { t } = useTranslation();
   const { setUserProfile } = props;
   const [tab, setTab] = useState("ABOUT");
   const [eventSegment, setEventSegment] = useState("Upcoming");
@@ -49,7 +51,7 @@ function Profile(props) {
   const [profileSuccess, setProfileSuccess] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [locationSuggestionsLoading, setLocationSuggestionsLoading] = useState(false);
-  const [saveButtonText, setSaveButtonText] = useState("Save");
+  const [saveButtonText, setSaveButtonText] = useState(() => t('common.save'));
   const [saveButtonAnimating, setSaveButtonAnimating] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState("");
@@ -67,11 +69,11 @@ function Profile(props) {
   const navigate = useNavigate();
 
   const styleButton = () => {
-    setSaveButtonText("Saved!");
+    setSaveButtonText(t('common.save'));
     setSaveButtonAnimating(true);
 
     window.setTimeout(() => {
-      setSaveButtonText("Save");
+      setSaveButtonText(t('common.save'));
       setSaveButtonAnimating(false);
     }, 2000);
   };
@@ -477,10 +479,10 @@ function Profile(props) {
     typeof profileScoreValue === "number" ? `${profileScoreValue}%` : "—";
 
   const statCards = [
-    { icon: Heart, label: "Matches", value: matchesDisplay },
-    { icon: Calendar, label: "Events Joined", value: eventsJoinedDisplay },
-    { icon: Star, label: "Profile Score", value: profileScoreDisplay },
-    { icon: MessageCircle, label: "Response Rate", value: responseRateDisplay },
+    { icon: Heart, label: t('profile.matches'), value: matchesDisplay },
+    { icon: Calendar, label: t('profile.eventsJoined'), value: eventsJoinedDisplay },
+    { icon: Star, label: t('profile.score'), value: profileScoreDisplay },
+    { icon: MessageCircle, label: t('profile.responseRate'), value: responseRateDisplay },
   ];
 
   const eventLists = profileEvents;
@@ -548,26 +550,26 @@ function Profile(props) {
               {profileEditing && (
                 <div className="profile__location-editor">
                   <div className="profile__editor-section">
-                    <h4>Basic info</h4>
+                    <h4>{t('profile.basicInfo')}</h4>
                     <label>
-                      <span>About me</span>
+                      <span>{t('profile.aboutMe')}</span>
                       <textarea
                         value={bioDraft}
                         onChange={(event) => setBioDraft(event.target.value)}
-                        placeholder="Tell people a little about you"
+                        placeholder={t('profileUi.bioPlaceholder')}
                       />
                     </label>
                   </div>
 
                   <div className="profile__editor-section">
-                    <h4>Location & privacy</h4>
+                    <h4>{t('profile.locationPrivacy')}</h4>
                     <label>
-                      <span>Location</span>
+                      <span>{t('profile.location')}</span>
                       <input
                         type="text"
                         value={locationDraft}
                         onChange={handleLocationDraftChange}
-                        placeholder="Enter your city or address"
+                        placeholder={t('profileUi.cityPlaceholder')}
                         autoComplete="off"
                       />
                       {(locationSuggestionsLoading || locationSuggestions.length > 0) && (
@@ -592,13 +594,13 @@ function Profile(props) {
                       )}
                     </label>
                     <label>
-                      <span>Privacy</span>
+                      <span>{t('profile.privacy')}</span>
                       <select
                         value={locationPrivacyDraft}
                         onChange={(event) => setLocationPrivacyDraft(event.target.value)}
                       >
-                        <option value="CityOnly">Show city only</option>
-                        <option value="Hidden">Hide location</option>
+                        <option value="CityOnly">{t('profile.showCity')}</option>
+                        <option value="Hidden">{t('profile.hideLocation')}</option>
                       </select>
                     </label>
                     <p>
@@ -622,32 +624,32 @@ function Profile(props) {
                       onClick={handleProfileSave}
                       disabled={profileSaving}
                     >
-                      {profileSaving ? "Finding location..." : saveButtonText}
+                      {profileSaving ? t('common.loading') : saveButtonAnimating ? saveButtonText : t('common.save')}
                     </button>
                     <button
                       type="button"
                       className="profile__quiet-btn"
                       onClick={handleProfileCancel}
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                   </div>
                 </div>
               )}
               <div className="profile__badges-row">
-                <span className="glass-pill glass-pill--online">ACTIVE TODAY</span>
+                <span className="glass-pill glass-pill--online">{t('profile.activeToday').toUpperCase()}</span>
                 <span className="profile__completion">
-                  {CURRENT_USER.completion}% complete
+                  {CURRENT_USER.completion}% {t('profile.complete')}
                 </span>
                 <span className="profile__type-badge">
-                  {CURRENT_USER.personalityType}
+                  {t(`profileOptions.${CURRENT_USER.personalityType}`)}
                 </span>
               </div>
-              <span className="profile__exploring">Currently Exploring</span>
+              <span className="profile__exploring">{t('profile.exploring')}</span>
               <div className="profile__trait-tags">
                 {CURRENT_USER.badges.map((b) => (
                   <span key={b} className="profile__trait">
-                    {b}
+                    {t(`profileOptions.${b}`)}
                   </span>
                 ))}
               </div>
@@ -678,10 +680,10 @@ function Profile(props) {
               className="app-btn-pill app-btn-pill--outline app-interactive"
               onClick={handleProfileEdit}
             >
-              EDIT PROFILE
+              {t('profile.edit').toUpperCase()}
             </button>
             <button type="button" className="profile__logout" onClick={handleLogout}>
-              LOGOUT
+              {t('profile.logout').toUpperCase()}
             </button>
           </div>
         </div>
@@ -689,17 +691,17 @@ function Profile(props) {
 
       <div className="profile__body">
         <div className="profile__tabs" role="tablist">
-          {TABS.map((t) => (
+          {TABS.map((tabName) => (
             <button
-              key={t}
+              key={tabName}
               type="button"
               role="tab"
-              aria-selected={tab === t}
-              className={`profile__tab${tab === t ? " profile__tab--active" : ""}`}
-              onClick={() => setTab(t)}
+              aria-selected={tab === tabName}
+              className={`profile__tab${tab === tabName ? " profile__tab--active" : ""}`}
+              onClick={() => setTab(tabName)}
             >
-              {t}
-              {tab === t && <span className="profile__tab-glow" />}
+              {t(`profile.${tabName.toLowerCase()}`).toUpperCase()}
+              {tab === tabName && <span className="profile__tab-glow" />}
             </button>
           ))}
         </div>
@@ -708,7 +710,7 @@ function Profile(props) {
           {tab === "ABOUT" && (
             <div className="profile__about">
               <form className="profile__block" onSubmit={handleBioSave}>
-                <h3>About Me</h3>
+                <h3>{t('profile.aboutMe')}</h3>
                 <textarea
                   name="bio"
                   placeholder="Designer and music lover based in Brooklyn. Always up for a rooftop sunset, live jazz, or a spontaneous road trip. Looking for genuine connection and good conversation."
@@ -719,16 +721,16 @@ function Profile(props) {
                   type="submit"
                   className={`saveButton${saveButtonAnimating ? " saveAnimation" : ""}`}
                 >
-                  {saveButtonText}
+                  {saveButtonAnimating ? saveButtonText : t('common.save')}
                 </button>
               </form>
 
               <section className="profile__block profile__little-things">
-                <h3>LITTLE THINGS ABOUT ME</h3>
+                <h3>{t('profile.littleThings').toUpperCase()}</h3>
                 <div className="profile__little-grid">
                   {LITTLE_THINGS.map((item) => (
                     <span key={item} className="profile__little-card app-tilt-hover">
-                      {item}
+                      {t(`profileOptions.${item}`)}
                     </span>
                   ))}
                 </div>
@@ -738,18 +740,18 @@ function Profile(props) {
                 <section className="profile__mini-card">
                   <h4>
                     <Music size={14} />
-                    Favorite Activities
+                    {t('profile.favoriteActivities')}
                   </h4>
                   <div className="profile__pills">
                     {ACTIVITIES.map((a) => (
                       <span key={a} className="profile__pill">
-                        {a}
+                        {t(`profileOptions.${a}`)}
                       </span>
                     ))}
                   </div>
                 </section>
                 <section className="profile__mini-card">
-                  <h4>Social Energy</h4>
+                  <h4>{t('profile.socialEnergy')}</h4>
                   <div className="profile__energy-ring">
                     <svg viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15" className="profile__ring-bg" />
@@ -769,14 +771,14 @@ function Profile(props) {
                 <section className="profile__mini-card">
                   <h4>
                     <Coffee size={14} />
-                    Conversation Style
+                    {t('profile.conversationStyle')}
                   </h4>
-                  <p>{CONVERSATION}</p>
+                  <p>{t(`profileOptions.${CONVERSATION}`)}</p>
                 </section>
                 <section className="profile__mini-card">
                   <h4>
                     <Moon size={14} />
-                    Looking For
+                    {t('profile.lookingFor')}
                   </h4>
                   <div className="profile__pills">
                     {[
@@ -785,7 +787,7 @@ function Profile(props) {
                       "Creative collaborator",
                     ].map((item) => (
                       <span key={item} className="profile__pill">
-                        {item}
+                        {t(`profileOptions.${item}`)}
                       </span>
                     ))}
                   </div>
@@ -800,18 +802,18 @@ function Profile(props) {
           {tab === "MATCHES" && (
             <div className="profile__matches-grid">
               {matchesLoading && (
-                <div className="profile__matches-state">Loading matches...</div>
+                <div className="profile__matches-state">{t('profile.loadingMatches')}</div>
               )}
 
               {!matchesLoading && matchesError && (
                 <div className="profile__matches-state profile__matches-state--error">
-                  Matches could not be loaded.
+                  {t('profileUi.matchesError')}
                 </div>
               )}
 
               {!matchesLoading && !matchesError && profileMatches.length === 0 && (
                 <div className="profile__matches-state">
-                  No matches yet. Try Quick Match or Deep Match to start connecting.
+                  {t('profileUi.noMatches')}
                 </div>
               )}
 
@@ -832,15 +834,15 @@ function Profile(props) {
                             <span key={tag}>{tag}</span>
                           ))}
                           {m.extraInterestsCount > 0 && (
-                            <span>+{m.extraInterestsCount} more</span>
+                            <span>{t('profileUi.more', { count: m.extraInterestsCount })}</span>
                           )}
                         </>
                       ) : (
-                        <em>Matched connection</em>
+                        <em>{t('profile.matchedConnection')}</em>
                       )}
                     </div>
                     {m.isRecentlyActive && (
-                      <span className="profile__match-online">Recently active</span>
+                      <span className="profile__match-online">{t('profile.recentlyActive')}</span>
                     )}
                     <button
                       type="button"
@@ -875,7 +877,7 @@ function Profile(props) {
                           }
                           onClick={() => setEventSegment(seg)}
                         >
-                          {seg}
+                          {t(`profileUi.${seg.toLowerCase()}`)}
                         </button>
                       ))}
                     </div>
@@ -884,9 +886,9 @@ function Profile(props) {
                       className="profile__event-refresh"
                       onClick={fetchProfileEvents}
                       disabled={eventsLoading}
-                      aria-label="Refresh events"
+                      aria-label={t('profileUi.refresh')}
                       aria-busy={eventsLoading}
-                      title="Refresh"
+                      title={t('profileUi.refresh')}
                     >
                       <RefreshCw size={18} aria-hidden="true" />
                     </button>
@@ -896,7 +898,7 @@ function Profile(props) {
                     <div className="profile__events-error">
                       <span>{eventsError}</span>
                       <button type="button" onClick={fetchProfileEvents}>
-                        Retry
+                        {t('common.retry')}
                       </button>
                     </div>
                   )}
@@ -929,11 +931,12 @@ function Profile(props) {
 }
 
 function EventDetails({ event, onBack, onJoin }) {
+  const { t } = useTranslation();
   return (
     <section className="profile__event-detail">
       <button type="button" className="profile__event-back" onClick={onBack}>
         <ArrowLeft size={16} />
-        Events
+        {t('profileUi.eventBack')}
       </button>
       <div className="profile__event-detail-head">
         <span className="event-card__category">{event.category}</span>
@@ -950,7 +953,7 @@ function EventDetails({ event, onBack, onJoin }) {
           </span>
           <span>
             <Users size={15} />
-            {event.attendeeCount}/{event.maxAttendees || "open"} attending
+            {event.attendeeCount}/{event.maxAttendees || t('profileUi.open')} {t('profileUi.attending')}
           </span>
         </div>
         <div className="profile__event-detail-actions">
@@ -962,10 +965,10 @@ function EventDetails({ event, onBack, onJoin }) {
             onClick={onJoin}
             disabled={event.isJoinedByCurrentUser}
           >
-            {event.isJoinedByCurrentUser ? "JOINED" : "JOIN EVENT"}
+            {event.isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
           </button>
           {event.organizerUsername && (
-            <span>Hosted by @{event.organizerUsername}</span>
+            <span>{t('profileUi.hostedBy', { name: event.organizerUsername })}</span>
           )}
         </div>
       </div>
@@ -976,6 +979,7 @@ function EventDetails({ event, onBack, onJoin }) {
 }
 
 function EventDiscussion({ event, onJoin }) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1080,10 +1084,10 @@ function EventDiscussion({ event, onJoin }) {
   if (!event.isJoinedByCurrentUser) {
     return (
       <section className="profile__event-thread profile__event-thread--locked">
-        <h3>Event discussion</h3>
-        <p>Join this event to see and write in its private discussion.</p>
+        <h3>{t('profile.eventDiscussion')}</h3>
+        <p>{t('profile.joinDiscussion')}</p>
         <button type="button" className="app-btn-pill" onClick={onJoin}>
-          Join to discuss
+          {t('profileUi.joinDiscuss')}
         </button>
       </section>
     );
@@ -1093,20 +1097,20 @@ function EventDiscussion({ event, onJoin }) {
     <section className="profile__event-thread">
       <div className="profile__event-thread-head">
         <div>
-          <h3>Event discussion</h3>
-          <p>Messages stay attached to this event only.</p>
+          <h3>{t('profile.eventDiscussion')}</h3>
+          <p>{t('profile.eventMessages')}</p>
         </div>
         <button type="button" className="profile__quiet-btn" onClick={loadDiscussion}>
-          Refresh
+          {t('profileUi.refresh')}
         </button>
       </div>
 
-      {loading && <div className="profile__events-empty">Loading discussion...</div>}
+      {loading && <div className="profile__events-empty">{t('profile.loadingDiscussion')}</div>}
       {error && <div className="profile__events-error">{error}</div>}
 
       <div className="profile__event-messages" ref={messagesRef}>
         {!loading && messages.length === 0 && (
-          <div className="profile__events-empty">No messages yet.</div>
+          <div className="profile__events-empty">{t('chat.noMessages')}</div>
         )}
         {messages.map((message) => {
           const mine = Boolean(message.isMine);
@@ -1119,10 +1123,10 @@ function EventDiscussion({ event, onJoin }) {
               }`}
             >
               {!mine && (
-                <span>{message.displayName || message.username || "Member"}</span>
+                <span>{message.displayName || message.username || t('profileUi.member')}</span>
               )}
               <p>
-                {message.isDeleted ? "This message was deleted" : message.body}
+                {message.isDeleted ? t('profileUi.deletedMessage') : message.body}
               </p>
               <small>{formatChatTime(message.createdAt)}</small>
             </div>
@@ -1134,7 +1138,7 @@ function EventDiscussion({ event, onJoin }) {
         <input
           value={draft}
           onChange={(inputEvent) => setDraft(inputEvent.target.value)}
-          placeholder="Write in event discussion..."
+          placeholder={t('profileUi.writeDiscussion')}
           maxLength={2000}
         />
         <button type="submit" disabled={sending || !draft.trim()} aria-label="Send">

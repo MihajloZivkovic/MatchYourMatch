@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './DeepMatch.css';
+import { useTranslation } from '../../hooks/useTranslation';
 
 function DeepMatch() {
   const [preferences, setPreferences] = useState(null);
@@ -9,6 +10,7 @@ function DeepMatch() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const loadDeepMatch = async () => {
@@ -79,50 +81,47 @@ function DeepMatch() {
 
       <main className="deep-match__shell">
         <header className="deep-match__hero">
-          <h1>Your Deep Matches</h1>
-          <p>Sorted by compatibility based on your schedule, interests and preferences.</p>
+          <h1>{t('deep.title')}</h1>
+          <p>{t('deep.subtitle')}</p>
           <div className="deep-match__accent-line" />
         </header>
 
         {loading && (
           <div className="deep-match__state">
             <div className="deep-match__spinner" aria-hidden="true" />
-            <p>Loading your Deep Match profile...</p>
+            <p>{t('deep.loading')}</p>
           </div>
         )}
 
         {!loading && error && (
           <div className="deep-match__state deep-match__state--error">
-            <h2>Deep Match is unavailable</h2>
+            <h2>{t('deep.unavailable')}</h2>
             <p>{error}</p>
           </div>
         )}
 
         {!loading && !error && isIncomplete && (
           <div className="deep-match__state">
-            <h2>Complete your profile first</h2>
-            <p>
-              Complete your Deep Match preferences and free time schedule on your profile to get
-              better matches.
-            </p>
+            <h2>{t('deep.completeTitle')}</h2>
+            <p>{t('deep.completeText')}</p>
             <button type="button" className="app-btn-pill" onClick={() => navigate('/app/profile')}>
-              Go to profile
+              {t('deep.goProfile')}
             </button>
           </div>
         )}
 
         {!loading && !error && !isIncomplete && matches.length === 0 && (
           <div className="deep-match__state">
-            <h2>No deep matches yet</h2>
-            <p>Try adding more interests or wider free time windows on your profile.</p>
+            <h2>{t('deep.none')}</h2>
+            <p>{t('deep.noneText')}</p>
             <button type="button" className="app-btn-pill" onClick={() => navigate('/app/profile')}>
-              Edit preferences
+              {t('deep.edit')}
             </button>
           </div>
         )}
 
         {!loading && !error && !isIncomplete && matches.length > 0 && (
-          <section className="deep-match__results-list" aria-label="Deep Match results">
+          <section className="deep-match__results-list" aria-label={t('deep.results')}>
             {matches.map((match) => (
               <article key={match.userId} className="deep-match__result-card app-tilt-hover">
                 <div className="deep-match__avatar">{match.initials}</div>
@@ -130,7 +129,7 @@ function DeepMatch() {
                   <div className="deep-match__result-head">
                     <div>
                       <h2>{match.displayName || match.username}</h2>
-                      <p>{match.location || 'Unknown location'}</p>
+                      <p>{match.location || t('deep.unknownLocation')}</p>
                     </div>
                     <span className="deep-match__score-badge">{match.compatibilityScore}%</span>
                   </div>
@@ -159,7 +158,7 @@ function DeepMatch() {
                   </div>
 
                   <button type="button" className="app-btn-pill app-btn-pill--outline deep-match__view">
-                    View details
+                    {t('deep.viewDetails')}
                   </button>
                 </div>
               </article>

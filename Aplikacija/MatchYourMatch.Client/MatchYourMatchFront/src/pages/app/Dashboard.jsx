@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { events } from "../../data/events";
 import "./Dashboard.css";
+import { useTranslation } from '../../hooks/useTranslation';
 
 const INTEREST_PILLS = [
   "Late Night Drives",
@@ -83,6 +84,7 @@ function mapDeepMatchToConnection(match) {
 }
 
 function Dashboard(props) {
+  const { t } = useTranslation();
   const [interests, setInterests] = useState(DEFAULT_INTERESTS);
   const [vibe, setVibe] = useState(DEFAULT_VIBE);
   const [suggestedConnections, setSuggestedConnections] = useState([]);
@@ -197,33 +199,33 @@ function Dashboard(props) {
           <span className="dashboard__vignette" />
         </div>
         <div className="dashboard__hero-content">
-          <p className="dashboard__welcome">WELCOME BACK,</p>
+          <p className="dashboard__welcome">{t('dashboard.welcome').toUpperCase()}</p>
           <h1 className="dashboard__name">{props.currentUser.username}</h1>
           <p className="dashboard__subtext">
-            Your next meaningful connection might already be here.
+            {t('dashboard.subtitle')}
           </p>
-          <span className="glass-pill glass-pill--online">ONLINE</span>
+          <span className="glass-pill glass-pill--online">{t('dashboard.online').toUpperCase()}</span>
           <div className="dashboard__quick-actions">
             <Link
               to="/app/quick-match"
               className="dashboard__action app-interactive app-tilt-hover"
             >
               <Zap size={18} />
-              <span>QUICK MATCH</span>
+              <span>{t('nav.quickMatch').toUpperCase()}</span>
             </Link>
             <Link
               to="/app/deep-match"
               className="dashboard__action app-interactive app-tilt-hover"
             >
               <Brain size={18} />
-              <span>DEEP MATCH</span>
+              <span>{t('nav.deepMatch').toUpperCase()}</span>
             </Link>
             <Link
               to="/app/events"
               className="dashboard__action app-interactive app-tilt-hover"
             >
               <Calendar size={18} />
-              <span>EXPLORE EVENTS</span>
+              <span>{t('dashboard.exploreEvents').toUpperCase()}</span>
             </Link>
           </div>
         </div>
@@ -231,9 +233,9 @@ function Dashboard(props) {
 
       {/* Section 2 — How Matching Works */}
       <section className="dashboard__section">
-        <h2 className="app-section-title">HOW MATCHING WORKS</h2>
+        <h2 className="app-section-title">{t('dashboard.howWorks').toUpperCase()}</h2>
         <p className="dashboard__section-desc">
-          Two paths. One platform. Choose how you want to connect today.
+          {t('dashboard.howWorksText')}
         </p>
         <div className="dashboard__match-types">
           <Link
@@ -243,15 +245,12 @@ function Dashboard(props) {
             <div className="dashboard__type-icon">
               <Zap size={28} />
             </div>
-            <h3>QUICK MATCH</h3>
-            <p>
-              Fast, instinctive, energy-based matching. Trust your gut and meet
-              people who feel right in the moment.
-            </p>
+            <h3>{t('nav.quickMatch').toUpperCase()}</h3>
+            <p>{t('dashboard.quickText')}</p>
             <div className="dashboard__type-tags">
-              <span>FAST</span>
-              <span>CASUAL</span>
-              <span>INSTANT CONNECTION</span>
+              <span>{t('dashboard.fast').toUpperCase()}</span>
+              <span>{t('dashboard.casual').toUpperCase()}</span>
+              <span>{t('dashboard.instant').toUpperCase()}</span>
             </div>
             <div className="dashboard__swipe-mock" aria-hidden="true">
               <span className="dashboard__swipe-card dashboard__swipe-card--back" />
@@ -268,15 +267,12 @@ function Dashboard(props) {
             <div className="dashboard__type-icon dashboard__type-icon--deep">
               <Brain size={28} />
             </div>
-            <h3>DEEP MATCH</h3>
-            <p>
-              Deeper personality alignment and intentional matching built on
-              values, lifestyle, and long-term compatibility.
-            </p>
+            <h3>{t('nav.deepMatch').toUpperCase()}</h3>
+            <p>{t('dashboard.deepText')}</p>
             <div className="dashboard__type-tags">
-              <span>PERSONALITY</span>
-              <span>VALUES</span>
-              <span>LONG-TERM</span>
+              <span>{t('dashboard.personality').toUpperCase()}</span>
+              <span>{t('dashboard.values').toUpperCase()}</span>
+              <span>{t('dashboard.longTerm').toUpperCase()}</span>
             </div>
             <div className="dashboard__graph-mock">
               {[88, 72, 95, 64].map((v, i) => (
@@ -292,13 +288,10 @@ function Dashboard(props) {
 
       {/* Section 3 — Preferences */}
       <section className="dashboard__section dashboard__prefs">
-        <h2 className="app-section-title">YOUR PREFERENCES</h2>
-        <p className="dashboard__section-desc">
-          Tap what feels like you — we&apos;ll surface people and moments that
-          match your vibe.
-        </p>
+        <h2 className="app-section-title">{t('dashboard.preferences').toUpperCase()}</h2>
+        <p className="dashboard__section-desc">{t('dashboard.preferencesText')}</p>
         <div className="dashboard__prefs-card">
-          <h4>What are you into?</h4>
+          <h4>{t('dashboard.into')}</h4>
           <div className="dashboard__pref-grid">
             {INTEREST_PILLS.map((pill) => (
               <button
@@ -307,12 +300,12 @@ function Dashboard(props) {
                 className={`dashboard__pref-pill app-pill-select${interests.includes(pill) ? " dashboard__pref-pill--on" : ""}`}
                 onClick={() => toggleInterest(pill)}
               >
-                {pill}
+                {t(`dashboardOptions.${pill}`)}
               </button>
             ))}
           </div>
 
-          <h4>Your vibe</h4>
+          <h4>{t('dashboard.vibe')}</h4>
           <div className="dashboard__vibe-row">
             {VIBE_OPTIONS.map((option) => (
               <button
@@ -321,7 +314,7 @@ function Dashboard(props) {
                 className={`dashboard__vibe-pill app-pill-select${vibe === option ? " dashboard__vibe-pill--on" : ""}`}
                 onClick={() => setVibe(option)}
               >
-                {option}
+                {t(`dashboardOptions.${option}`)}
               </button>
             ))}
           </div>
@@ -330,14 +323,14 @@ function Dashboard(props) {
 
       {/* Section 4 — Suggested Connections */}
       <section className="dashboard__section">
-        <h2 className="app-section-title">SUGGESTED CONNECTIONS</h2>
+        <h2 className="app-section-title">{t('dashboard.suggested').toUpperCase()}</h2>
         <p className="dashboard__section-desc">
-          Profiles aligned with your energy and interests.
+          {t('dashboard.suggestedText')}
         </p>
         <div className="dashboard__feed">
           {suggestedStatus === "loading" && (
             <div className="dashboard__connections-state">
-              Loading suggested connections...
+              {t('dashboard.loadingSuggested')}
             </div>
           )}
 
@@ -345,7 +338,7 @@ function Dashboard(props) {
             <div className="dashboard__connections-state">
               <p>{suggestedMessage}</p>
               <Link to="/app/profile" className="dashboard__state-link app-interactive">
-                Edit profile
+                {t('dashboard.editProfile')}
               </Link>
             </div>
           )}
@@ -412,12 +405,12 @@ function Dashboard(props) {
       {/* Section 5 — Event Recommendations */}
       <section className="dashboard__section dashboard__events-section">
         <div className="dashboard__events-head">
-          <h2 className="app-section-title">EVENTS FOR YOU</h2>
+          <h2 className="app-section-title">{t('dashboard.eventsForYou').toUpperCase()}</h2>
           <Link
             to="/app/events"
             className="dashboard__view-all app-interactive"
           >
-            VIEW ALL EVENTS
+            {t('dashboard.viewAll').toUpperCase()}
             <ChevronRight size={16} />
           </Link>
         </div>
@@ -432,7 +425,7 @@ function Dashboard(props) {
               <h4>{event.title}</h4>
               <p className="dashboard__event-meta">
                 <Users size={12} />
-                {event.attendeeCount} attending
+                {t('dashboard.attending', { count: event.attendeeCount })}
               </p>
               <span className="dashboard__event-date">{event.date}</span>
             </article>

@@ -5,13 +5,16 @@ const footerLinks = [
   { label: 'Jana', href: '#' },
 ];
 
+import { useTranslation } from '../hooks/useTranslation';
+
 const legalLinks = [
-  { label: 'Privacy Policy', href: '#' },
-  { label: 'Terms of Service', href: '#' },
-  { label: 'Cookies Settings', href: '#' },
+  { key: 'privacyPolicy', href: '#' },
+  { key: 'termsService', href: '#' },
+  { key: 'cookies', href: '#' },
 ];
 
 function Footer() {
+  const { t } = useTranslation();
   return (
     <footer className="footer">
       <div className="footer__main">
@@ -21,7 +24,7 @@ function Footer() {
           <span>MATCH</span>
         </p>
 
-        <nav className="footer__nav" aria-label="Footer navigation">
+        <nav className="footer__nav" aria-label={t('footer.navigation')}>
           <ul className="footer__links">
             {footerLinks.map(({ label, href }) => (
               <li key={label}>
@@ -36,13 +39,13 @@ function Footer() {
 
       <div className="footer__bottom">
         <p className="footer__copyright">
-          &copy;  {new Date().getFullYear()} MYM TEAM. All rights reserved.
+          &copy; {new Date().getFullYear()} MYM TEAM. {t('footer.rights')}
         </p>
-        <nav className="footer__legal" aria-label="Legal">
+        <nav className="footer__legal" aria-label={t('footer.legal')}>
           <ul>
-            {legalLinks.map(({ label, href }) => (
-              <li key={label}>
-                <a href={href}>{label}</a>
+            {legalLinks.map(({ key, href }) => (
+              <li key={key}>
+                <a href={href}>{t(`footer.${key}`)}</a>
               </li>
             ))}
           </ul>

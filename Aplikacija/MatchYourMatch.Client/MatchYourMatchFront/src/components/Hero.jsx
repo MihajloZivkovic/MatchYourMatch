@@ -1,6 +1,7 @@
 import { FaInstagram, FaYoutube } from 'react-icons/fa';
 import { FaXTwitter } from 'react-icons/fa6';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '../hooks/useTranslation';
 
 const socialLinks = [
   { href: 'https://instagram.com', label: 'Instagram', Icon: FaInstagram },
@@ -10,6 +11,7 @@ const socialLinks = [
 
 function Hero(props) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   return (
     <section className={`hero ${props.isExiting ? 'hero--exiting' : ''}`} aria-labelledby="hero-heading">
       <div className="hero__title-wrap">
@@ -25,17 +27,17 @@ function Hero(props) {
         </h1>
       </div>
 
-      <p className="hero__subtitle">FIND IT. FEEL IT. MATCH IT.</p>
+      <p className="hero__subtitle">{t('landing.tagline').toUpperCase()}</p>
 
       <div className="hero__cta">
         <span className="hero__cta-line" aria-hidden="true" />
         <a href="#match-in" className="btn btn--primary hero__cta-btn" onClick={() => navigate('/register')}>
-          MATCH IN
+          {t('landing.matchIn').toUpperCase()}
         </a>
         <span className="hero__cta-line" aria-hidden="true" />
       </div>
 
-      <ul className="hero__social" aria-label="Social media">
+      <ul className="hero__social" aria-label={t('landing.socialMedia')}>
         {socialLinks.map(({ href, label, Icon }) => (
           <li key={label}>
             <a

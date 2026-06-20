@@ -1,8 +1,10 @@
 import { useActionState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from '../hooks/useTranslation';
 
 function Register() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [state, formAction] = useActionState(handleSubmit, {
     error: null,
     values: { username: "", email: "", password: "", confirmPassword: "" },
@@ -16,7 +18,7 @@ function Register() {
 
     if(password !== confirmPassword){
       return{
-        error: "lozinke se ne poklapaju",
+        error: t('auth.passwordsMismatch'),
         values: {username,email,password,confirmPassword}
       }
     }else{
@@ -38,7 +40,7 @@ function Register() {
       <main className="page__main page__main--auth">
         <div className="auth">
           <form className="auth__card" action={formAction}>
-            <h1 className="auth__title">REGISTER</h1>
+            <h1 className="auth__title">{t('nav.register').toUpperCase()}</h1>
 
             {state.error && (
               <p className="auth__error" role="alert">
@@ -48,14 +50,14 @@ function Register() {
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-name">
-                Username
+                {t('auth.username')}
               </label>
               <input
                 id="register-name"
                 className="auth__input"
                 type="text"
                 name="fullName"
-                placeholder="Your username"
+                placeholder={t('auth.yourUsername')}
                 autoComplete="name"
                 defaultValue={state.values.username || ""}
               />
@@ -63,7 +65,7 @@ function Register() {
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-email">
-                Email
+                {t('auth.email')}
               </label>
               <input
                 id="register-email"
@@ -78,7 +80,7 @@ function Register() {
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-password">
-                Password
+                {t('auth.password')}
               </label>
               <input
                 id="register-password"
@@ -93,7 +95,7 @@ function Register() {
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-confirm">
-                Confirm Password
+                {t('auth.confirmPassword')}
               </label>
               <input
                 id="register-confirm"
@@ -107,13 +109,13 @@ function Register() {
             </div>
 
             <button type="submit" className="btn btn--primary auth__submit">
-              CREATE ACCOUNT
+              {t('auth.createAccount').toUpperCase()}
             </button>
 
             <p className="auth__switch">
-              Already have an account?{" "}
+              {t('auth.hasAccount')}{" "}
               <Link to="/login" className="auth__switch-link">
-                Login
+                {t('nav.login')}
               </Link>
             </p>
           </form>

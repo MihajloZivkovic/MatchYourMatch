@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Check, Flag, Heart, MapPin, MessageCircle, Sparkles, UserPlus } from "lucide-react";
 import "./PublicProfile.css";
+import { useTranslation } from '../../hooks/useTranslation';
 
 function PublicProfile() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -77,7 +79,7 @@ function PublicProfile() {
   const initials = useMemo(() => getInitials(profile?.username || ""), [profile?.username]);
 
   if (loading) {
-    return <main className="public-profile"><div className="public-profile__state">Loading profile...</div></main>;
+    return <main className="public-profile"><div className="public-profile__state">{t('publicProfile.loading')}</div></main>;
   }
 
   if (error) {
@@ -167,7 +169,7 @@ function PublicProfile() {
               ))}
             </div>
           ) : (
-            <p>No interests added yet.</p>
+            <p>{t('publicProfile.noInterests')}</p>
           )}
         </article>
 
@@ -176,7 +178,7 @@ function PublicProfile() {
             <MessageCircle size={17} />
             Connect
           </h2>
-          <p>Public profile preview. Messaging can be connected here later.</p>
+          <p>{t('publicProfile.preview')}</p>
           <button
             type="button"
             className="public-profile__cta"

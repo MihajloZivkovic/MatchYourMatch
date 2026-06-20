@@ -1,31 +1,21 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Menu, Monitor, Moon, Sun, X } from "lucide-react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
-import { useTheme } from "../context/ThemeContext";
+import { useTranslation } from "../hooks/useTranslation";
 import "./AppNavbar.css";
 
 function AppNavbar(props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const themeRef = useRef(null);
   const navigate = useNavigate();
-  const location = useLocation();
-  const { theme, resolvedTheme, setTheme } = useTheme();
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
+  const { t } = useTranslation();
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
-      }
-      if (themeRef.current && !themeRef.current.contains(e.target)) {
-        setThemeMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -41,7 +31,6 @@ function AppNavbar(props) {
 
   const navLinkClass = ({ isActive }) =>
     `app-navbar__link${isActive ? " app-navbar__link--active" : ""}`;
-  const ThemeIcon = theme === "system" ? Monitor : resolvedTheme === "light" ? Sun : Moon;
 
   return (
     <header className="app-navbar">
@@ -58,29 +47,29 @@ function AppNavbar(props) {
 
         <div className="app-navbar__center">
           <NavLink to="/app/quick-match" className={navLinkClass}>
-            QUICK MATCH
+            {t('nav.quickMatch').toUpperCase()}
           </NavLink>
           <NavLink to="/app/deep-match" className={navLinkClass}>
-            DEEP MATCH
+            {t('nav.deepMatch').toUpperCase()}
           </NavLink>
           <NavLink to="/app/events" className={navLinkClass}>
-            EVENTS
+            {t('nav.events').toUpperCase()}
           </NavLink>
           <NavLink to="/app/chat" className={navLinkClass}>
-            CHAT
+            {t('nav.chat').toUpperCase()}
           </NavLink>
         </div>
 
         <div className="app-navbar__right">
           <Link to="/app/events/create" className="app-navbar__create">
-            + CREATE EVENT
+            + {t('nav.createEvent').toUpperCase()}
           </Link>
 
           <div className="app-navbar__profile-wrap" ref={dropdownRef}>
             <button
               type="button"
               className="app-navbar__avatar"
-              aria-label="Profile menu"
+              aria-label={t('nav.profileMenu')}
               aria-expanded={dropdownOpen}
               onClick={() => setDropdownOpen((o) => !o)}
             >
@@ -89,63 +78,13 @@ function AppNavbar(props) {
             {dropdownOpen && (
               <div className="app-navbar__dropdown">
                 <Link to="/app/profile" onClick={() => setDropdownOpen(false)}>
-                  My Profile
+                  {t('nav.myProfile')}
                 </Link>
-                <button type="button" className="app-navbar__dropdown-muted">
-                  Settings
-                </button>
+                <Link to="/app/settings" onClick={() => setDropdownOpen(false)}>
+                  {t('nav.settings')}
+                </Link>
                 <button type="button" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="app-navbar__theme" ref={themeRef}>
-            <button
-              type="button"
-              className="app-navbar__theme-btn"
-              aria-label="Theme"
-              aria-expanded={themeMenuOpen}
-              onClick={() => setThemeMenuOpen((open) => !open)}
-            >
-              <ThemeIcon size={17} />
-              <span>Theme</span>
-            </button>
-            {themeMenuOpen && (
-              <div className="app-navbar__theme-menu">
-                <button
-                  type="button"
-                  className={theme === "system" ? "app-navbar__theme-option--active" : ""}
-                  onClick={() => {
-                    setTheme("system");
-                    setThemeMenuOpen(false);
-                  }}
-                >
-                  <Monitor size={15} />
-                  System
-                </button>
-                <button
-                  type="button"
-                  className={theme === "light" ? "app-navbar__theme-option--active" : ""}
-                  onClick={() => {
-                    setTheme("light");
-                    setThemeMenuOpen(false);
-                  }}
-                >
-                  <Sun size={15} />
-                  Light
-                </button>
-                <button
-                  type="button"
-                  className={theme === "dark" ? "app-navbar__theme-option--active" : ""}
-                  onClick={() => {
-                    setTheme("dark");
-                    setThemeMenuOpen(false);
-                  }}
-                >
-                  <Moon size={15} />
-                  Dark
+                  {t('nav.logout')}
                 </button>
               </div>
             )}
@@ -154,7 +93,7 @@ function AppNavbar(props) {
           <button
             type="button"
             className="app-navbar__hamburger"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-label={menuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
             onClick={() => setMenuOpen((o) => !o)}
           >
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -174,71 +113,63 @@ function AppNavbar(props) {
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
-          QUICK MATCH
+          {t('nav.quickMatch').toUpperCase()}
         </NavLink>
         <NavLink
           to="/app/deep-match"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
-          DEEP MATCH
+          {t('nav.deepMatch').toUpperCase()}
         </NavLink>
         <NavLink
           to="/app/events"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
-          EVENTS
+          {t('nav.events').toUpperCase()}
         </NavLink>
         <NavLink
           to="/app/chat"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
-          CHAT
+          {t('nav.chat').toUpperCase()}
         </NavLink>
         <Link
           to="/app/events/create"
           className="app-navbar__drawer-create"
           onClick={() => setMenuOpen(false)}
         >
-          + CREATE EVENT
+          + {t('nav.createEvent').toUpperCase()}
         </Link>
         <Link
           to="/app/profile"
           className="app-navbar__drawer-link"
           onClick={() => setMenuOpen(false)}
         >
-          My Profile
+          {t('nav.myProfile')}
         </Link>
-        <div className="app-navbar__drawer-theme">
-          <span>Theme</span>
-          <div>
-            {["system", "light", "dark"].map((option) => (
-              <button
-                key={option}
-                type="button"
-                className={theme === option ? "app-navbar__drawer-theme-active" : ""}
-                onClick={() => setTheme(option)}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        </div>
+        <Link
+          to="/app/settings"
+          className="app-navbar__drawer-link"
+          onClick={() => setMenuOpen(false)}
+        >
+          {t('nav.settings')}
+        </Link>
         <button
           type="button"
           className="app-navbar__drawer-logout"
           onClick={handleLogout}
         >
-          Logout
+          {t('nav.logout')}
         </button>
       </div>
       {menuOpen && (
         <button
           type="button"
           className="app-navbar__overlay"
-          aria-label="Close menu"
+          aria-label={t('nav.closeMenu')}
           onClick={() => setMenuOpen(false)}
         />
       )}

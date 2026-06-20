@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CalendarDays, Hash, Search, Sparkles, User } from "lucide-react";
 import "./SearchResults.css";
+import { useTranslation } from '../../hooks/useTranslation';
 
 const emptyResults = {
   people: [],
@@ -11,6 +12,7 @@ const emptyResults = {
 };
 
 function SearchResults() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [inputValue, setInputValue] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState(emptyResults);
@@ -102,8 +104,8 @@ function SearchResults() {
   return (
     <main className="search-results">
       <section className="search-results__hero">
-        <p className="search-results__eyebrow">Global search</p>
-        <h1>Search results</h1>
+        <p className="search-results__eyebrow">{t('searchPage.eyebrow')}</p>
+        <h1>{t('searchPage.title')}</h1>
         <form className="search-results__form" onSubmit={handleSubmit}>
           <Search size={18} aria-hidden="true" />
           <input
@@ -112,16 +114,16 @@ function SearchResults() {
             placeholder="Search people, events, activities..."
             aria-label="Search query"
           />
-          <button type="submit">Search</button>
+          <button type="submit">{t('searchPage.action')}</button>
         </form>
       </section>
 
       {query.length < 2 && (
-        <div className="search-results__state">Type at least 2 characters to search.</div>
+        <div className="search-results__state">{t('searchPage.hint')}</div>
       )}
 
       {query.length >= 2 && loading && (
-        <div className="search-results__state">Loading results...</div>
+        <div className="search-results__state">{t('searchPage.loading')}</div>
       )}
 
       {query.length >= 2 && !loading && error && (

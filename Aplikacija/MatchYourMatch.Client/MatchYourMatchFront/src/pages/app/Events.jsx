@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarX } from 'lucide-react';
 import EventCard from '../../components/EventCard';
 import './Events.css';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
 
@@ -11,6 +12,8 @@ function Events() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { t } = useTranslation();
+  const filterLabels = { ALL: t('events.all'), NEARBY: t('events.nearby'), 'THIS WEEK': t('events.thisWeek'), STUDY: t('events.study'), GAMING: t('events.gaming'), COFFEE: t('events.coffee'), SOCIAL: t('events.social'), SPORT: t('events.sport') };
 
   const loadEvents = async () => {
     setLoading(true);
@@ -86,11 +89,11 @@ function Events() {
     <div className="page-fade-in events-page">
       <header className="events-page__header">
         <div>
-          <h1>EVENTS</h1>
-          <p>Community meetups created by MYM users.</p>
+          <h1>{t('events.title').toUpperCase()}</h1>
+          <p>{t('events.subtitle')}</p>
         </div>
         <Link to="/app/events/create" className="app-btn-pill events-page__create">
-          + CREATE EVENT
+          + {t('nav.createEvent').toUpperCase()}
         </Link>
       </header>
 
@@ -102,18 +105,18 @@ function Events() {
             className={`events-page__filter${activeFilter === f ? ' events-page__filter--active' : ''}`}
             onClick={() => setActiveFilter(f)}
           >
-            {f}
+            {filterLabels[f]}
           </button>
         ))}
       </div>
 
-      {loading && <div className="chat-state events-page__state">Loading events...</div>}
+      {loading && <div className="chat-state events-page__state">{t('events.loading')}</div>}
 
       {!loading && error && (
         <div className="chat-state chat-state--error events-page__state">
           <span>{error}</span>
           <button type="button" onClick={loadEvents}>
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -122,15 +125,15 @@ function Events() {
         <div className="app-empty events-page__empty">
           <CalendarX size={44} strokeWidth={1} className="app-empty__icon" />
           <p className="app-empty__title">
-            {events.length === 0 ? 'No upcoming events yet.' : 'No events found'}
+            {events.length === 0 ? t('events.noUpcoming') : t('events.noFound')}
           </p>
           <p className="app-empty__text">
             {events.length === 0
-              ? 'Create one and invite people.'
-              : 'Try another filter or create something new.'}
+              ? t('events.createInvite')
+              : t('events.tryFilter')}
           </p>
           <Link to="/app/events/create" className="app-btn-pill">
-            Create One
+            {t('events.createOne')}
           </Link>
         </div>
       ) : null}

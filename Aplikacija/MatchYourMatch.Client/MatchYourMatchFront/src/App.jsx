@@ -23,6 +23,7 @@ import Profile from "./pages/app/Profile";
 import SearchResults from "./pages/app/SearchResults";
 import PublicProfile from "./pages/app/PublicProfile";
 import Chat from "./pages/app/Chat";
+import Settings from "./pages/app/Settings";
 import "./App.css";
 
 const USER_ID_CLAIMS = [
@@ -231,6 +232,7 @@ function App() {
           <Route path="search" element={<SearchResults />} />
           <Route path="users/:id" element={<PublicProfile />} />
           <Route path="chat" element={<Chat />} />
+          <Route path="settings" element={<Settings />} />
           <Route
             path="profile"
             element={<Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>}

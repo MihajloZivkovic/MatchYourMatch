@@ -1,6 +1,8 @@
 import { MapPin, Clock } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 
 function EventCard({ event, style, mini = false, onJoin, onOpen }) {
+  const { t } = useTranslation();
   const {
     title,
     category,
@@ -29,7 +31,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
           }
         }}
       >
-        <span className="event-card__category">{category}</span>
+        <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <h4 className="event-card__title event-card__title--mini">{title}</h4>
         <p className="event-card__meta-mini">
           <Clock size={12} /> {date} · {time}
@@ -53,7 +55,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
       }}
     >
       <div className="event-card__top">
-        <span className="event-card__category">{category}</span>
+        <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <span className="event-card__date-pill">{date}</span>
       </div>
       <h3 className="event-card__title">{title}</h3>
@@ -77,7 +79,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
               {initial}
             </span>
           ))}
-          {extra > 0 && <span className="event-card__more">+{extra} more</span>}
+          {extra > 0 && <span className="event-card__more">{t('events.more', { count: extra })}</span>}
         </div>
         <button
           type="button"
@@ -88,7 +90,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
           }}
           disabled={isJoinedByCurrentUser}
         >
-          {isJoinedByCurrentUser ? 'JOINED' : 'JOIN EVENT'}
+          {isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
         </button>
       </div>
     </article>
