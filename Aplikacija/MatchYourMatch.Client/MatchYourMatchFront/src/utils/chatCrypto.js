@@ -44,10 +44,15 @@ export async function decryptChatBody(body, currentUserId, otherUserId) {
 }
 
 async function getConversationKey(currentUserId, otherUserId) {
-  const ids = [Number(currentUserId), Number(otherUserId)].sort((a, b) => a - b);
+  const firstId = Number(currentUserId);
+  const secondId = Number(otherUserId);
+  const materialId =
+    Number.isFinite(firstId) && Number.isFinite(secondId)
+      ? `mym-chat:${[firstId, secondId].sort((a, b) => a - b).join(":")}`
+      : `mym-chat:${String(otherUserId)}`;
   const material = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(`mym-chat:${ids[0]}:${ids[1]}`),
+    encoder.encode(materialId),
     "PBKDF2",
     false,
     ["deriveKey"],

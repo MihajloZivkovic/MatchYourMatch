@@ -401,6 +401,15 @@
   box-shadow: var(--elev-2);
 }
 
+.event-card--clickable {
+  cursor: pointer;
+}
+
+.event-card--clickable:focus-visible {
+  outline: 2px solid rgba(244, 163, 0, 0.58);
+  outline-offset: 3px;
+}
+
 .event-card__top {
   display: flex;
   justify-content: space-between;
@@ -646,6 +655,7 @@
 :root[data-theme="light"] .deep-match__result-card,
 :root[data-theme="light"] .chat-sidebar,
 :root[data-theme="light"] .chat-panel,
+:root[data-theme="light"] .chat-group-modal__panel,
 :root[data-theme="light"] .floating-chat,
 :root[data-theme="light"] .search-results__card,
 :root[data-theme="light"] .global-search__dropdown {
@@ -661,6 +671,7 @@
 :root[data-theme="light"] select,
 :root[data-theme="light"] .global-search__field,
 :root[data-theme="light"] .chat-search,
+:root[data-theme="light"] .chat-group-field input,
 :root[data-theme="light"] .chat-composer input,
 :root[data-theme="light"] .floating-chat__composer input,
 :root[data-theme="light"] .quick-match__form-card input,
@@ -686,9 +697,32 @@
 }
 
 :root[data-theme="light"] .chat-list__row,
-:root[data-theme="light"] .chat-list__item--person {
+:root[data-theme="light"] .chat-list__item--person,
+:root[data-theme="light"] .chat-settings__hero,
+:root[data-theme="light"] .chat-settings__section,
+:root[data-theme="light"] .chat-settings__member,
+:root[data-theme="light"] .chat-group-results > button,
+:root[data-theme="light"] .chat-new-group,
+:root[data-theme="light"] .chat-starters button {
   background: #fffdf8;
   border-color: var(--color-border);
+}
+
+:root[data-theme="light"] .chat-new-group {
+  background:
+    linear-gradient(90deg, rgba(244, 163, 0, 0.15), rgba(244, 163, 0, 0.055)),
+    #fffdf8;
+  border-color: rgba(244, 163, 0, 0.34);
+  color: #8a5a00;
+}
+
+:root[data-theme="light"] .chat-new-group:hover,
+:root[data-theme="light"] .chat-new-group:focus-visible,
+:root[data-theme="light"] .chat-starters button:hover,
+:root[data-theme="light"] .chat-starters button:focus-visible {
+  background: rgba(244, 163, 0, 0.16);
+  border-color: rgba(244, 163, 0, 0.5);
+  color: #7a4d00;
 }
 
 :root[data-theme="light"] .chat-list__row--active {
@@ -703,10 +737,81 @@
 }
 
 :root[data-theme="light"] .chat-list__copy small,
+:root[data-theme="light"] .chat-list__copy em,
+:root[data-theme="light"] .chat-settings__hero p,
+:root[data-theme="light"] .chat-settings__section p,
+:root[data-theme="light"] .chat-settings__readonly,
+:root[data-theme="light"] .chat-settings__member small,
+:root[data-theme="light"] .chat-group-field span,
 :root[data-theme="light"] .chat-panel__head p,
 :root[data-theme="light"] .chat-message__meta,
-:root[data-theme="light"] .floating-chat__message-meta {
+:root[data-theme="light"] .floating-chat__message-meta,
+:root[data-theme="light"] .chat-group-results small {
   color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .chat-group-results strong,
+:root[data-theme="light"] .chat-group-modal__head h2,
+:root[data-theme="light"] .chat-settings__top h3,
+:root[data-theme="light"] .chat-settings__hero h2,
+:root[data-theme="light"] .chat-settings__member strong {
+  color: var(--color-heading);
+}
+
+:root[data-theme="light"] .chat-settings__back,
+:root[data-theme="light"] .chat-settings__soft-action,
+:root[data-theme="light"] .chat-settings__toggle {
+  background: rgba(244, 163, 0, 0.09);
+  border-color: rgba(244, 163, 0, 0.28);
+  color: #8a5a00;
+}
+
+:root[data-theme="light"] .chat-settings__soft-action:hover:not(:disabled),
+:root[data-theme="light"] .chat-settings__soft-action:focus-visible:not(:disabled) {
+  background: rgba(244, 163, 0, 0.16);
+  border-color: rgba(244, 163, 0, 0.48);
+  color: #704600;
+}
+
+:root[data-theme="light"] .chat-settings__rename input {
+  background: var(--color-input);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+:root[data-theme="light"] .chat-settings__rename button[type="submit"] {
+  background: var(--accent);
+  color: #151008;
+}
+
+:root[data-theme="light"] .chat-settings__danger-action,
+:root[data-theme="light"] .chat-settings__leave button,
+:root[data-theme="light"] .chat-settings__delete button {
+  background: rgba(210, 70, 55, 0.08);
+  border-color: rgba(210, 70, 55, 0.24);
+  color: #9b2d23;
+}
+
+:root[data-theme="light"] .chat-settings__danger-action:hover,
+:root[data-theme="light"] .chat-settings__leave button:hover,
+:root[data-theme="light"] .chat-settings__delete button:hover,
+:root[data-theme="light"] .chat-settings__danger-action:focus-visible,
+:root[data-theme="light"] .chat-settings__leave button:focus-visible,
+:root[data-theme="light"] .chat-settings__delete button:focus-visible {
+  background: rgba(210, 70, 55, 0.13);
+  border-color: rgba(210, 70, 55, 0.36);
+  color: #7e2119;
+}
+
+:root[data-theme="light"] .chat-settings__delete {
+  background:
+    linear-gradient(145deg, rgba(210, 70, 55, 0.08), transparent 58%),
+    #fff9f7;
+  border-color: rgba(210, 70, 55, 0.2);
+}
+
+:root[data-theme="light"] .chat-settings__delete h4 {
+  color: #9b2d23;
 }
 
 :root[data-theme="light"] .chat-safety {
@@ -719,6 +824,43 @@
   border-color: rgba(244, 163, 0, 0.24);
   border-bottom-color: rgba(244, 163, 0, 0.24);
   background: rgba(244, 163, 0, 0.1);
+}
+
+:root[data-theme="light"] .chat-starters button {
+  background: rgba(244, 163, 0, 0.08);
+  border-color: rgba(244, 163, 0, 0.26);
+  color: #8a5a00;
+}
+
+:root[data-theme="light"] .chat-group-modal__actions button {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit.is-ready:not(:disabled) {
+  background: var(--color-accent, #f4a300) !important;
+  border-color: var(--color-accent, #f4a300) !important;
+  color: #151008 !important;
+  box-shadow:
+    0 14px 32px rgba(255, 176, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit.is-disabled,
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit.is-disabled:hover,
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit.is-disabled:focus-visible,
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit:disabled,
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit:disabled:hover,
+:root[data-theme="light"] .chat-group-modal.create-group-modal .chat-group-modal__actions .create-group-submit:disabled:focus-visible {
+  background: rgba(255, 176, 0, 0.22) !important;
+  border-color: rgba(255, 176, 0, 0.34) !important;
+  color: rgba(20, 20, 20, 0.58) !important;
+}
+
+:root[data-theme="light"] .chat-group-modal__cancel:disabled {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: var(--color-border);
+  color: var(--color-text-subtle);
 }
 
 :root[data-theme="light"] .chat-message-menu {

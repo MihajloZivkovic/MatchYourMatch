@@ -124,6 +124,7 @@ export function ChatProvider({ children }) {
         status: response.status,
         responseBody: message,
         hasToken: Boolean(token),
+        hasAuthorizationHeader: Boolean(token),
       });
       throw new Error(getFriendlyChatError(message, response.status, url));
     }
@@ -152,7 +153,7 @@ export function ChatProvider({ children }) {
             ? await decryptChatBody(
                 conversation.lastMessagePreview,
                 auth.userId,
-                conversation.otherUserId,
+                getConversationPeerId(conversation),
               )
             : conversation.lastMessagePreview,
         })),
@@ -161,6 +162,7 @@ export function ChatProvider({ children }) {
       conversationsRef.current = decrypted;
       hasLoadedConversationsRef.current = true;
       setConversations(decrypted);
+      setError("");
       setActiveConversationId((current) => {
         if (current && decrypted.some((conversation) => conversation.conversationId === current)) {
           return current;
@@ -207,7 +209,7 @@ export function ChatProvider({ children }) {
                 displayBody: await decryptChatBody(
                   message.body,
                   auth.userId,
-                  activeConversation?.otherUserId ||
+                  getConversationPeerId(activeConversation) ||
                     (String(message.senderId) === String(auth.userId)
                       ? message.receiverId
                       : message.senderId),
@@ -261,6 +263,21 @@ export function ChatProvider({ children }) {
     [apiFetch, canSendMessages, loadConversations],
   );
 
+  const createGroupConversation = useCallback(
+    async ({ groupName, memberUserIds }) => {
+      if (!canSendMessages) return null;
+
+      const created = await apiFetch("/api/Chat/groups", {
+        method: "POST",
+        body: JSON.stringify({ groupName, memberUserIds }),
+      });
+      await loadConversations({ silent: true });
+      setActiveConversationId(created.conversationId);
+      return created;
+    },
+    [apiFetch, canSendMessages, loadConversations],
+  );
+
   const sendMessage = useCallback(
     async (conversationId, text) => {
       const conversation =
@@ -271,7 +288,7 @@ export function ChatProvider({ children }) {
         return null;
       }
 
-      const encryptedBody = await encryptChatBody(body, auth.userId, conversation.otherUserId);
+      const encryptedBody = await encryptChatBody(body, auth.userId, getConversationPeerId(conversation));
       const sent = await apiFetch("/api/Chat/messages", {
         method: "POST",
         body: JSON.stringify({
@@ -301,7 +318,7 @@ export function ChatProvider({ children }) {
         return null;
       }
 
-      const encryptedBody = await encryptChatBody(body, auth.userId, conversation.otherUserId);
+      const encryptedBody = await encryptChatBody(body, auth.userId, getConversationPeerId(conversation));
       const updated = await apiFetch(`/api/Chat/messages/${message.id}`, {
         method: "PATCH",
         body: JSON.stringify({ body: encryptedBody }),
@@ -355,7 +372,38 @@ export function ChatProvider({ children }) {
       await loadConversations({ silent: true });
       return displayMessage;
     },
-    [apiFetch, loadConversations],
+    [apiFetch, auth.userId, loadConversations],
+  );
+
+  const toggleReaction = useCallback(
+    async (message, emoji) => {
+      if (!message?.id || !emoji || message.isDeletedForEveryone) {
+        return null;
+      }
+
+      const updated = await apiFetch(`/api/Chat/messages/${message.id}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      });
+      const displayMessage = normalizeChatMessage(
+        {
+          ...message,
+          ...updated,
+          displayBody: message.displayBody ?? message.body,
+        },
+        auth.userId,
+      );
+
+      setMessagesByConversation((current) => ({
+        ...current,
+        [message.conversationId]: (current[message.conversationId] || []).map((item) =>
+          item.id === message.id ? displayMessage : item,
+        ),
+      }));
+
+      return displayMessage;
+    },
+    [apiFetch, auth.userId],
   );
 
   const hideConversation = useCallback(
@@ -431,10 +479,12 @@ export function ChatProvider({ children }) {
       loadConversations,
       loadMessages,
       startConversation,
+      createGroupConversation,
       sendMessage,
       editMessage,
       deleteMessageForMe,
       deleteMessageForEveryone,
+      toggleReaction,
       hideConversation,
       setTyping,
       getTypingState,
@@ -460,6 +510,8 @@ export function ChatProvider({ children }) {
       sendMessage,
       setTyping,
       startConversation,
+      createGroupConversation,
+      toggleReaction,
     ],
   );
 
@@ -490,31 +542,49 @@ function normalizeChatMessage(message, currentUserId) {
         ? message.IsMine
         : null;
 
+  const reactions = Array.isArray(message.reactions)
+    ? message.reactions
+    : Array.isArray(message.Reactions)
+      ? message.Reactions
+      : [];
+
   return {
     ...message,
+    reactions: reactions.map((reaction) => ({
+      emoji: reaction.emoji ?? reaction.Emoji,
+      count: reaction.count ?? reaction.Count ?? 0,
+      reactedByCurrentUser:
+        reaction.reactedByCurrentUser ?? reaction.ReactedByCurrentUser ?? false,
+    })),
+    currentUserReaction: message.currentUserReaction ?? message.CurrentUserReaction ?? null,
     isMine:
       backendIsMine ??
       (currentUserId != null && Number(message.senderId) === Number(currentUserId)),
   };
 }
 
+function getConversationPeerId(conversation) {
+  if (!conversation) return null;
+  return conversation.isGroup
+    ? `group:${conversation.conversationId}`
+    : conversation.otherUserId;
+}
+
 function getFriendlyChatError(message, status, url) {
-  if (
-    message?.includes("MySqlConnector") ||
-    message?.includes("Microsoft.EntityFrameworkCore") ||
-    message?.includes(" at ")
-  ) {
-    return "Chat service is not ready yet. Please refresh after the backend restarts.";
+  if (status === 401) return "Chat request failed: you are not logged in.";
+  if (status === 403) return "Chat request failed: you do not have access to this conversation.";
+  if (status === 404) return `Chat request failed: ${url} was not found.`;
+  if (status >= 500) {
+    if (message?.toLowerCase().includes("chat service is not ready")) {
+      return "Chat service is not ready yet. Please refresh after the backend restarts.";
+    }
+
+    return "Chat is temporarily unavailable. Please try again.";
   }
 
   if (message) {
     return message;
   }
-
-  if (status === 401) return "Chat request failed: you are not logged in.";
-  if (status === 403) return "Chat request failed: you do not have access to this conversation.";
-  if (status === 404) return `Chat request failed: ${url} was not found.`;
-  if (status >= 500) return "Chat request failed: backend error. Check the server console.";
 
   return `Chat request failed (${status}).`;
 }

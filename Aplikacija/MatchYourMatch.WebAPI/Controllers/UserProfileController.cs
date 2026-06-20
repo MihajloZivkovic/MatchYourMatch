@@ -71,6 +71,22 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [Authorize]
+        [HttpGet("me/matches")]
+        public async Task<IActionResult> GetMyMatches()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var matches = await _service.GetMatchesAsync(userId);
+                return Ok(matches);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
         [HttpPut("me")]
         public async Task<IActionResult> EditProfile(EditProfileDto dto)
         {

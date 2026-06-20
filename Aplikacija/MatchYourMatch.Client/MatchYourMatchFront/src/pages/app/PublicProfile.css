@@ -254,3 +254,103 @@
     flex-basis: 100%;
   }
 }
+
+:root[data-theme="light"] .public-profile__back {
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .public-profile__back:hover {
+  color: var(--accent);
+}
+
+:root[data-theme="light"] .public-profile__hero {
+  background:
+    linear-gradient(145deg, rgba(244, 163, 0, 0.045), transparent 58%),
+    var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid rgba(42, 30, 12, 0.1);
+  box-shadow: 0 18px 45px rgba(90, 70, 35, 0.1);
+}
+
+:root[data-theme="light"] .public-profile__mesh {
+  display: none;
+  opacity: 0;
+  background: none;
+}
+
+:root[data-theme="light"] .public-profile__avatar {
+  background: rgba(244, 163, 0, 0.12);
+  color: var(--color-heading);
+  border-color: var(--accent);
+  box-shadow: 0 14px 34px rgba(90, 70, 35, 0.12);
+}
+
+:root[data-theme="light"] .public-profile__identity h1 {
+  color: var(--color-heading);
+}
+
+:root[data-theme="light"] .public-profile__identity p,
+:root[data-theme="light"] .public-profile__identity span {
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .public-profile__identity span svg {
+  color: var(--accent);
+}
+
+:root[data-theme="light"] .public-profile__card,
+:root[data-theme="light"] .public-profile__state {
+  background:
+    linear-gradient(145deg, rgba(244, 163, 0, 0.035), transparent 56%),
+    var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid rgba(42, 30, 12, 0.1);
+  box-shadow: 0 14px 35px rgba(90, 70, 35, 0.08);
+}
+
+:root[data-theme="light"] .public-profile__card h2 {
+  color: var(--color-heading);
+}
+
+:root[data-theme="light"] .public-profile__card p,
+:root[data-theme="light"] .public-profile__state {
+  color: var(--color-text-muted);
+}
+
+:root[data-theme="light"] .public-profile__pills span {
+  background: rgba(244, 163, 0, 0.1);
+  color: #6c4700;
+  border-color: rgba(244, 163, 0, 0.26);
+}
+
+:root[data-theme="light"] .public-profile__follow,
+:root[data-theme="light"] .public-profile__cta {
+  color: #0f0f0f;
+  box-shadow: 0 12px 28px rgba(244, 163, 0, 0.22);
+}
+
+:root[data-theme="light"] .public-profile__follow--active {
+  background: rgba(244, 163, 0, 0.12);
+  color: #6c4700;
+  border-color: rgba(244, 163, 0, 0.32);
+  box-shadow: none;
+}
+
+:root[data-theme="light"] .public-profile__report {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-text-muted);
+  border-color: rgba(42, 30, 12, 0.14);
+}
+
+:root[data-theme="light"] .public-profile__report:hover {
+  color: #9f2f25;
+  border-color: rgba(210, 70, 55, 0.32);
+  background: rgba(255, 245, 242, 0.92);
+}
+
+:root[data-theme="light"] .public-profile__report--active,
+:root[data-theme="light"] .public-profile__state--error {
+  background: rgba(255, 245, 242, 0.92);
+  color: #9f2f25;
+  border-color: rgba(210, 70, 55, 0.3);
+}

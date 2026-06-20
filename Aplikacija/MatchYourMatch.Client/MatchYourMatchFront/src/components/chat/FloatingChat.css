@@ -246,6 +246,13 @@
   font-size: 0.64rem;
 }
 
+.floating-chat__message-sender {
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding-left: 0.18rem;
+}
+
 .floating-chat__message-status {
   display: inline-flex;
   align-items: center;
@@ -396,7 +403,30 @@
 }
 
 .floating-chat__error {
+  display: grid;
+  gap: 0.55rem;
   color: #ffb3b3;
+}
+
+.floating-chat__error button {
+  width: fit-content;
+  padding: 0.38rem 0.75rem;
+  border: 1px solid rgba(244, 163, 0, 0.35);
+  border-radius: var(--radius-pill);
+  background: rgba(244, 163, 0, 0.12);
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.floating-chat__error button:hover:not(:disabled),
+.floating-chat__error button:focus-visible:not(:disabled) {
+  background: rgba(244, 163, 0, 0.2);
+}
+
+.floating-chat__error button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .floating-chat__disabled {

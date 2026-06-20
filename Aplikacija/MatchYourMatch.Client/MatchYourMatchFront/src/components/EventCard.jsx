@@ -1,6 +1,6 @@
 import { MapPin, Clock } from 'lucide-react';
 
-function EventCard({ event, style, mini = false, onJoin }) {
+function EventCard({ event, style, mini = false, onJoin, onOpen }) {
   const {
     title,
     category,
@@ -16,7 +16,19 @@ function EventCard({ event, style, mini = false, onJoin }) {
 
   if (mini) {
     return (
-      <article className="event-card event-card--mini" style={style}>
+      <article
+        className={`event-card event-card--mini${onOpen ? ' event-card--clickable' : ''}`}
+        style={style}
+        role={onOpen ? 'button' : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        onClick={onOpen}
+        onKeyDown={(eventKey) => {
+          if (onOpen && (eventKey.key === 'Enter' || eventKey.key === ' ')) {
+            eventKey.preventDefault();
+            onOpen();
+          }
+        }}
+      >
         <span className="event-card__category">{category}</span>
         <h4 className="event-card__title event-card__title--mini">{title}</h4>
         <p className="event-card__meta-mini">
@@ -27,7 +39,19 @@ function EventCard({ event, style, mini = false, onJoin }) {
   }
 
   return (
-    <article className="event-card" style={style}>
+    <article
+      className={`event-card${onOpen ? ' event-card--clickable' : ''}`}
+      style={style}
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen}
+      onKeyDown={(eventKey) => {
+        if (onOpen && (eventKey.key === 'Enter' || eventKey.key === ' ')) {
+          eventKey.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <div className="event-card__top">
         <span className="event-card__category">{category}</span>
         <span className="event-card__date-pill">{date}</span>
@@ -58,7 +82,10 @@ function EventCard({ event, style, mini = false, onJoin }) {
         <button
           type="button"
           className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
-          onClick={onJoin}
+          onClick={(clickEvent) => {
+            clickEvent.stopPropagation();
+            onJoin?.();
+          }}
           disabled={isJoinedByCurrentUser}
         >
           {isJoinedByCurrentUser ? 'JOINED' : 'JOIN EVENT'}

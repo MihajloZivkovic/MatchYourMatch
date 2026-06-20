@@ -6,6 +6,7 @@ function ConfirmModal({
   isOpen,
   title,
   message,
+  errorMessage = "",
   confirmText = "Confirm",
   cancelText = "Cancel",
   variant = "default",
@@ -49,6 +50,7 @@ function ConfirmModal({
         <div className="confirm-modal__content">
           <h2 id="confirm-modal-title">{title}</h2>
           <p id="confirm-modal-message">{message}</p>
+          {errorMessage && <strong className="confirm-modal__error">{errorMessage}</strong>}
         </div>
         <div className="confirm-modal__actions">
           <button

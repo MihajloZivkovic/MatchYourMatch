@@ -40,6 +40,12 @@ function Register() {
           <form className="auth__card" action={formAction}>
             <h1 className="auth__title">REGISTER</h1>
 
+            {state.error && (
+              <p className="auth__error" role="alert">
+                {state.error}
+              </p>
+            )}
+
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-name">
                 Username

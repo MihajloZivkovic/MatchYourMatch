@@ -15,5 +15,6 @@ namespace MatchYourMatch.WebAPI.Models
         public User? Organizer { get; set; }
         public Interest? Interest { get; set; }
         public List<EventParticipant> Participants { get; set; } = new();
+        public List<EventDiscussionMessage> DiscussionMessages { get; set; } = new();
     }
 }

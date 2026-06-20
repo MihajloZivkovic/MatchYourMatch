@@ -14,6 +14,7 @@ namespace MatchYourMatch.WebAPI.DTOs.Search
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
+        public string? Role { get; set; }
         public string? LocationDisplayName { get; set; }
         public List<string> Tags { get; set; } = new();
     }

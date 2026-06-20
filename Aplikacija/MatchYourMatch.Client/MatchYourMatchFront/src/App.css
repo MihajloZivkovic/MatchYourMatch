@@ -21,24 +21,13 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  background:
-    radial-gradient(
-      ellipse 80% 50% at 50% 35%,
-      rgba(244, 163, 0, 0.06) 0%,
-      transparent 65%
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 80% 80%,
-      rgba(255, 255, 255, 0.02) 0%,
-      transparent 50%
-    ),
-    linear-gradient(180deg, #050505 0%, #000000 40%, #000000 100%);
+  background: var(--public-page-background);
 }
 
 .page__noise {
   position: absolute;
   inset: 0;
-  opacity: 0.035;
+  opacity: var(--public-noise-opacity);
   z-index: 2;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-repeat: repeat;
@@ -102,7 +91,7 @@
 
 .btn--outline:hover {
   background-color: var(--color-accent);
-  color: var(--color-bg);
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
   transform: translateY(-1px);
 }
@@ -112,7 +101,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.14em;
-  color: var(--color-bg);
+  color: var(--color-on-accent);
   background-color: var(--color-accent);
   border: 1px solid var(--color-accent);
   box-shadow: 0 0 0 0 var(--color-accent-glow);
@@ -138,6 +127,10 @@
   right: 0;
   z-index: 100;
   height: var(--nav-height);
+  background: var(--color-navbar);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   animation: navbarFadeIn 0.5s var(--ease-entrance) both;
   transition:
     opacity 0.3s ease-out,
@@ -163,22 +156,94 @@
 }
 
 .navbar__logo {
-  font-family: var(--font-body);
-  font-size: 1.15rem;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  color: var(--color-text);
-  transition: color var(--transition-fast);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.02em;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+  transition: transform var(--transition-fast);
 }
 
 .navbar__logo:hover {
+  transform: translateY(-1px);
+}
+
+.navbar__logo-m {
+  color: var(--color-text);
+}
+
+.navbar__logo-accent {
   color: var(--color-accent);
+  text-shadow: 0 0 20px rgba(244, 163, 0, 0.25);
 }
 
 .navbar__actions {
   display: flex;
   align-items: center;
   gap: clamp(1rem, 3vw, 2.25rem);
+}
+
+.navbar__theme {
+  position: relative;
+}
+
+.navbar__theme-btn {
+  min-width: 2.35rem;
+  height: 2.35rem;
+  padding: 0 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.navbar__theme-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-border-strong);
+  background: var(--color-accent-soft);
+}
+
+.navbar__theme-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 110;
+  min-width: 150px;
+  padding: 0.35rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  box-shadow: var(--shadow-card);
+}
+
+.navbar__theme-menu button {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-text-muted);
+  border-radius: 0.45rem;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.navbar__theme-menu button:hover,
+.navbar__theme-option--active {
+  color: var(--color-accent) !important;
+  background: var(--color-accent-soft);
 }
 
 .navbar__link {
@@ -312,8 +377,8 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.85) 15%,
-    rgba(255, 255, 255, 0.85) 85%,
+    var(--color-hero-line) 15%,
+    var(--color-hero-line) 85%,
     transparent 100%
   );
   max-width: 280px;
@@ -483,10 +548,6 @@
 
 .footer__legal a:hover {
   color: var(--color-text);
-}
-
-.navbar_logo-accent{
-  color: var(--color-accent);
 }
 
 /* ============================================
@@ -702,15 +763,13 @@
   display: flex;
   flex-direction: column;
   gap: 1.35rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
   border-radius: 1.25rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow:
-    0 0 0 1px rgba(244, 163, 0, 0.06) inset,
-    0 24px 48px rgba(0, 0, 0, 0.5),
-    0 0 80px rgba(244, 163, 0, 0.08);
+  box-shadow: var(--shadow-card);
   animation: authCardIn 0.7s var(--ease-entrance) 0.15s both;
 }
 
@@ -746,8 +805,8 @@
   font-size: 0.9rem;
   font-weight: 300;
   color: var(--color-text);
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--color-input);
+  border: 1px solid var(--color-border);
   border-radius: 0.65rem;
   transition:
     border-color var(--transition-smooth),
@@ -755,25 +814,41 @@
     background-color var(--transition-smooth);
 }
 
-.input-danger{
-  border: 1px solid red;
+.auth__input.input-danger {
+  border-color: var(--color-danger);
 }
 
 .auth__input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-subtle);
 }
 
 .auth__input:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-border-strong);
 }
 
 .auth__input:focus {
   outline: none;
   border-color: var(--color-accent);
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-input);
   box-shadow:
     0 0 0 1px var(--color-accent),
     0 0 20px rgba(244, 163, 0, 0.2);
+}
+
+.auth__input.input-danger:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 1px var(--color-danger);
+}
+
+.auth__error {
+  padding: 0.7rem 0.85rem;
+  color: var(--color-danger-text);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger);
+  border-radius: 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .auth__submit {

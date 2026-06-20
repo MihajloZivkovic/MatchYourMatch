@@ -53,6 +53,12 @@ function Login() {
           <form className="auth__card" action={formAction}>
             <h1 className="auth__title">LOGIN</h1>
 
+            {state.error && (
+              <p className="auth__error" role="alert">
+                {state.error}
+              </p>
+            )}
+
             <div className="auth__field">
               <label className="auth__label" htmlFor="login-email">
                 Email

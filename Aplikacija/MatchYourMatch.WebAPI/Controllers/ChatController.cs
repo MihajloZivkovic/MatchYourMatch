@@ -60,6 +60,163 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [Authorize(Roles = "User")]
+        [HttpPost("groups")]
+        public async Task<ActionResult<ChatConversationDto>> CreateGroup(CreateGroupChatRequestDto request)
+        {
+            try
+            {
+                return Ok(await _chatService.CreateGroupConversationAsync(GetCurrentUserId(), request));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("groups/{conversationId:int}/settings")]
+        [HttpGet("conversations/{conversationId:int}/settings")]
+        public async Task<ActionResult<GroupChatSettingsDto>> GetGroupSettings(int conversationId)
+        {
+            try
+            {
+                return Ok(await _chatService.GetGroupSettingsAsync(GetCurrentUserId(), conversationId));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpPatch("groups/{conversationId:int}")]
+        public async Task<ActionResult<GroupChatSettingsDto>> UpdateGroup(int conversationId, UpdateGroupChatDto request)
+        {
+            try
+            {
+                return Ok(await _chatService.UpdateGroupAsync(GetCurrentUserId(), conversationId, request));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPatch("groups/{conversationId:int}/mute")]
+        public async Task<ActionResult<GroupChatSettingsDto>> SetGroupMute(int conversationId, UpdateGroupMuteDto request)
+        {
+            try
+            {
+                return Ok(await _chatService.SetGroupMuteAsync(GetCurrentUserId(), conversationId, request));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpDelete("groups/{conversationId:int}/members/{memberUserId:int}")]
+        public async Task<IActionResult> RemoveGroupMember(int conversationId, int memberUserId)
+        {
+            try
+            {
+                await _chatService.RemoveGroupMemberAsync(GetCurrentUserId(), conversationId, memberUserId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpPost("groups/{conversationId:int}/leave")]
+        public async Task<IActionResult> LeaveGroup(int conversationId)
+        {
+            try
+            {
+                await _chatService.LeaveGroupAsync(GetCurrentUserId(), conversationId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpDelete("groups/{conversationId:int}")]
+        [HttpPost("groups/{conversationId:int}/delete")]
+        public async Task<IActionResult> DeleteGroup(int conversationId)
+        {
+            try
+            {
+                await _chatService.DeleteGroupAsync(GetCurrentUserId(), conversationId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
         [HttpPost("messages")]
         public async Task<ActionResult<ChatMessageDto>> SendMessage(SendChatMessageDto request)
         {
@@ -96,16 +253,32 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [HttpDelete("conversations/{conversationId:int}")]
-        public async Task<IActionResult> HideConversation(int conversationId)
+        public async Task<IActionResult> HideConversation(int conversationId, [FromQuery] bool permanent = false)
         {
             try
             {
-                await _chatService.HideConversationAsync(GetCurrentUserId(), conversationId);
+                if (permanent)
+                {
+                    await _chatService.DeleteGroupAsync(GetCurrentUserId(), conversationId);
+                }
+                else
+                {
+                    await _chatService.HideConversationAsync(GetCurrentUserId(), conversationId);
+                }
+
                 return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {
                 return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
 
@@ -170,6 +343,50 @@ namespace MatchYourMatch.WebAPI.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpPost("messages/{messageId:int}/reactions")]
+        public async Task<ActionResult<ChatMessageDto>> ToggleReaction(int messageId, ToggleChatMessageReactionDto request)
+        {
+            try
+            {
+                return Ok(await _chatService.ToggleReactionAsync(GetCurrentUserId(), messageId, request));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpDelete("messages/{messageId:int}/reactions")]
+        public async Task<ActionResult<ChatMessageDto>> RemoveReaction(int messageId)
+        {
+            try
+            {
+                return Ok(await _chatService.RemoveReactionAsync(GetCurrentUserId(), messageId));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
 

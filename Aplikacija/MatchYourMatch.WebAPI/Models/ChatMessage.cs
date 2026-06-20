@@ -5,7 +5,7 @@ namespace MatchYourMatch.WebAPI.Models
         public int Id { get; set; }
         public int ConversationId { get; set; }
         public int SenderId { get; set; }
-        public int ReceiverId { get; set; }
+        public int? ReceiverId { get; set; }
         public required string Body { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ReadAt { get; set; }
@@ -18,5 +18,7 @@ namespace MatchYourMatch.WebAPI.Models
         public ChatConversation? Conversation { get; set; }
         public User? Sender { get; set; }
         public User? Receiver { get; set; }
+        public List<ChatMessageUserDeletion> DeletedForUsers { get; set; } = new();
+        public List<ChatMessageReaction> Reactions { get; set; } = new();
     }
 }

@@ -1,9 +1,20 @@
+function dateFromToday(daysFromToday) {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+
+  return date.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export const events = [
   {
     id: 1,
     title: 'Grupno ucenje iz baza podataka',
     category: 'STUDY',
-    date: 'Jun 15, 2026',
+    date: dateFromToday(2),
     time: '6:00 PM',
     location: 'Nis, Serbia',
     description: 'Ucenje za ispit, normalizacija, SQL i ER dijagrami.',
@@ -14,7 +25,7 @@ export const events = [
     id: 2,
     title: 'Vece igrica',
     category: 'GAMING',
-    date: 'Jun 16, 2026',
+    date: dateFromToday(3),
     time: '8:00 PM',
     location: 'Nis, Serbia',
     description: 'Casual gaming, board games ili online co-op.',
@@ -25,7 +36,7 @@ export const events = [
     id: 3,
     title: 'Coffee & coding session',
     category: 'COFFEE',
-    date: 'Jun 17, 2026',
+    date: dateFromToday(4),
     time: '5:30 PM',
     location: 'Nis, Serbia',
     description: 'Rad na projektima, React/.NET i kratka kafa pauza.',
@@ -36,7 +47,7 @@ export const events = [
     id: 4,
     title: 'Setnja i prica',
     category: 'SOCIAL',
-    date: 'Jun 18, 2026',
+    date: dateFromToday(5),
     time: '7:00 PM',
     location: 'Nis, Serbia',
     description: 'Lagano upoznavanje i setnja.',
@@ -47,7 +58,7 @@ export const events = [
     id: 5,
     title: 'Gym buddy trening',
     category: 'SPORT',
-    date: 'Jun 19, 2026',
+    date: dateFromToday(6),
     time: '10:00 AM',
     location: 'Nis, Serbia',
     description: 'Lagani trening, beginner friendly.',

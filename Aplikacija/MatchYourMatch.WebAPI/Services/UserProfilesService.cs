@@ -144,6 +144,60 @@ namespace MatchYourMatch.WebAPI.Services
             };
         }
 
+        public async Task<List<UserMatchDto>> GetMatchesAsync(int userId)
+        {
+            var conversations = await _context.ChatConversations
+                .AsNoTracking()
+                .Include(c => c.UserA)
+                    .ThenInclude(u => u!.Profile)
+                .Include(c => c.UserA)
+                    .ThenInclude(u => u!.UserInterests)
+                        .ThenInclude(ui => ui.Interest)
+                .Include(c => c.UserB)
+                    .ThenInclude(u => u!.Profile)
+                .Include(c => c.UserB)
+                    .ThenInclude(u => u!.UserInterests)
+                        .ThenInclude(ui => ui.Interest)
+                .Where(conversation =>
+                    !conversation.IsGroup &&
+                    ((conversation.UserAId == userId && !conversation.IsHiddenForUserA) ||
+                     (conversation.UserBId == userId && !conversation.IsHiddenForUserB)))
+                .OrderByDescending(conversation => conversation.LastMessageAt ?? conversation.CreatedAt)
+                .ToListAsync();
+
+            return conversations
+                .Select(conversation =>
+                {
+                    var otherUser = conversation.UserAId == userId ? conversation.UserB : conversation.UserA;
+                    if (otherUser == null || otherUser.Id == userId || !otherUser.IsActive)
+                        return null;
+
+                    return new UserMatchDto
+                    {
+                        UserId = otherUser.Id,
+                        Username = otherUser.Username,
+                        DisplayName = otherUser.Username,
+                        Initials = GetInitials(otherUser.Username),
+                        ProfilePicture = otherUser.Profile?.ProfilePicture,
+                        LocationDisplayName = GetPublicLocation(otherUser.Profile),
+                        Bio = otherUser.Profile?.Bio,
+                        MatchedAt = conversation.CreatedAt,
+                        Source = "Chat",
+                        Tags = otherUser.UserInterests
+                            .Where(ui => ui.Interest != null)
+                            .Select(ui => ui.Interest!.Name)
+                            .Where(name => !string.IsNullOrWhiteSpace(name))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(name => name)
+                            .Take(4)
+                            .ToList()
+                    };
+                })
+                .Where(match => match != null)
+                .Select(match => match!)
+                .ToList();
+        }
+
         public async Task<List<FreeTimeSlotDto>> GetTimeSlotsAsync(int userId)
         {
             return await _context.FreeTimeSlots
@@ -482,6 +536,20 @@ namespace MatchYourMatch.WebAPI.Services
                 .ToList();
 
             return parts.Count > 0 ? string.Join(", ", parts) : null;
+        }
+
+        private static string GetInitials(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return "MY";
+
+            var parts = username
+                .Split(new[] { '.', '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .Select(part => char.ToUpperInvariant(part[0]).ToString());
+
+            var initials = string.Join("", parts);
+            return string.IsNullOrWhiteSpace(initials) ? "MY" : initials;
         }
     }
 }

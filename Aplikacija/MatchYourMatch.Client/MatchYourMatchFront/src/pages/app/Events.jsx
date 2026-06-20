@@ -28,7 +28,7 @@ function Events() {
       }
 
       const data = await response.json();
-      setEvents(data.map(mapApiEvent));
+      setEvents(data.map(mapApiEvent).filter(isUpcomingEvent));
     } catch (err) {
       setError(err.message || 'Events could not be loaded.');
       setEvents([]);
@@ -46,12 +46,11 @@ function Events() {
 
     if (activeFilter === 'THIS WEEK') {
       const now = new Date();
-      const weekFromNow = new Date(now);
-      weekFromNow.setDate(now.getDate() + 7);
+      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
       return events.filter((event) => {
-        const date = new Date(`${event.rawDate}T${event.rawTime || '00:00:00'}`);
-        return date >= startOfDay(now) && date <= endOfDay(weekFromNow);
+        const date = getEventDateTime(event);
+        return date !== null && date >= now && date <= weekFromNow;
       });
     }
 
@@ -123,11 +122,11 @@ function Events() {
         <div className="app-empty events-page__empty">
           <CalendarX size={44} strokeWidth={1} className="app-empty__icon" />
           <p className="app-empty__title">
-            {events.length === 0 ? 'No events yet' : 'No events found'}
+            {events.length === 0 ? 'No upcoming events yet.' : 'No events found'}
           </p>
           <p className="app-empty__text">
             {events.length === 0
-              ? 'Create the first community event.'
+              ? 'Create one and invite people.'
               : 'Try another filter or create something new.'}
           </p>
           <Link to="/app/events/create" className="app-btn-pill">
@@ -200,16 +199,16 @@ function formatTime(value) {
   });
 }
 
-function startOfDay(value) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function getEventDateTime(event) {
+  if (!event.rawDate) return null;
+
+  const date = new Date(`${event.rawDate}T${event.rawTime || '00:00:00'}`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function endOfDay(value) {
-  const date = new Date(value);
-  date.setHours(23, 59, 59, 999);
-  return date;
+function isUpcomingEvent(event) {
+  const eventDateTime = getEventDateTime(event);
+  return eventDateTime !== null && eventDateTime >= new Date();
 }
 
 export default Events;

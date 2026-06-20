@@ -20,12 +20,30 @@ namespace MatchYourMatch.WebAPI.Controllers
 
         [Authorize]
         [HttpGet]
-        public async Task<IActionResult> GetEvents([FromQuery] string? category)
+        public async Task<IActionResult> GetEvents(
+            [FromQuery] string? category,
+            [FromQuery] bool includePast = false)
         {
             try
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                var events = await _service.GetByQueryAsync(userId, category);
+                var events = await _service.GetByQueryAsync(userId, category, includePast);
+                return Ok(events);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyEvents()
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var events = await _service.GetProfileEventsAsync(userId);
                 return Ok(events);
             }
             catch (Exception ex)
@@ -79,6 +97,66 @@ namespace MatchYourMatch.WebAPI.Controllers
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/discussion")]
+        public async Task<IActionResult> GetDiscussion(int id)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var messages = await _service.GetDiscussionAsync(id, userId);
+                return Ok(messages);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    "Event discussion could not be loaded.");
+            }
+        }
+
+        [Authorize]
+        [HttpPost("{id:int}/discussion")]
+        public async Task<IActionResult> AddDiscussionMessage(int id, CreateEventDiscussionMessageDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var message = await _service.AddDiscussionMessageAsync(id, userId, dto);
+                return Ok(message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    "Message could not be sent.");
             }
         }
 

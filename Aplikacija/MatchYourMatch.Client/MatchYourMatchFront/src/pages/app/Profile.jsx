@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   MapPin,
   Heart,
   Calendar,
@@ -9,12 +10,14 @@ import {
   Music,
   Coffee,
   Moon,
+  RefreshCw,
+  Send,
+  Users,
 } from "lucide-react";
 import EventCard from "../../components/EventCard";
 import AvailabilityScheduleEditor from "../../components/profile/AvailabilityScheduleEditor";
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
-import { CURRENT_USER, matches, LITTLE_THINGS } from "../../data/matches";
-import { events } from "../../data/events";
+import { CURRENT_USER, LITTLE_THINGS } from "../../data/matches";
 import "./Profile.css";
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
@@ -50,6 +53,17 @@ function Profile(props) {
   const [saveButtonAnimating, setSaveButtonAnimating] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState("");
+  const [profileEvents, setProfileEvents] = useState({
+    Upcoming: [],
+    Past: [],
+    Saved: [],
+  });
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState("");
+  const [profileMatches, setProfileMatches] = useState([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const navigate = useNavigate();
 
   const styleButton = () => {
@@ -184,6 +198,98 @@ function Profile(props) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  const fetchProfileEvents = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setEventsLoading(true);
+    setEventsError("");
+
+    try {
+      const response = await fetch("/api/Events/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || "Events could not be loaded.");
+      }
+
+      const data = await response.json();
+      const mapped = mapProfileEvents(data);
+      setProfileEvents(mapped);
+      const allProfileEvents = [
+        ...mapped.Upcoming,
+        ...mapped.Past,
+        ...mapped.Saved,
+      ];
+      setSelectedEvent((current) =>
+        current
+          ? allProfileEvents.find((event) => event.id === current.id) || current
+          : current,
+      );
+    } catch (error) {
+      setEventsError(error.message || "Events could not be loaded.");
+      setProfileEvents({
+        Upcoming: [],
+        Past: [],
+        Saved: [],
+      });
+    } finally {
+      setEventsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfileEvents();
+  }, [fetchProfileEvents]);
+
+  const fetchProfileMatches = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setMatchesLoading(true);
+    setMatchesError("");
+
+    try {
+      const response = await fetch("/api/UserProfile/me/matches", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Please log in again.");
+      }
+
+      if (!response.ok) {
+        throw new Error("Matches could not be loaded.");
+      }
+
+      const data = await response.json();
+      const mapped = Array.isArray(data)
+        ? data
+            .map(mapConnectionToProfileMatch)
+            .sort((first, second) => new Date(second.matchedAt) - new Date(first.matchedAt))
+        : [];
+
+      setProfileMatches(mapped);
+    } catch (error) {
+      setProfileMatches([]);
+      setMatchesError(error.message || "Matches could not be loaded.");
+    } finally {
+      setMatchesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "MATCHES") {
+      fetchProfileMatches();
+    }
+  }, [fetchProfileMatches, tab]);
 
   const handleLogout = () => {
     localStorage.removeItem("mym_authed");
@@ -377,10 +483,38 @@ function Profile(props) {
     { icon: MessageCircle, label: "Response Rate", value: responseRateDisplay },
   ];
 
-  const eventLists = {
-    Upcoming: events.slice(0, 2),
-    Past: events.slice(2, 4),
-    Saved: events.slice(4, 6),
+  const eventLists = profileEvents;
+  const eventEmptyCopy = {
+    Upcoming: "No upcoming joined events.",
+    Past: "No past events yet.",
+    Saved: "No saved events yet.",
+  };
+
+  const handleJoinEvent = async (eventId) => {
+    if (!isValidEventId(eventId)) {
+      setEventsError("Event could not be joined because its database id is missing.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || "Event could not be joined.");
+      }
+
+      const updated = mapApiEvent(await response.json());
+      setSelectedEvent((current) => (current?.id === eventId ? updated : current));
+      await fetchProfileEvents();
+    } catch (error) {
+      setEventsError(error.message || "Event could not be joined.");
+    }
   };
 
   return (
@@ -665,58 +799,512 @@ function Profile(props) {
 
           {tab === "MATCHES" && (
             <div className="profile__matches-grid">
-              {matches.slice(0, 6).map((m) => (
-                <article key={m.id} className="profile__match-card app-tilt-hover">
-                  <div className="profile__match-ring">
-                    <div className="profile__match-avatar">{m.initials}</div>
-                    <span className="profile__match-score">{m.compatibility}%</span>
-                  </div>
-                  <h4>{m.name}</h4>
-                  <p className="profile__match-loc">{m.location}</p>
-                  <div className="profile__match-interests">
-                    {m.interests.slice(0, 2).map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
-                  </div>
-                  <span className="profile__match-online">Recently active</span>
-                  <button
-                    type="button"
-                    className="app-btn-pill profile__match-view app-interactive"
-                  >
-                    VIEW
-                  </button>
-                </article>
-              ))}
+              {matchesLoading && (
+                <div className="profile__matches-state">Loading matches...</div>
+              )}
+
+              {!matchesLoading && matchesError && (
+                <div className="profile__matches-state profile__matches-state--error">
+                  Matches could not be loaded.
+                </div>
+              )}
+
+              {!matchesLoading && !matchesError && profileMatches.length === 0 && (
+                <div className="profile__matches-state">
+                  No matches yet. Try Quick Match or Deep Match to start connecting.
+                </div>
+              )}
+
+              {!matchesLoading &&
+                !matchesError &&
+                profileMatches.map((m) => (
+                  <article key={m.id} className="profile__match-card app-tilt-hover">
+                    <div className="profile__match-ring">
+                      <div className="profile__match-avatar">{m.initials}</div>
+                      <span className="profile__match-score">{m.scoreLabel}</span>
+                    </div>
+                    <h4>{m.name}</h4>
+                    <p className="profile__match-loc">{m.location}</p>
+                    <div className="profile__match-interests">
+                      {m.interests.length > 0 ? (
+                        <>
+                          {m.interests.map((tag) => (
+                            <span key={tag}>{tag}</span>
+                          ))}
+                          {m.extraInterestsCount > 0 && (
+                            <span>+{m.extraInterestsCount} more</span>
+                          )}
+                        </>
+                      ) : (
+                        <em>Matched connection</em>
+                      )}
+                    </div>
+                    {m.isRecentlyActive && (
+                      <span className="profile__match-online">Recently active</span>
+                    )}
+                    <button
+                      type="button"
+                      className="app-btn-pill profile__match-view app-interactive"
+                      onClick={() => navigate(`/app/users/${m.id}`)}
+                    >
+                      VIEW
+                    </button>
+                  </article>
+                ))}
             </div>
           )}
 
           {tab === "EVENTS" && (
             <div className="profile__events-panel">
-              <div className="profile__event-segment">
-                {EVENT_SEGMENTS.map((seg) => (
-                  <button
-                    key={seg}
-                    type="button"
-                    className={
-                      eventSegment === seg ? "profile__event-seg--active" : ""
-                    }
-                    onClick={() => setEventSegment(seg)}
-                  >
-                    {seg}
-                  </button>
-                ))}
-              </div>
-              <div className="profile__events-list">
-                {eventLists[eventSegment].map((e) => (
-                  <EventCard key={e.id} event={e} mini />
-                ))}
-              </div>
+              {selectedEvent ? (
+                <EventDetails
+                  event={selectedEvent}
+                  onBack={() => setSelectedEvent(null)}
+                  onJoin={() => handleJoinEvent(selectedEvent.id)}
+                />
+              ) : (
+                <>
+                  <div className="profile__event-toolbar">
+                    <div className="profile__event-segment">
+                      {EVENT_SEGMENTS.map((seg) => (
+                        <button
+                          key={seg}
+                          type="button"
+                          className={
+                            eventSegment === seg ? "profile__event-seg--active" : ""
+                          }
+                          onClick={() => setEventSegment(seg)}
+                        >
+                          {seg}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="profile__event-refresh"
+                      onClick={fetchProfileEvents}
+                      disabled={eventsLoading}
+                      aria-label="Refresh events"
+                      aria-busy={eventsLoading}
+                      title="Refresh"
+                    >
+                      <RefreshCw size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  {eventsError && (
+                    <div className="profile__events-error">
+                      <span>{eventsError}</span>
+                      <button type="button" onClick={fetchProfileEvents}>
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {!eventsLoading && !eventsError && eventLists[eventSegment].length === 0 && (
+                    <div className="profile__events-empty">
+                      {eventEmptyCopy[eventSegment]}
+                    </div>
+                  )}
+
+                  <div className="profile__events-grid">
+                    {eventLists[eventSegment].map((event, index) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        style={{ "--i": index }}
+                        onOpen={() => setSelectedEvent(event)}
+                        onJoin={() => handleJoinEvent(event.id)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+function EventDetails({ event, onBack, onJoin }) {
+  return (
+    <section className="profile__event-detail">
+      <button type="button" className="profile__event-back" onClick={onBack}>
+        <ArrowLeft size={16} />
+        Events
+      </button>
+      <div className="profile__event-detail-head">
+        <span className="event-card__category">{event.category}</span>
+        <h2>{event.title}</h2>
+        <p>{event.description}</p>
+        <div className="profile__event-detail-meta">
+          <span>
+            <Calendar size={15} />
+            {event.date} at {event.time}
+          </span>
+          <span>
+            <MapPin size={15} />
+            {event.location}
+          </span>
+          <span>
+            <Users size={15} />
+            {event.attendeeCount}/{event.maxAttendees || "open"} attending
+          </span>
+        </div>
+        <div className="profile__event-detail-actions">
+          <button
+            type="button"
+            className={`event-card__join${
+              event.isJoinedByCurrentUser ? " event-card__join--joined" : ""
+            }`}
+            onClick={onJoin}
+            disabled={event.isJoinedByCurrentUser}
+          >
+            {event.isJoinedByCurrentUser ? "JOINED" : "JOIN EVENT"}
+          </button>
+          {event.organizerUsername && (
+            <span>Hosted by @{event.organizerUsername}</span>
+          )}
+        </div>
+      </div>
+
+      <EventDiscussion event={event} onJoin={onJoin} />
+    </section>
+  );
+}
+
+function EventDiscussion({ event, onJoin }) {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const messagesRef = useRef(null);
+
+  const loadDiscussion = useCallback(async () => {
+    const eventId = Number(event.id);
+
+    if (!isValidEventId(eventId)) {
+      setMessages([]);
+      setError("Event discussion could not be loaded because the event database id is missing.");
+      return;
+    }
+
+    if (!event.isJoinedByCurrentUser) {
+      setMessages([]);
+      setError("");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/Events/${eventId}/discussion`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(getDiscussionErrorMessage(response.status, body));
+      }
+
+      const data = await response.json();
+      setMessages(Array.isArray(data) ? data : []);
+    } catch (loadError) {
+      console.error("[Event Discussion] load failed", loadError);
+      setError(loadError.message || "Event discussion could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }, [event.id, event.isJoinedByCurrentUser]);
+
+  useEffect(() => {
+    loadDiscussion();
+  }, [loadDiscussion]);
+
+  useEffect(() => {
+    if (!messagesRef.current) return;
+    messagesRef.current.scrollTo({
+      top: messagesRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  const handleSend = async (submitEvent) => {
+    submitEvent.preventDefault();
+    const eventId = Number(event.id);
+    const body = draft.trim();
+    if (!body || sending) return;
+
+    if (!isValidEventId(eventId)) {
+      setError("Message could not be sent because the event database id is missing.");
+      return;
+    }
+
+    setSending(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/Events/${eventId}/discussion`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          body,
+        }),
+      });
+
+      if (!response.ok) {
+        const responseBody = await response.text();
+        throw new Error(getDiscussionErrorMessage(response.status, responseBody));
+      }
+
+      const sent = await response.json();
+      setMessages((current) => [...current, sent]);
+      setDraft("");
+    } catch (sendError) {
+      console.error("[Event Discussion] send failed", sendError);
+      setError(sendError.message || "Message could not be sent.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!event.isJoinedByCurrentUser) {
+    return (
+      <section className="profile__event-thread profile__event-thread--locked">
+        <h3>Event discussion</h3>
+        <p>Join this event to see and write in its private discussion.</p>
+        <button type="button" className="app-btn-pill" onClick={onJoin}>
+          Join to discuss
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="profile__event-thread">
+      <div className="profile__event-thread-head">
+        <div>
+          <h3>Event discussion</h3>
+          <p>Messages stay attached to this event only.</p>
+        </div>
+        <button type="button" className="profile__quiet-btn" onClick={loadDiscussion}>
+          Refresh
+        </button>
+      </div>
+
+      {loading && <div className="profile__events-empty">Loading discussion...</div>}
+      {error && <div className="profile__events-error">{error}</div>}
+
+      <div className="profile__event-messages" ref={messagesRef}>
+        {!loading && messages.length === 0 && (
+          <div className="profile__events-empty">No messages yet.</div>
+        )}
+        {messages.map((message) => {
+          const mine = Boolean(message.isMine);
+
+          return (
+            <div
+              key={message.id}
+              className={`profile__event-message${
+                mine ? " profile__event-message--mine" : ""
+              }`}
+            >
+              {!mine && (
+                <span>{message.displayName || message.username || "Member"}</span>
+              )}
+              <p>
+                {message.isDeleted ? "This message was deleted" : message.body}
+              </p>
+              <small>{formatChatTime(message.createdAt)}</small>
+            </div>
+          );
+        })}
+      </div>
+
+      <form className="profile__event-composer" onSubmit={handleSend}>
+        <input
+          value={draft}
+          onChange={(inputEvent) => setDraft(inputEvent.target.value)}
+          placeholder="Write in event discussion..."
+          maxLength={2000}
+        />
+        <button type="submit" disabled={sending || !draft.trim()} aria-label="Send">
+          <Send size={17} />
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function mapApiEvent(event) {
+  const id = event.id ?? event.Id;
+
+  return {
+    id,
+    title: event.title ?? event.Title ?? "Untitled event",
+    category: normalizeCategory(event.category ?? event.Category),
+    date: formatEventDate(event.date ?? event.Date),
+    rawDate: event.date ?? event.Date,
+    time: formatEventTime(event.time ?? event.Time),
+    rawTime: event.time ?? event.Time,
+    location: event.location ?? event.Location ?? "Community meetup",
+    description:
+      event.description ?? event.Description ?? "Community event created by a MYM user.",
+    attendees: event.participantInitials ?? event.ParticipantInitials ?? [],
+    attendeeCount: event.participantsCount ?? event.ParticipantsCount ?? 0,
+    maxAttendees: event.maxAttendees ?? event.MaxAttendees ?? 0,
+    isJoinedByCurrentUser: Boolean(
+      event.isJoinedByCurrentUser ?? event.IsJoinedByCurrentUser,
+    ),
+    organizerUsername: event.organizerUsername ?? event.OrganizerUsername,
+  };
+}
+
+function mapProfileEvents(data) {
+  return {
+    Upcoming: mapEventGroup(data?.upcoming ?? data?.Upcoming),
+    Past: mapEventGroup(data?.past ?? data?.Past),
+    Saved: mapEventGroup(data?.saved ?? data?.Saved),
+  };
+}
+
+function mapEventGroup(events) {
+  return Array.isArray(events) ? events.map(mapApiEvent) : [];
+}
+
+function mapConnectionToProfileMatch(match) {
+  const name = getMatchName(match);
+  const tags = getMatchTags(match);
+  const visibleTags = tags.slice(0, 3);
+  const compatibilityScore = match.compatibilityScore ?? match.CompatibilityScore ?? null;
+
+  return {
+    id: match.userId ?? match.UserId,
+    username: match.username ?? match.Username ?? name,
+    name,
+    initials: match.initials ?? match.Initials ?? getInitials(name),
+    compatibility: compatibilityScore == null ? null : Number(compatibilityScore) || 0,
+    scoreLabel: compatibilityScore == null ? "Matched" : `${Number(compatibilityScore) || 0}%`,
+    location:
+      match.location ??
+      match.Location ??
+      match.locationDisplayName ??
+      match.LocationDisplayName ??
+      match.approximateDistanceLabel ??
+      match.ApproximateDistanceLabel ??
+      "Location not set",
+    interests: visibleTags,
+    extraInterestsCount: Math.max(0, tags.length - visibleTags.length),
+    matchedAt: match.matchedAt ?? match.MatchedAt ?? null,
+    isRecentlyActive: Boolean(match.isRecentlyActive ?? match.IsRecentlyActive ?? match.activeToday),
+  };
+}
+
+function getMatchName(match) {
+  return (
+    match.displayName ??
+    match.DisplayName ??
+    match.username ??
+    match.Username ??
+    "MYM member"
+  );
+}
+
+function getMatchTags(match) {
+  return [
+    ...(match.sharedInterests ?? match.SharedInterests ?? []),
+    ...(match.sharedActivities ?? match.SharedActivities ?? []),
+    ...(match.reasons ?? match.Reasons ?? []),
+  ].filter(Boolean);
+}
+
+function getInitials(value) {
+  const source = String(value || "").trim();
+  if (!source) return "MY";
+
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
+}
+
+function normalizeCategory(category) {
+  return (category || "Social").trim().toUpperCase();
+}
+
+function formatEventDate(value) {
+  if (!value) return "Date TBA";
+  const date = new Date(`${value}T00:00:00`);
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatEventTime(value) {
+  if (!value) return "Time TBA";
+  const [hours = "00", minutes = "00"] = value.split(":");
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatChatTime(value) {
+  if (!value) return "";
+  const date =
+    typeof value === "string" && !/[zZ]|[+-]\d{2}:\d{2}$/.test(value)
+      ? new Date(`${value}Z`)
+      : new Date(value);
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getDiscussionErrorMessage(status, body) {
+  if (status === 404) return "Event discussion could not be loaded. Event was not found.";
+  if (status === 403) return "Join the event to open its discussion.";
+  if (status === 401) return "Discussion request failed. Please log in again.";
+  if (status >= 500 || looksLikeBackendException(body)) {
+    return "Event discussion could not be loaded.";
+  }
+  if (body) return body;
+  return "Discussion request failed.";
+}
+
+function looksLikeBackendException(body) {
+  if (!body) return false;
+
+  return [
+    "exception",
+    "stacktrace",
+    "mysqlconnector",
+    "microsoft.entityframeworkcore",
+    "eventdiscussionmessages",
+    " at ",
+  ].some((marker) => body.toLowerCase().includes(marker));
+}
+
+function isValidEventId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0;
 }
 
 export default Profile;

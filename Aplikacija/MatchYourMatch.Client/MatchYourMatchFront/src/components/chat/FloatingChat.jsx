@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Check, CheckCheck, Clock, MessageCircle, Minus, Send, X } from "lucide-react";
+import { Check, CheckCheck, Clock, MessageCircle, Minus, Send, Users, X } from "lucide-react";
 import ConfirmModal from "../ConfirmModal";
+import MessageReactions from "./MessageReactions";
 import { useChat } from "../../context/ChatContext";
 import "./FloatingChat.css";
 
@@ -26,15 +27,18 @@ function FloatingChat() {
     conversations,
     messagesByConversation,
     activeConversationId: activeId,
+    loadingConversations,
     loadingMessages: loading,
     error,
     setError,
     setActiveConversationId,
+    loadConversations,
     loadMessages,
     sendMessage,
     editMessage,
     deleteMessageForMe,
     deleteMessageForEveryone,
+    toggleReaction,
     setTyping,
     getTypingState,
   } = useChat();
@@ -229,6 +233,21 @@ function FloatingChat() {
     });
   };
 
+  const handleReactToMessage = async (message, emoji) => {
+    setError("");
+
+    try {
+      await toggleReaction(message, emoji);
+    } catch (err) {
+      setError(err.message || "Reaction could not be saved.");
+    }
+  };
+
+  const handleRetry = async () => {
+    setError("");
+    await loadConversations({ retryNow: true });
+  };
+
   const handleConfirmDelete = async () => {
     if (!confirmDialog || confirmLoading) return;
 
@@ -275,15 +294,21 @@ function FloatingChat() {
       <header className="floating-chat__head">
         <button type="button" className="floating-chat__person" onClick={() => setMinimized(false)}>
           <span className="floating-chat__avatar">
-            {activeConversation?.otherAvatar ? (
+            {activeConversation?.isGroup ? (
+              <Users size={16} aria-hidden="true" />
+            ) : activeConversation?.otherAvatar ? (
               <img src={activeConversation.otherAvatar} alt="" />
             ) : (
               activeConversation?.otherInitials || "MY"
             )}
           </span>
           <span>
-            <strong>{activeConversation?.otherDisplayName || activeConversation?.otherUsername || "Chat"}</strong>
-            <small>{activeConversation ? "Messages" : "No conversations"}</small>
+            <strong>{getConversationDisplayName(activeConversation)}</strong>
+            <small>
+              {activeConversation?.isGroup && activeConversation.memberCount
+                ? `${activeConversation.memberCount} members`
+                : activeConversation ? "Messages" : "No conversations"}
+            </small>
           </span>
         </button>
         <div className="floating-chat__controls">
@@ -313,7 +338,9 @@ function FloatingChat() {
                   aria-label={`Open chat with ${conversation.otherUsername}`}
                 >
                   <span className="floating-chat__avatar floating-chat__avatar--small">
-                    {conversation.otherAvatar ? (
+                    {conversation.isGroup ? (
+                      <Users size={14} aria-hidden="true" />
+                    ) : conversation.otherAvatar ? (
                       <img src={conversation.otherAvatar} alt="" />
                     ) : (
                       conversation.otherInitials || getInitials(conversation.otherUsername)
@@ -336,28 +363,55 @@ function FloatingChat() {
                 <div className="floating-chat__state">No conversations yet.</div>
               )}
               {!loading &&
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`floating-chat__message floating-chat__message--${
-                      isMessageMine(message, auth.userId) ? "me" : "them"
-                    }${message.isDeletedForEveryone ? " floating-chat__message--deleted" : ""}`}
-                    onContextMenu={(event) => openMessageMenu(event, message)}
-                  >
-                    <p>{message.isDeletedForEveryone ? "This message was deleted" : message.displayBody ?? message.body}</p>
-                    <div className="floating-chat__message-meta">
-                      <span>{formatTime(message.createdAt)}</span>
-                      {message.editedAt && !message.isDeletedForEveryone && <span title={formatTime(message.editedAt)}>edited</span>}
-                      {isMessageMine(message, auth.userId) && (
-                        <MessageStatusIcon message={message} />
+                messages.map((message) => {
+                  const mine = isMessageMine(message, auth.userId);
+
+                  return (
+                    <div
+                      key={message.id}
+                      className={`floating-chat__message floating-chat__message--${mine ? "me" : "them"}${
+                        message.isDeletedForEveryone ? " floating-chat__message--deleted" : ""
+                      }`}
+                      onContextMenu={(event) => openMessageMenu(event, message)}
+                    >
+                      {activeConversation?.isGroup && !mine && !message.isDeletedForEveryone && (
+                        <span className="floating-chat__message-sender">
+                          {message.senderDisplayName || message.senderUsername || "Member"}
+                        </span>
                       )}
+                      <p>{message.isDeletedForEveryone ? "This message was deleted" : message.displayBody ?? message.body}</p>
+                      <div className="floating-chat__message-meta">
+                        <span>{formatTime(message.createdAt)}</span>
+                        {message.editedAt && !message.isDeletedForEveryone && <span title={formatTime(message.editedAt)}>edited</span>}
+                        {mine && (
+                          <MessageStatusIcon message={message} />
+                        )}
+                      </div>
+                      <MessageReactions
+                        message={message}
+                        currentUserId={auth.userId}
+                        align={mine ? "end" : "start"}
+                        compact
+                        onReact={handleReactToMessage}
+                      />
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               {!loading && otherUserTyping && (
                 <TypingIndicator className="floating-chat__message floating-chat__message--them" />
               )}
-              {error && <div className="floating-chat__error">{error}</div>}
+              {error && (
+                <div className="floating-chat__error">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    disabled={loadingConversations}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               <div ref={messagesEndRef} aria-hidden="true" />
             </div>
           </div>
@@ -483,6 +537,11 @@ function getMessageStatus(message) {
   if (message.readAt) return "Read";
   if (message.id) return "Delivered";
   return "Sending";
+}
+
+function getConversationDisplayName(conversation) {
+  if (!conversation) return "Chat";
+  return conversation.displayName || conversation.groupName || conversation.otherDisplayName || conversation.otherUsername || "Chat";
 }
 
 function formatTime(value) {

@@ -12,13 +12,17 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<UserInterest> UserInterests { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<EventParticipant> EventParticipants { get; set; }
+        public DbSet<EventDiscussionMessage> EventDiscussionMessages { get; set; }
         public DbSet<QuickMatchPost> QuickMatchPosts { get; set; }
         public DbSet<ActivityCategory> ActivityCategories { get; set; }
         public DbSet<Activity> Activities { get; set; }
         public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
         public DbSet<Follow> Follows { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
+        public DbSet<ChatConversationMember> ChatConversationMembers { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<ChatMessageUserDeletion> ChatMessageUserDeletions { get; set; }
+        public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -77,6 +81,16 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(p => p.Event).WithMany(e => e.Participants).HasForeignKey(p => p.EventId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<EventParticipant>()
                 .HasOne(p => p.User).WithMany(u => u.EventParticipations).HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventDiscussionMessage>()
+                .HasOne(m => m.Event).WithMany(e => e.DiscussionMessages).HasForeignKey(m => m.EventId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventDiscussionMessage>()
+                .HasOne(m => m.User).WithMany(u => u.EventDiscussionMessages).HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventDiscussionMessage>()
+                .Property(m => m.Body)
+                .IsRequired()
+                .HasMaxLength(2000);
+            modelBuilder.Entity<EventDiscussionMessage>()
+                .HasIndex(m => new { m.EventId, m.CreatedAt });
             modelBuilder.Entity<QuickMatchPost>().HasOne(q => q.User).WithMany(u => u.QuickMatchPosts).HasForeignKey(q => q.UserId);
             modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
 
@@ -94,6 +108,29 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(c => c.UserA).WithMany(u => u.ChatConversationsAsUserA).HasForeignKey(c => c.UserAId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<ChatConversation>()
                 .HasOne(c => c.UserB).WithMany(u => u.ChatConversationsAsUserB).HasForeignKey(c => c.UserBId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatConversation>()
+                .HasOne(c => c.CreatedByUser).WithMany(u => u.CreatedChatConversations).HasForeignKey(c => c.CreatedByUserId).OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<ChatConversation>()
+                .Ignore(c => c.EventId);
+            modelBuilder.Entity<ChatConversation>()
+                .Ignore(c => c.Event);
+            modelBuilder.Entity<ChatConversation>()
+                .Property(c => c.GroupName)
+                .HasMaxLength(120);
+            modelBuilder.Entity<ChatConversation>()
+                .Property(c => c.GroupPhoto)
+                .HasColumnType("longtext");
+
+            modelBuilder.Entity<ChatConversationMember>()
+                .HasIndex(m => new { m.ConversationId, m.UserId })
+                .IsUnique();
+            modelBuilder.Entity<ChatConversationMember>()
+                .HasOne(m => m.Conversation).WithMany(c => c.Members).HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatConversationMember>()
+                .HasOne(m => m.User).WithMany(u => u.ChatConversationMemberships).HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatConversationMember>()
+                .Property(m => m.Role)
+                .HasMaxLength(30);
 
             modelBuilder.Entity<ChatMessage>()
                 .HasOne(m => m.Conversation).WithMany(c => c.Messages).HasForeignKey(m => m.ConversationId).OnDelete(DeleteBehavior.Cascade);
@@ -107,6 +144,26 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasMaxLength(2000);
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => new { m.ConversationId, m.CreatedAt });
+
+            modelBuilder.Entity<ChatMessageUserDeletion>()
+                .HasIndex(d => new { d.MessageId, d.UserId })
+                .IsUnique();
+            modelBuilder.Entity<ChatMessageUserDeletion>()
+                .HasOne(d => d.Message).WithMany(m => m.DeletedForUsers).HasForeignKey(d => d.MessageId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatMessageUserDeletion>()
+                .HasOne(d => d.User).WithMany(u => u.DeletedChatMessages).HasForeignKey(d => d.UserId).OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasIndex(r => new { r.MessageId, r.UserId })
+                .IsUnique();
+            modelBuilder.Entity<ChatMessageReaction>()
+                .Property(r => r.Emoji)
+                .IsRequired()
+                .HasMaxLength(16);
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasOne(r => r.Message).WithMany(m => m.Reactions).HasForeignKey(r => r.MessageId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<ChatMessageReaction>()
+                .HasOne(r => r.User).WithMany(u => u.ChatMessageReactions).HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ActivityCategory>()
                 .HasMany(c => c.Activities)

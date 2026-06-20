@@ -123,18 +123,100 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `ChatConversations` (
             `Id` int NOT NULL AUTO_INCREMENT,
-            `UserAId` int NOT NULL,
-            `UserBId` int NOT NULL,
+            `UserAId` int NULL,
+            `UserBId` int NULL,
+            `IsGroup` tinyint(1) NOT NULL DEFAULT 0,
+            `GroupName` varchar(120) CHARACTER SET utf8mb4 NULL,
+            `EventId` int NULL,
+            `CreatedByUserId` int NULL,
             `CreatedAt` datetime(6) NOT NULL,
             `LastMessageAt` datetime(6) NULL,
             `IsHiddenForUserA` tinyint(1) NOT NULL DEFAULT 0,
             `IsHiddenForUserB` tinyint(1) NOT NULL DEFAULT 0,
             CONSTRAINT `PK_ChatConversations` PRIMARY KEY (`Id`),
             UNIQUE INDEX `IX_ChatConversations_UserAId_UserBId` (`UserAId`, `UserBId`),
+            INDEX `IX_ChatConversations_CreatedByUserId` (`CreatedByUserId`),
+            INDEX `IX_ChatConversations_EventId` (`EventId`),
             INDEX `IX_ChatConversations_UserBId` (`UserBId`),
+            CONSTRAINT `FK_ChatConversations_Users_CreatedByUserId` FOREIGN KEY (`CreatedByUserId`) REFERENCES `Users` (`Id`) ON DELETE SET NULL,
             CONSTRAINT `FK_ChatConversations_Users_UserAId` FOREIGN KEY (`UserAId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
             CONSTRAINT `FK_ChatConversations_Users_UserBId` FOREIGN KEY (`UserBId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT
         ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        ALTER TABLE `ChatConversations` MODIFY COLUMN `UserAId` int NULL;
+        ALTER TABLE `ChatConversations` MODIFY COLUMN `UserBId` int NULL;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversations'
+              AND COLUMN_NAME = 'IsGroup'
+        );
+        SET @statement := IF(
+            @columnExists = 0,
+            'ALTER TABLE `ChatConversations` ADD COLUMN `IsGroup` tinyint(1) NOT NULL DEFAULT 0',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversations'
+              AND COLUMN_NAME = 'GroupName'
+        );
+        SET @statement := IF(
+            @columnExists = 0,
+            'ALTER TABLE `ChatConversations` ADD COLUMN `GroupName` varchar(120) CHARACTER SET utf8mb4 NULL',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversations'
+              AND COLUMN_NAME = 'GroupPhoto'
+        );
+        SET @statement := IF(
+            @columnExists = 0,
+            'ALTER TABLE `ChatConversations` ADD COLUMN `GroupPhoto` longtext CHARACTER SET utf8mb4 NULL',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        ALTER TABLE `ChatConversations` MODIFY COLUMN `GroupPhoto` longtext CHARACTER SET utf8mb4 NULL;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversations'
+              AND COLUMN_NAME = 'CreatedByUserId'
+        );
+        SET @statement := IF(
+            @columnExists = 0,
+            'ALTER TABLE `ChatConversations` ADD COLUMN `CreatedByUserId` int NULL',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
         """);
     db.Database.ExecuteSqlRaw("""
         SET @columnExists := (
@@ -171,11 +253,45 @@ using (var scope = app.Services.CreateScope())
         DEALLOCATE PREPARE stmt;
         """);
     db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversations'
+              AND COLUMN_NAME = 'EventId'
+        );
+        SET @statement := IF(
+            @columnExists = 0,
+            'ALTER TABLE `ChatConversations` ADD COLUMN `EventId` int NULL',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @indexExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversations'
+              AND INDEX_NAME = 'IX_ChatConversations_EventId'
+        );
+        SET @statement := IF(
+            @indexExists = 0,
+            'CREATE INDEX `IX_ChatConversations_EventId` ON `ChatConversations` (`EventId`)',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `ChatMessages` (
             `Id` int NOT NULL AUTO_INCREMENT,
             `ConversationId` int NOT NULL,
             `SenderId` int NOT NULL,
-            `ReceiverId` int NOT NULL,
+            `ReceiverId` int NULL,
             `Body` varchar(2000) CHARACTER SET utf8mb4 NOT NULL,
             `CreatedAt` datetime(6) NOT NULL,
             `ReadAt` datetime(6) NULL,
@@ -189,6 +305,9 @@ using (var scope = app.Services.CreateScope())
             CONSTRAINT `FK_ChatMessages_Users_ReceiverId` FOREIGN KEY (`ReceiverId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
             CONSTRAINT `FK_ChatMessages_Users_SenderId` FOREIGN KEY (`SenderId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT
         ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        ALTER TABLE `ChatMessages` MODIFY COLUMN `ReceiverId` int NULL;
         """);
     db.Database.ExecuteSqlRaw("""
         SET @columnExists := (
@@ -206,6 +325,68 @@ using (var scope = app.Services.CreateScope())
         PREPARE stmt FROM @statement;
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `ChatConversationMembers` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `ConversationId` int NOT NULL,
+            `UserId` int NOT NULL,
+            `JoinedAt` datetime(6) NOT NULL,
+            `LeftAt` datetime(6) NULL,
+            `IsHidden` tinyint(1) NOT NULL DEFAULT 0,
+            `IsMuted` tinyint(1) NOT NULL DEFAULT 0,
+            `LastReadAt` datetime(6) NULL,
+            `Role` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Member',
+            CONSTRAINT `PK_ChatConversationMembers` PRIMARY KEY (`Id`),
+            UNIQUE INDEX `IX_ChatConversationMembers_ConversationId_UserId` (`ConversationId`, `UserId`),
+            INDEX `IX_ChatConversationMembers_UserId` (`UserId`),
+            CONSTRAINT `FK_ChatConversationMembers_ChatConversations_ConversationId` FOREIGN KEY (`ConversationId`) REFERENCES `ChatConversations` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_ChatConversationMembers_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `ChatMessageReactions` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `MessageId` int NOT NULL,
+            `UserId` int NOT NULL,
+            `Emoji` varchar(16) CHARACTER SET utf8mb4 NOT NULL,
+            `CreatedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_ChatMessageReactions` PRIMARY KEY (`Id`),
+            UNIQUE INDEX `IX_ChatMessageReactions_MessageId_UserId` (`MessageId`, `UserId`),
+            INDEX `IX_ChatMessageReactions_UserId` (`UserId`),
+            CONSTRAINT `FK_ChatMessageReactions_ChatMessages_MessageId` FOREIGN KEY (`MessageId`) REFERENCES `ChatMessages` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_ChatMessageReactions_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'ChatConversationMembers'
+              AND COLUMN_NAME = 'IsMuted'
+        );
+        SET @statement := IF(
+            @columnExists = 0,
+            'ALTER TABLE `ChatConversationMembers` ADD COLUMN `IsMuted` tinyint(1) NOT NULL DEFAULT 0',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `ChatMessageUserDeletions` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `MessageId` int NOT NULL,
+            `UserId` int NOT NULL,
+            `DeletedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_ChatMessageUserDeletions` PRIMARY KEY (`Id`),
+            UNIQUE INDEX `IX_ChatMessageUserDeletions_MessageId_UserId` (`MessageId`, `UserId`),
+            INDEX `IX_ChatMessageUserDeletions_UserId` (`UserId`),
+            CONSTRAINT `FK_ChatMessageUserDeletions_ChatMessages_MessageId` FOREIGN KEY (`MessageId`) REFERENCES `ChatMessages` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_ChatMessageUserDeletions_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE
+        ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
         SET @columnExists := (
@@ -268,6 +449,24 @@ using (var scope = app.Services.CreateScope())
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `EventDiscussionMessages` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `EventId` int NOT NULL,
+            `UserId` int NOT NULL,
+            `Body` varchar(2000) CHARACTER SET utf8mb4 NOT NULL,
+            `CreatedAt` datetime(6) NOT NULL,
+            `UpdatedAt` datetime(6) NULL,
+            `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
+            CONSTRAINT `PK_EventDiscussionMessages` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_EventDiscussionMessages_Events_EventId`
+                FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_EventDiscussionMessages_Users_UserId`
+                FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            INDEX `IX_EventDiscussionMessages_EventId_CreatedAt` (`EventId`, `CreatedAt`),
+            INDEX `IX_EventDiscussionMessages_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
         INSERT INTO `Interests` (`Name`, `Category`)
         SELECT 'Study', 'Event'
         WHERE NOT EXISTS (SELECT 1 FROM `Interests` WHERE `Name` = 'Study');
@@ -315,6 +514,23 @@ using (var scope = app.Services.CreateScope())
         SELECT 'Gym buddy trening', @communityUserId, (SELECT `Id` FROM `Interests` WHERE `Name` = 'Sport' LIMIT 1), DATE_ADD(CURDATE(), INTERVAL 6 DAY), '10:00:00', 'Nis, Serbia', 4, 'Lagani trening, beginner friendly.', NULL
         WHERE @communityUserId IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM `Events` WHERE `Title` = 'Gym buddy trening');
+
+        UPDATE `Events`
+        SET `Date` = CASE `Title`
+            WHEN 'Grupno ucenje iz baza podataka' THEN DATE_ADD(CURDATE(), INTERVAL 2 DAY)
+            WHEN 'Vece igrica' THEN DATE_ADD(CURDATE(), INTERVAL 3 DAY)
+            WHEN 'Coffee & coding session' THEN DATE_ADD(CURDATE(), INTERVAL 4 DAY)
+            WHEN 'Setnja i prica' THEN DATE_ADD(CURDATE(), INTERVAL 5 DAY)
+            WHEN 'Gym buddy trening' THEN DATE_ADD(CURDATE(), INTERVAL 6 DAY)
+        END
+        WHERE `Title` IN (
+            'Grupno ucenje iz baza podataka',
+            'Vece igrica',
+            'Coffee & coding session',
+            'Setnja i prica',
+            'Gym buddy trening'
+        )
+          AND TIMESTAMP(`Date`, `Time`) < NOW();
 
         INSERT IGNORE INTO `EventParticipants` (`EventId`, `UserId`, `JoinedAt`)
         SELECT `Id`, @communityUserId, UTC_TIMESTAMP(6)

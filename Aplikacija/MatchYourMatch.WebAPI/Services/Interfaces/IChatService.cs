@@ -7,12 +7,21 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<List<ChatConversationDto>> GetConversationsAsync(int userId);
         Task<List<ChatMessageDto>> GetMessagesAsync(int userId, int conversationId);
         Task<ChatConversationDto> StartConversationAsync(int userId, int otherUserId);
+        Task<ChatConversationDto> CreateGroupConversationAsync(int userId, CreateGroupChatRequestDto request);
+        Task<GroupChatSettingsDto> GetGroupSettingsAsync(int userId, int conversationId);
+        Task<GroupChatSettingsDto> UpdateGroupAsync(int userId, int conversationId, UpdateGroupChatDto request);
+        Task<GroupChatSettingsDto> SetGroupMuteAsync(int userId, int conversationId, UpdateGroupMuteDto request);
+        Task RemoveGroupMemberAsync(int userId, int conversationId, int memberUserId);
+        Task LeaveGroupAsync(int userId, int conversationId);
+        Task DeleteGroupAsync(int userId, int conversationId);
         Task<ChatMessageDto> SendMessageAsync(int userId, SendChatMessageDto request);
         Task<ChatMessageDto> UpdateMessageAsync(int userId, int messageId, UpdateChatMessageDto request);
         Task MarkConversationReadAsync(int userId, int conversationId);
         Task HideConversationAsync(int userId, int conversationId);
         Task DeleteMessageForUserAsync(int userId, int messageId);
         Task<ChatMessageDto> DeleteMessageForEveryoneAsync(int userId, int messageId);
+        Task<ChatMessageDto> ToggleReactionAsync(int userId, int messageId, ToggleChatMessageReactionDto request);
+        Task<ChatMessageDto> RemoveReactionAsync(int userId, int messageId);
         Task SetTypingAsync(int userId, int conversationId, bool isTyping);
         Task<bool> IsOtherUserTypingAsync(int userId, int conversationId);
     }
