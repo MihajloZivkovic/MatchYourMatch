@@ -31,4 +31,4 @@ packages/
 .vs/
 App_Data/
 **/DataProtectionKeys/
-.agents/
+
