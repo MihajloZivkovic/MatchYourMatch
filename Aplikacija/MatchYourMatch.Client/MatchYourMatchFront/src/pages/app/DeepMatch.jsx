@@ -15,6 +15,7 @@ function DeepMatch() {
   const { t } = useTranslation();
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadDeepMatch = async () => {
       setLoading(true);
       setError('');
@@ -26,8 +27,8 @@ function DeepMatch() {
         };
 
         const [preferencesResponse, availabilityResponse] = await Promise.all([
-          fetch('/api/UserProfile/me/deep-preferences', { headers }),
-          fetch('/api/UserProfile/me/availability', { headers }),
+          fetch('/api/UserProfile/me/deep-preferences', { headers, signal:controller.signal }),
+          fetch('/api/UserProfile/me/availability', { headers, signal:controller.signal }),
         ]);
 
         if (preferencesResponse.status === 401 || availabilityResponse.status === 401) {
@@ -49,7 +50,7 @@ function DeepMatch() {
           return;
         }
 
-        const matchesResponse = await fetch('/api/DeepMatch/matches', { headers });
+        const matchesResponse = await fetch('/api/DeepMatch/matches', { headers, signal:controller.signal });
 
         if (matchesResponse.status === 401 || matchesResponse.status === 403) {
           throw new Error('Your session expired. Please log in again.');
@@ -63,13 +64,15 @@ function DeepMatch() {
         const matchesData = await matchesResponse.json();
         setMatches(matchesData);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         setError(err.message || 'Deep matches could not be loaded.');
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     loadDeepMatch();
+    return () => controller.abort();
   }, []);
 
   const isIncomplete = !preferences?.isComplete || availability.length === 0;
@@ -116,7 +119,7 @@ function DeepMatch() {
           <div className="deep-match__state">
             <h2>{t('deep.none')}</h2>
             <p>{t('deep.noneText')}</p>
-            <button type="button" className="app-btn-pill" onClick={() => navigate('/app/profile')}>
+            <button type="button" className="app-btn-pill" onClick={()=>navigate('/app/profile')}>
               {t('deep.edit')}
             </button>
           </div>

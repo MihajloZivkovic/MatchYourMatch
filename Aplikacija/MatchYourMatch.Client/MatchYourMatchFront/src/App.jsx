@@ -13,6 +13,7 @@ import AppShell from "./app/AppShell";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
 import About from "./pages/About";
 import Dashboard from "./pages/app/Dashboard";
 import QuickMatch from "./pages/app/QuickMatch";
@@ -53,16 +54,20 @@ function App() {
     age: null,
     littleThings: [],
     currentlyExploring: [],
+    favoriteActivities: [],
+    socialEnergy: null,
+    conversationStyle: "",
+    lookingFor: [],
   });
   const exitTimerRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
 
-  async function getFullName() {
-    const token = localStorage.getItem("token");
+  async function getFullName(token, signal) {
     const response = await fetch("/api/UserProfile/me", {
       method: "GET",
+      signal,
       headers: {
         accept: "*/*",
         Authorization: `Bearer ${token}`,
@@ -81,8 +86,10 @@ function App() {
 
   useEffect(() => {
     let mounted = true;
+    let activeController = null;
 
     const refreshCurrentUser = async () => {
+      activeController?.abort();
       const token = localStorage.getItem("token");
       if (!token) {
         if (mounted) setCurrentUser("");
@@ -95,9 +102,11 @@ function App() {
           if (mounted) setCurrentUser("");
           return;
         }
-        const data = await getFullName();
-        if (mounted) setCurrentUser(data);
+        activeController = new AbortController();
+        const data = await getFullName(token, activeController.signal);
+        if (mounted && localStorage.getItem("token") === token) setCurrentUser(data);
       } catch (err) {
+        if (err.name === 'AbortError') return;
         if (mounted) setCurrentUser("");
         console.log(err);
       }
@@ -116,6 +125,7 @@ function App() {
     window.addEventListener("storage", onStorage);
     return () => {
       mounted = false;
+      activeController?.abort();
       window.removeEventListener("tokenChanged", onTokenChanged);
       window.removeEventListener("storage", onStorage);
     };
@@ -123,8 +133,10 @@ function App() {
 
   useEffect(() => {
     let mounted = true;
+    let activeController = null;
 
     const loadUserProfile = async () => {
+      activeController?.abort();
       const token = localStorage.getItem("token");
       if (!token) {
         if (mounted) {
@@ -143,13 +155,19 @@ function App() {
             age: null,
             littleThings: [],
             currentlyExploring: [],
+            favoriteActivities: [],
+            socialEnergy: null,
+            conversationStyle: "",
+            lookingFor: [],
           });
         }
         return;
       }
 
       try {
+        activeController = new AbortController();
         const response = await fetch("/api/UserProfile/me", {
+          signal: activeController.signal,
           headers: {
             accept: "*/*",
             Authorization: `Bearer ${token}`,
@@ -159,7 +177,7 @@ function App() {
         if (!response.ok) return;
 
         const data = await response.json();
-        if (mounted) {
+        if (mounted && localStorage.getItem("token") === token) {
           setUserProfile({
             bio: data.bio ?? "",
             location: data.location ?? "",
@@ -175,9 +193,14 @@ function App() {
             age: data.age ?? null,
             littleThings: Array.isArray(data.littleThings) ? data.littleThings : [],
             currentlyExploring: Array.isArray(data.currentlyExploring) ? data.currentlyExploring : [],
+            favoriteActivities: Array.isArray(data.favoriteActivities) ? data.favoriteActivities : [],
+            socialEnergy: typeof data.socialEnergy === "number" ? data.socialEnergy : null,
+            conversationStyle: data.conversationStyle || "",
+            lookingFor: Array.isArray(data.lookingFor) ? data.lookingFor : [],
           });
         }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error("Failed to load user profile:", error);
       }
     };
@@ -195,6 +218,7 @@ function App() {
 
     return () => {
       mounted = false;
+      activeController?.abort();
       window.removeEventListener("tokenChanged", onTokenChanged);
       window.removeEventListener("storage", onStorage);
     };
@@ -275,6 +299,7 @@ function App() {
         <Route path="/" element={<Home isExiting={isExiting} />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/about" element={<About />} />
       </Routes>
     </div>

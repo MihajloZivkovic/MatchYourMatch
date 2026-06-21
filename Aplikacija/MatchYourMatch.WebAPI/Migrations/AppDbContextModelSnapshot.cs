@@ -651,6 +651,22 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("EmailConfirmedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EmailVerificationCodeExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EmailVerificationCodeHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTime?>("EmailVerificationCodeSentAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
@@ -880,6 +896,9 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Property<string>("ExploringTagsJson")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("FavoriteActivitiesJson")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FullName")
                         .HasColumnType("longtext");
 
@@ -887,6 +906,9 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .HasColumnType("double");
 
                     b.Property<string>("LittleThingsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("LookingForJson")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Location")
@@ -919,11 +941,18 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Property<string>("ProfilePicture")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("ConversationStyle")
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
                     b.Property<bool>("ShowAge")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("ShowFullName")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("SocialEnergy")
+                        .HasColumnType("int");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");

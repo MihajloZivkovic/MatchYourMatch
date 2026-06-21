@@ -143,6 +143,24 @@ using (var scope = app.Services.CreateScope())
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
         """);
+#pragma warning disable EF1002
+    foreach (var column in new[]
+    {
+        (Name: "EmailConfirmed", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailConfirmed` tinyint(1) NOT NULL DEFAULT 1"),
+        (Name: "EmailConfirmedAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailConfirmedAt` datetime(6) NULL"),
+        (Name: "EmailVerificationCodeHash", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeHash` varchar(64) NULL"),
+        (Name: "EmailVerificationCodeExpiresAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeExpiresAt` datetime(6) NULL"),
+        (Name: "EmailVerificationCodeSentAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeSentAt` datetime(6) NULL")
+    })
+    {
+        db.Database.ExecuteSqlRaw($"""
+            SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Users' AND COLUMN_NAME = '{column.Name}');
+            SET @statement := IF(@columnExists = 0, '{column.Sql}', 'SELECT 1');
+            PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+            """);
+    }
+#pragma warning restore EF1002
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `Follows` (
             `Id` int NOT NULL AUTO_INCREMENT,
@@ -243,6 +261,10 @@ using (var scope = app.Services.CreateScope())
         (Name: "ShowAge", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ShowAge` tinyint(1) NOT NULL DEFAULT 0"),
         (Name: "LittleThingsJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `LittleThingsJson` longtext NULL"),
         (Name: "ExploringTagsJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ExploringTagsJson` longtext NULL")
+        ,(Name: "FavoriteActivitiesJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `FavoriteActivitiesJson` longtext NULL")
+        ,(Name: "SocialEnergy", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `SocialEnergy` int NULL")
+        ,(Name: "ConversationStyle", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ConversationStyle` varchar(80) NULL")
+        ,(Name: "LookingForJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `LookingForJson` longtext NULL")
     })
     {
         db.Database.ExecuteSqlRaw($"""

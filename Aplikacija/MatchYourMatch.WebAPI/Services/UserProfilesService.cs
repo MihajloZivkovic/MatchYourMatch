@@ -124,6 +124,10 @@ namespace MatchYourMatch.WebAPI.Services
                 ,Age = CalculateAge(user.Profile?.DateOfBirth)
                 ,LittleThings = DeserializeTags(user.Profile?.LittleThingsJson, 10)
                 ,CurrentlyExploring = DeserializeTags(user.Profile?.ExploringTagsJson, 5)
+                ,FavoriteActivities = DeserializeTags(user.Profile?.FavoriteActivitiesJson, 10)
+                ,SocialEnergy = user.Profile?.SocialEnergy
+                ,ConversationStyle = user.Profile?.ConversationStyle
+                ,LookingFor = DeserializeTags(user.Profile?.LookingForJson, 10)
             };
         }
 
@@ -143,6 +147,29 @@ namespace MatchYourMatch.WebAPI.Services
             if (dto.CurrentlyExploring != null)
                 user.Profile.ExploringTagsJson = JsonSerializer.Serialize(NormalizeTags(dto.CurrentlyExploring, 5));
 
+            await _context.SaveChangesAsync();
+            return await GetProfileAsync(userId);
+        }
+
+        public async Task<UserProfileDto> UpdateProfileLifestyleAsync(int userId, UpdateProfileLifestyleDto dto)
+        {
+            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) throw new Exception("Korisnik nije pronadjen");
+            if (dto.SocialEnergy is < 0 or > 100) throw new Exception("Social energy must be between 0 and 100.");
+
+            var conversationStyle = string.IsNullOrWhiteSpace(dto.ConversationStyle) ? null : dto.ConversationStyle.Trim();
+            if (conversationStyle?.Length > 80) throw new Exception("Conversation style cannot exceed 80 characters.");
+
+            if (user.Profile == null)
+            {
+                user.Profile = new UserProfile { UserId = userId };
+                _context.UserProfiles.Add(user.Profile);
+            }
+
+            user.Profile.FavoriteActivitiesJson = JsonSerializer.Serialize(NormalizeTags(dto.FavoriteActivities, 10));
+            user.Profile.SocialEnergy = dto.SocialEnergy;
+            user.Profile.ConversationStyle = conversationStyle;
+            user.Profile.LookingForJson = JsonSerializer.Serialize(NormalizeTags(dto.LookingFor, 10));
             await _context.SaveChangesAsync();
             return await GetProfileAsync(userId);
         }
@@ -190,6 +217,10 @@ namespace MatchYourMatch.WebAPI.Services
                 Age = user.Profile?.ShowAge == true ? CalculateAge(user.Profile.DateOfBirth) : null,
                 LittleThings = DeserializeTags(user.Profile?.LittleThingsJson, 10),
                 CurrentlyExploring = DeserializeTags(user.Profile?.ExploringTagsJson, 5),
+                FavoriteActivities = DeserializeTags(user.Profile?.FavoriteActivitiesJson, 10),
+                SocialEnergy = user.Profile?.SocialEnergy,
+                ConversationStyle = user.Profile?.ConversationStyle,
+                LookingFor = DeserializeTags(user.Profile?.LookingForJson, 10),
                 CanMessage = canMessage,
                 Interests = user.UserInterests
                     .Where(ui => ui.Interest != null)

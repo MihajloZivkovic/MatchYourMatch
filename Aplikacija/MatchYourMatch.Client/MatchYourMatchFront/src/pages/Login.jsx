@@ -27,7 +27,11 @@ function Login() {
 
     if (!response.ok) {
       const errorMessage = await response.text();
-      if (errorMessage === "Pogresan email.") {
+      if (response.status === 403) {
+        setVrstaGreske("verify");
+        sessionStorage.setItem('pendingVerificationEmail', email.trim());
+      }
+      else if (errorMessage === "Pogresan email.") {
         setVrstaGreske("email");
       }
       else {
@@ -57,9 +61,10 @@ function Login() {
 
             {state.error && (
               <p className="auth__error" role="alert">
-                {vrstaGreske === 'email' ? t('auth.wrongEmail') : t('auth.wrongPassword')}
+                {vrstaGreske === 'verify' ? t('emailVerification.loginBlocked') : vrstaGreske === 'email' ? t('auth.wrongEmail') : t('auth.wrongPassword')}
               </p>
             )}
+            {vrstaGreske === 'verify' && <p className="auth__switch"><Link to="/verify-email" state={{email:state.values.email}} className="auth__switch-link">{t('emailVerification.resend')}</Link></p>}
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="login-email">

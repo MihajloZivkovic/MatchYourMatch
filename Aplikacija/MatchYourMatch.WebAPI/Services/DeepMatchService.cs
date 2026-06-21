@@ -3,6 +3,7 @@ using MatchYourMatch.WebAPI.DTOs.Match;
 using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace MatchYourMatch.WebAPI.Services
 {
@@ -17,7 +18,7 @@ namespace MatchYourMatch.WebAPI.Services
             _context = context;
         }
 
-        public async Task<List<DeepMatchDto>> GetMatchesAsync(int userId)
+        public async Task<List<DeepMatchDto>> GetMatchesAsync(int userId, IReadOnlyCollection<string>? interests = null, IReadOnlyCollection<string>? vibes = null)
         {
             var currentUser = await _context.Users
                 .Include(u => u.Profile)
@@ -54,17 +55,18 @@ namespace MatchYourMatch.WebAPI.Services
 
             return candidates
                 .Where(candidate => !excludedIds.Contains(candidate.Id) && IsEligibleBySettings(currentUser, candidate))
-                .Select(candidate => ScoreCandidate(currentUser, candidate))
+                .Select(candidate => ScoreCandidate(currentUser, candidate, interests ?? Array.Empty<string>(), vibes ?? Array.Empty<string>()))
                 .Where(match => match.CompatibilityScore > 0)
                 .OrderByDescending(match => match.CompatibilityScore)
                 .ThenBy(match => match.Username)
                 .ToList();
         }
 
-        private DeepMatchDto ScoreCandidate(User currentUser, User candidate)
+        private DeepMatchDto ScoreCandidate(User currentUser, User candidate, IReadOnlyCollection<string> selectedInterests, IReadOnlyCollection<string> selectedVibes)
         {
             var score = 0;
             var reasons = new List<string>();
+            var matchedPreferences = new List<string>();
 
             var currentAge = CalculateAge(currentUser.Profile?.DateOfBirth);
             var candidateAge = CalculateAge(candidate.Profile?.DateOfBirth);
@@ -143,6 +145,11 @@ namespace MatchYourMatch.WebAPI.Services
             if (candidate.IsActive)
                 score += 3;
 
+            var preferenceBoost = ScoreSelectedPreferences(candidate, selectedInterests, selectedVibes, matchedPreferences);
+            score += preferenceBoost;
+            if (matchedPreferences.Count > 0)
+                reasons.Insert(0, $"Matches selected preferences: {string.Join(", ", matchedPreferences.Take(2))}");
+
             return new DeepMatchDto
             {
                 UserId = candidate.Id,
@@ -158,9 +165,93 @@ namespace MatchYourMatch.WebAPI.Services
                 SharedActivities = sharedActivities,
                 SharedInterests = sharedInterests,
                 OverlappingAvailability = overlaps.Labels,
-                Reasons = reasons.Take(4).ToList()
+                Reasons = reasons.Take(4).ToList(),
+                MatchedPreferences = matchedPreferences
             };
         }
+
+        private static int ScoreSelectedPreferences(User candidate, IReadOnlyCollection<string> interests, IReadOnlyCollection<string> vibes, List<string> matches)
+        {
+            if (interests.Count == 0 && vibes.Count == 0) return 0;
+            var searchable = GetCandidatePreferenceTerms(candidate);
+            var boost = 0;
+
+            foreach (var selected in interests.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!MatchesSelectedPreference(selected, searchable)) continue;
+                boost += 10;
+                matches.Add(selected);
+            }
+            foreach (var selected in vibes.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!MatchesSelectedPreference(selected, searchable)) continue;
+                boost += 8;
+                if (!matches.Contains(selected, StringComparer.OrdinalIgnoreCase)) matches.Add(selected);
+            }
+            return Math.Min(40, boost);
+        }
+
+        private static List<string> GetCandidatePreferenceTerms(User candidate)
+        {
+            var terms = candidate.UserInterests.Where(x => x.Interest != null).Select(x => x.Interest!.Name)
+                .Concat(candidate.QuickMatchPosts.Where(x => x.Activity != null).Select(x => x.Activity.DisplayName))
+                .Concat(ReadTags(candidate.Profile?.FavoriteActivitiesJson))
+                .Concat(ReadTags(candidate.Profile?.ExploringTagsJson))
+                .Concat(ReadTags(candidate.Profile?.LookingForJson))
+                .Concat(new[]
+                {
+                    candidate.Profile?.ConversationStyle,
+                    candidate.DeepMatchPreference?.RelationshipValue,
+                    candidate.DeepMatchPreference?.CommunicationStyle,
+                    candidate.DeepMatchPreference?.FreeTimePreference,
+                    candidate.DeepMatchPreference?.SocialEnergy,
+                    candidate.DeepMatchPreference?.RelationshipPace,
+                    candidate.DeepMatchPreference?.ImportantValues,
+                    candidate.DeepMatchPreference?.LifestylePreferences
+                })
+                .Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!).ToList();
+            if (candidate.Profile?.SocialEnergy is int energy)
+                terms.Add(energy > 70 ? "social energetic" : energy > 30 ? "balanced chill" : "low key chill");
+            return terms;
+        }
+
+        private static bool MatchesSelectedPreference(string selected, IEnumerable<string> candidateTerms)
+        {
+            var synonyms = PreferenceSynonyms.TryGetValue(selected, out var mapped) ? mapped : new[] { selected };
+            return candidateTerms.Any(candidate => synonyms.Any(synonym =>
+                Normalize(candidate).Contains(Normalize(synonym)) || Normalize(synonym).Contains(Normalize(candidate))));
+        }
+
+        private static List<string> ReadTags(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+            try { return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>(); }
+            catch { return new List<string>(); }
+        }
+
+        private static readonly Dictionary<string, string[]> PreferenceSynonyms = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Late Night Drives"] = new[] { "late night", "night owl", "night drive", "road trip" },
+            ["Coffee Dates"] = new[] { "coffee", "cafe", "iced coffee", "coffee date" },
+            ["Gaming"] = new[] { "gaming", "gamer", "game", "board games" },
+            ["Music"] = new[] { "music", "live music", "concert", "playlist" },
+            ["Gym"] = new[] { "gym", "fitness", "active", "workout" },
+            ["Design"] = new[] { "design", "creative", "art", "gallery" },
+            ["Fashion"] = new[] { "fashion", "style", "design" },
+            ["Photography"] = new[] { "photography", "photo", "camera", "creative" },
+            ["Art"] = new[] { "art", "gallery", "creative", "design" },
+            ["Tech"] = new[] { "tech", "technology", "coding", "programming" },
+            ["Travel"] = new[] { "travel", "road trip", "explorer", "adventure" },
+            ["Anime"] = new[] { "anime", "manga" },
+            ["Nature"] = new[] { "nature", "hiking", "outdoor", "walk" },
+            ["Festivals"] = new[] { "festival", "concert", "music" },
+            ["Chill"] = new[] { "chill", "calm", "low key", "cozy", "low pressure" },
+            ["Adventurous"] = new[] { "adventure", "adventurous", "travel", "spontaneous" },
+            ["Creative"] = new[] { "creative", "art", "design", "photography", "music" },
+            ["Social"] = new[] { "social", "extroverted", "energetic", "events" },
+            ["Deep Thinker"] = new[] { "deep thinker", "deep conversation", "meaningful connection", "reflective" },
+            ["Spontaneous"] = new[] { "spontaneous", "adventure", "flexible" }
+        };
 
         private static int ScorePreferences(
             UserDeepMatchPreference? current,

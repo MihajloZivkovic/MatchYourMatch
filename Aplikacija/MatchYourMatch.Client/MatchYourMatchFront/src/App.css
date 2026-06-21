@@ -852,6 +852,12 @@
   text-align: center;
 }
 
+.auth__verification-copy { color:var(--color-text-muted); font-size:.86rem; line-height:1.5; text-align:center; }
+.auth__verification-success { padding:.7rem .85rem; border:1px solid rgba(61,201,120,.35); border-radius:.65rem; background:rgba(61,201,120,.09); color:#7be2a5; font-size:.82rem; text-align:center; }
+.auth__verification-code { text-align:center; font-size:1.25rem; font-weight:700; letter-spacing:.35em; }
+.auth__resend { color:var(--color-accent); font-size:.78rem; font-weight:600; text-align:center; }
+.auth__resend:disabled { color:var(--color-text-subtle); cursor:not-allowed; }
+
 .auth__submit {
   width: 100%;
   margin-top: 0.5rem;

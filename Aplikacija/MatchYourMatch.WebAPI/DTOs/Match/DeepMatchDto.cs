@@ -29,5 +29,7 @@ namespace MatchYourMatch.WebAPI.DTOs.Match
         public List<string> OverlappingAvailability { get; set; } = new();
 
         public List<string> Reasons { get; set; } = new();
+
+        public List<string> MatchedPreferences { get; set; } = new();
     }
 }

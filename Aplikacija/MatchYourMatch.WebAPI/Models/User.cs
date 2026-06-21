@@ -8,6 +8,11 @@
         public required string PasswordHash { get; set; }
         public string Role { get; set; } = "User";
         public bool IsActive { get; set; } = true;
+        public bool EmailConfirmed { get; set; }
+        public DateTime? EmailConfirmedAt { get; set; }
+        public string? EmailVerificationCodeHash { get; set; }
+        public DateTime? EmailVerificationCodeExpiresAt { get; set; }
+        public DateTime? EmailVerificationCodeSentAt { get; set; }
         public UserProfile? Profile { get; set; }
         public UserDeepMatchPreference? DeepMatchPreference { get; set; }
         public UserAppSettings? AppSettings { get; set; }

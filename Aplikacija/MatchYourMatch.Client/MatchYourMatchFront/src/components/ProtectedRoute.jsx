@@ -1,17 +1,33 @@
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { clearAuthSession } from '../services/authSession';
 
 function ProtectedRoute({ children }) {
-  const isAuthed = localStorage.getItem('mym_authed') === 'true';
-  const token = localStorage.getItem('token');
+  const [isAuthed, setIsAuthed] = useState(readAuthState);
 
-  if (!isAuthed || !isUsableJwt(token)) {
-    localStorage.removeItem('mym_authed');
-    localStorage.removeItem('token');
-    window.dispatchEvent(new Event('tokenChanged'));
+  useEffect(() => {
+    const refresh = () => setIsAuthed(readAuthState());
+    window.addEventListener('tokenChanged', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('tokenChanged', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthed && (localStorage.getItem('token') || localStorage.getItem('mym_authed'))) clearAuthSession();
+  }, [isAuthed]);
+
+  if (!isAuthed) {
     return <Navigate to="/login" replace />;
   }
 
   return children;
+}
+
+function readAuthState() {
+  return localStorage.getItem('mym_authed') === 'true' && isUsableJwt(localStorage.getItem('token'));
 }
 
 function isUsableJwt(token) {

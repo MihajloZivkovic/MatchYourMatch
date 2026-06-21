@@ -41,6 +41,7 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasIndex(u => u.Email).IsUnique();
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username).IsUnique();
+            modelBuilder.Entity<User>().Property(u => u.EmailVerificationCodeHash).HasMaxLength(64);
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Profile).WithOne(p => p.User).HasForeignKey<UserProfile>(u => u.UserId);
             modelBuilder.Entity<User>()
@@ -74,6 +75,7 @@ namespace MatchYourMatch.WebAPI.Data
                 .IsRequired()
                 .HasMaxLength(30);
             modelBuilder.Entity<UserProfile>().Property(p => p.FullName).HasMaxLength(160);
+            modelBuilder.Entity<UserProfile>().Property(p => p.ConversationStyle).HasMaxLength(80);
             
             // UserInterest
             modelBuilder.Entity<UserInterest>()

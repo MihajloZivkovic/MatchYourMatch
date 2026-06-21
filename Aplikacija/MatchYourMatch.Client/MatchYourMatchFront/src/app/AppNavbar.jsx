@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
 import { useTranslation } from "../hooks/useTranslation";
+import { logoutAndRedirect } from "../services/authSession";
 import "./AppNavbar.css";
 
 function AppNavbar(props) {
@@ -24,10 +25,9 @@ function AppNavbar(props) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("mym_authed");
-    localStorage.removeItem("token");
-    window.dispatchEvent(new Event("tokenChanged"));
-    navigate("/");
+    setMenuOpen(false);
+    setDropdownOpen(false);
+    logoutAndRedirect(navigate);
   };
 
   const navLinkClass = ({ isActive }) =>

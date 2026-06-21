@@ -26,5 +26,9 @@
         public int? Age { get; set; }
         public List<string> LittleThings { get; set; } = new();
         public List<string> CurrentlyExploring { get; set; } = new();
+        public List<string> FavoriteActivities { get; set; } = new();
+        public int? SocialEnergy { get; set; }
+        public string? ConversationStyle { get; set; }
+        public List<string> LookingFor { get; set; } = new();
     }
 }

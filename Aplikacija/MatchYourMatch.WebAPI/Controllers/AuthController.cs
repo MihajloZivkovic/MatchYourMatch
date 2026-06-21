@@ -41,8 +41,32 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
             catch (Exception ex)
             {
-                return Unauthorized(ex.Message);
+                return ex.Message == "Please verify your email before logging in."
+                    ? StatusCode(StatusCodes.Status403Forbidden, ex.Message)
+                    : Unauthorized(ex.Message);
             }
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail(VerifyEmailDto dto)
+        {
+            try
+            {
+                await _authService.VerifyEmailAsync(dto);
+                return Ok(new { message = "Email verified. You can now log in." });
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification(ResendVerificationDto dto)
+        {
+            try
+            {
+                await _authService.ResendVerificationAsync(dto);
+                return Ok(new { message = "If the account exists and is unverified, a new code has been sent." });
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
         [HttpPost("forgot-password")]

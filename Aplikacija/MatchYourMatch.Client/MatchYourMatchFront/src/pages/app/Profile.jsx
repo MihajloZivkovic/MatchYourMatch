@@ -32,22 +32,35 @@ import UserActionsMenu from "../../components/UserActionsMenu";
 import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from '../../hooks/useTranslation';
+import { logoutAndRedirect } from '../../services/authSession';
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
 const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
 
-const ACTIVITIES = [
-  "Live music",
-  "Gallery nights",
-  "Rooftop hangs",
-  "Road trips",
-];
-const SOCIAL_ENERGY = 72;
-const CONVERSATION = "Thoughtful & playful";
+const ACTIVITY_SUGGESTIONS = ["Live music", "Gallery nights", "Rooftop hangs", "Road trips", "Coffee walks", "Gaming", "Study sessions", "Gym", "Running", "Hiking", "Movies", "Cooking", "Photography", "Art events", "Board games", "Dancing", "Tech meetups"];
+const CONVERSATION_STYLES = ["Thoughtful & playful", "Deep conversations", "Light & funny", "Direct & honest", "Calm & patient", "Flirty & energetic", "Curious listener", "Meme-based communication", "Voice notes person", "Texting all day"];
+const LOOKING_FOR_SUGGESTIONS = ["Meaningful connection", "Adventure partner", "Creative collaborator", "Study buddy", "Coffee date", "Gaming duo", "Event buddy", "Long conversations", "Low-pressure hangouts", "New friends", "Travel buddy", "Concert buddy", "Gym partner", "Project partner"];
 const EXPLORING_SUGGESTIONS = ["Deep Thinker", "Music Lover", "Night Owl", "Coffee Lover", "Gamer", "Study Buddy", "Creative", "Explorer", "Active", "Low Pressure", "Spontaneous"];
+const LITTLE_THINGS_SUGGESTIONS = [
+  "Always replies late at night", "Makes playlists for everything", "Loves rainy weather",
+  "Can talk about movies for hours", "Probably ordering iced coffee", "Overthinks text messages",
+  "Spontaneous weekend plans", "Loves long walks", "Sends memes as love language",
+  "Plans everything in notes app", "Needs coffee to function", "Remembers random details",
+  "Loves cozy nights in", "Says one more episode", "Gets excited about small things",
+  "Has too many screenshots", "Loves deep talks", "Always up for food",
+  "Romanticizes everything", "Laughs at own jokes",
+];
 
 function Profile(props) {
   const { t } = useTranslation();
+  const formatProfileValue = value => {
+    const key = `profileValues.${value}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+    const legacyKey = `profileOptions.${value}`;
+    const legacy = t(legacyKey);
+    return legacy === legacyKey ? value : legacy;
+  };
   const { setUserProfile } = props;
   const [tab, setTab] = useState("ABOUT");
   const [eventSegment, setEventSegment] = useState("Upcoming");
@@ -65,6 +78,10 @@ function Profile(props) {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
+  const [lifestyleEditing, setLifestyleEditing] = useState(false);
+  const [lifestyleSaving, setLifestyleSaving] = useState(false);
+  const [lifestyleError, setLifestyleError] = useState("");
+  const [lifestyleDraft, setLifestyleDraft] = useState({ favoriteActivities: [], socialEnergy: null, conversationStyle: "", lookingFor: [] });
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [locationSuggestionsLoading, setLocationSuggestionsLoading] = useState(false);
   const [locationSearchActive, setLocationSearchActive] = useState(false);
@@ -241,6 +258,10 @@ function Profile(props) {
         age: data.age ?? null,
         littleThings: Array.isArray(data.littleThings) ? data.littleThings : [],
         currentlyExploring: Array.isArray(data.currentlyExploring) ? data.currentlyExploring : [],
+        favoriteActivities: Array.isArray(data.favoriteActivities) ? data.favoriteActivities : [],
+        socialEnergy: typeof data.socialEnergy === "number" ? data.socialEnergy : null,
+        conversationStyle: data.conversationStyle || "",
+        lookingFor: Array.isArray(data.lookingFor) ? data.lookingFor : [],
       }));
     } catch (error) {
       console.error("[Profile API] /api/UserProfile/me failed", {
@@ -351,10 +372,8 @@ function Profile(props) {
   }, [fetchProfileMatches, tab]);
 
   const handleLogout = () => {
-    localStorage.removeItem("mym_authed");
-    localStorage.removeItem("token");
-    window.dispatchEvent(new Event("tokenChanged"));
-    navigate("/");
+    setProfileEditing(false);
+    logoutAndRedirect(navigate);
   };
 
   const updateProfile = async ({ nextBio, nextPicture, nextLocation, nextPrivacy,
@@ -533,6 +552,41 @@ function Profile(props) {
     }));
   };
 
+  const startLifestyleEdit = () => {
+    setLifestyleDraft({
+      favoriteActivities: [...(props.userProfile.favoriteActivities || [])],
+      socialEnergy: props.userProfile.socialEnergy,
+      conversationStyle: props.userProfile.conversationStyle || "",
+      lookingFor: [...(props.userProfile.lookingFor || [])],
+    });
+    setLifestyleError("");
+    setLifestyleEditing(true);
+  };
+
+  const saveLifestyle = async () => {
+    setLifestyleSaving(true); setLifestyleError("");
+    try {
+      const response = await fetch("/api/UserProfile/me/lifestyle", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify(lifestyleDraft),
+      });
+      if (!response.ok) throw new Error((await response.text()) || t("profileLifestyle.saveError"));
+      const saved = await response.json();
+      props.setUserProfile(previous => ({
+        ...previous,
+        favoriteActivities: Array.isArray(saved.favoriteActivities) ? saved.favoriteActivities : [],
+        socialEnergy: typeof saved.socialEnergy === "number" ? saved.socialEnergy : null,
+        conversationStyle: saved.conversationStyle || "",
+        lookingFor: Array.isArray(saved.lookingFor) ? saved.lookingFor : [],
+      }));
+      setLifestyleEditing(false);
+    } catch (error) { setLifestyleError(error.message || t("profileLifestyle.saveError")); }
+    finally { setLifestyleSaving(false); }
+  };
+
+  const socialEnergyLabel = value => value <= 30 ? t("profileLifestyle.lowKey") : value <= 70 ? t("profileLifestyle.balanced") : t("profileLifestyle.verySocial");
+
   const handleBioSave = async (event) => {
     event.preventDefault();
     const bioText = bio.trim();
@@ -678,7 +732,7 @@ function Profile(props) {
               </div>
               <ProfileTagEditor compact title={t('profile.exploring')} tags={props.userProfile.currentlyExploring || []}
                 maxTags={5} placeholder={t('profileTags.exploringPlaceholder')} emptyText={t('profile.noExploringTags')}
-                suggestions={EXPLORING_SUGGESTIONS} onSave={tags => saveProfileTags({ currentlyExploring: tags })}/>
+                suggestions={EXPLORING_SUGGESTIONS} formatTag={formatProfileValue} onSave={tags => saveProfileTags({ currentlyExploring: tags })}/>
             </div>
           </div>
 
@@ -870,66 +924,65 @@ function Profile(props) {
               <section className="profile__block profile__little-things">
                 <ProfileTagEditor title={t('profile.littleThings').toUpperCase()} tags={props.userProfile.littleThings || []}
                   maxTags={10} placeholder={t('profileTags.littlePlaceholder')} emptyText={t('profileTags.noLittleThings')}
-                  onSave={tags => saveProfileTags({ littleThings: tags })}/>
+                  suggestions={LITTLE_THINGS_SUGGESTIONS} formatTag={formatProfileValue} onSave={tags => saveProfileTags({ littleThings: tags })}/>
               </section>
 
-              <div className="profile__mini-grid">
-                <section className="profile__mini-card">
-                  <h4>
-                    <Music size={14} />
-                    {t('profile.favoriteActivities')}
-                  </h4>
-                  <div className="profile__pills">
-                    {ACTIVITIES.map((a) => (
-                      <span key={a} className="profile__pill">
-                        {t(`profileOptions.${a}`)}
-                      </span>
-                    ))}
-                  </div>
-                </section>
-                <section className="profile__mini-card">
-                  <h4>{t('profile.socialEnergy')}</h4>
-                  <div className="profile__energy-ring">
-                    <svg viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="15" className="profile__ring-bg" />
-                      <circle
-                        cx="18"
-                        cy="18"
-                        r="15"
-                        className="profile__ring-fill"
-                        style={{
-                          strokeDashoffset: 94 * (1 - SOCIAL_ENERGY / 100),
-                        }}
-                      />
-                    </svg>
-                    <span>{SOCIAL_ENERGY}%</span>
-                  </div>
-                </section>
-                <section className="profile__mini-card">
-                  <h4>
-                    <Coffee size={14} />
-                    {t('profile.conversationStyle')}
-                  </h4>
-                  <p>{t(`profileOptions.${CONVERSATION}`)}</p>
-                </section>
-                <section className="profile__mini-card">
-                  <h4>
-                    <Moon size={14} />
-                    {t('profile.lookingFor')}
-                  </h4>
-                  <div className="profile__pills">
-                    {[
-                      "Meaningful connection",
-                      "Adventure partner",
-                      "Creative collaborator",
-                    ].map((item) => (
-                      <span key={item} className="profile__pill">
-                        {t(`profileOptions.${item}`)}
-                      </span>
-                    ))}
-                  </div>
-                </section>
-              </div>
+              <section className="profile__lifestyle">
+                <div className="profile__lifestyle-heading">
+                  <h3>{t('profileLifestyle.title')}</h3>
+                  {!lifestyleEditing && <button type="button" onClick={startLifestyleEdit}>{t('profileLifestyle.edit')}</button>}
+                </div>
+                <div className="profile__mini-grid">
+                  <section className="profile__mini-card">
+                    {lifestyleEditing ? <ProfileTagEditor externalEditing title={t('profile.favoriteActivities')}
+                      tags={lifestyleDraft.favoriteActivities} onChange={tags => setLifestyleDraft(current => ({...current, favoriteActivities: tags}))}
+                      maxTags={10} placeholder={t('profileLifestyle.addActivity')} emptyText={t('profileLifestyle.noActivities')}
+                      suggestions={ACTIVITY_SUGGESTIONS} formatTag={formatProfileValue}/>
+                    : <><h4><Music size={14}/>{t('profile.favoriteActivities')}</h4>
+                      {(props.userProfile.favoriteActivities || []).length > 0 ? <div className="profile__pills">
+                        {props.userProfile.favoriteActivities.map(item => <span key={item} className="profile__pill">{formatProfileValue(item)}</span>)}
+                      </div> : <p>{t('profileLifestyle.noActivities')}</p>}</>}
+                  </section>
+
+                  <section className="profile__mini-card">
+                    <h4>{t('profile.socialEnergy')}</h4>
+                    {lifestyleEditing ? <div className="profile__energy-editor">
+                      <strong>{lifestyleDraft.socialEnergy ?? 50}%</strong>
+                      <input type="range" min="0" max="100" value={lifestyleDraft.socialEnergy ?? 50}
+                        onChange={event => setLifestyleDraft(current => ({...current, socialEnergy:Number(event.target.value)}))}/>
+                      <small>{socialEnergyLabel(lifestyleDraft.socialEnergy ?? 50)}</small>
+                    </div> : props.userProfile.socialEnergy != null ? <div className="profile__energy-ring">
+                      <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" className="profile__ring-bg"/><circle cx="18" cy="18" r="15" className="profile__ring-fill" style={{strokeDashoffset:94*(1-props.userProfile.socialEnergy/100)}}/></svg>
+                      <span>{props.userProfile.socialEnergy}%</span>
+                    </div> : <p>{t('profileLifestyle.notSet')}</p>}
+                  </section>
+
+                  <section className="profile__mini-card">
+                    <h4><Coffee size={14}/>{t('profile.conversationStyle')}</h4>
+                    {lifestyleEditing ? <select className="profile__lifestyle-select" value={lifestyleDraft.conversationStyle}
+                      onChange={event => setLifestyleDraft(current => ({...current, conversationStyle:event.target.value}))}>
+                      <option value="">{t('profileLifestyle.notSet')}</option>
+                      {CONVERSATION_STYLES.map(style => <option key={style} value={style}>{formatProfileValue(style)}</option>)}
+                    </select> : <p>{props.userProfile.conversationStyle ? formatProfileValue(props.userProfile.conversationStyle) : t('profileLifestyle.notSet')}</p>}
+                  </section>
+
+                  <section className="profile__mini-card">
+                    {lifestyleEditing ? <ProfileTagEditor externalEditing title={t('profile.lookingFor')}
+                      tags={lifestyleDraft.lookingFor} onChange={tags => setLifestyleDraft(current => ({...current, lookingFor: tags}))}
+                      maxTags={10} placeholder={t('profileLifestyle.addLookingFor')} emptyText={t('profileLifestyle.notSet')}
+                      suggestions={LOOKING_FOR_SUGGESTIONS} formatTag={formatProfileValue}/>
+                    : <><h4><Moon size={14}/>{t('profile.lookingFor')}</h4>
+                      {(props.userProfile.lookingFor || []).length > 0 ? <div className="profile__pills">
+                        {props.userProfile.lookingFor.map(item => <span key={item} className="profile__pill">{formatProfileValue(item)}</span>)}
+                      </div> : <p>{t('profileLifestyle.notSet')}</p>}</>}
+                  </section>
+                </div>
+                {lifestyleError && <p className="profile__lifestyle-error">{lifestyleError}</p>}
+                {lifestyleEditing && <div className="profile__lifestyle-actions">
+                  <button type="button" onClick={() => setLifestyleEditing(false)} disabled={lifestyleSaving}>{t('common.cancel')}</button>
+                  <button type="button" className="saveButton" onClick={saveLifestyle} disabled={lifestyleSaving}>{lifestyleSaving?t('common.loading'):t('common.save')}</button>
+                </div>}
+              </section>
 
               <DeepPreferencesSection />
               <AvailabilityScheduleEditor />

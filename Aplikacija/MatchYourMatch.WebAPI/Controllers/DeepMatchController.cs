@@ -18,12 +18,14 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [HttpGet("matches")]
-        public async Task<IActionResult> GetMatches()
+        public async Task<IActionResult> GetMatches([FromQuery] string? interests, [FromQuery] string? vibes)
         {
             try
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                var matches = await _deepMatchService.GetMatchesAsync(userId);
+                var selectedInterests = SplitFilters(interests);
+                var selectedVibes = SplitFilters(vibes);
+                var matches = await _deepMatchService.GetMatchesAsync(userId, selectedInterests, selectedVibes);
                 return Ok(matches);
             }
             catch (Exception ex)
@@ -31,5 +33,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        private static List<string> SplitFilters(string? value) => string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToList();
     }
 }

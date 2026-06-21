@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace MatchYourMatch.WebAPI.Services
@@ -33,8 +34,10 @@ namespace MatchYourMatch.WebAPI.Services
             _expires = int.Parse(_config["JwtSettings:ExpiresInMinutes"]!);
         }
 
-        public async Task<AuthInfoDto> RegisterAsync(RegisterDto dto)
+        public async Task<RegistrationResponseDto> RegisterAsync(RegisterDto dto)
         {
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var username = dto.Username.Trim();
             var fullName = dto.FullName?.Trim();
             if (string.IsNullOrWhiteSpace(fullName))
                 throw new Exception("Full name is required.");
@@ -46,15 +49,23 @@ namespace MatchYourMatch.WebAPI.Services
             if (dto.DateOfBirth.Value > latestAllowedDate)
                 throw new Exception("You must be at least 16 years old.");
 
-            if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
-                throw new Exception("Email u upotrebi.");
+            if (await _context.Users.AnyAsync(u => u.Email == email))
+                throw new Exception("Email is already in use.");
+            if (await _context.Users.AnyAsync(u => u.Username == username))
+                throw new Exception("Username is already in use.");
+
+            var verificationCode = GenerateVerificationCode();
 
             var user = new User
             {
-                Username = dto.Username,
-                Email = dto.Email,
+                Username = username,
+                Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = dto.Role
+                Role = dto.Role,
+                EmailConfirmed = false,
+                EmailVerificationCodeHash = HashVerificationCode(verificationCode),
+                EmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                EmailVerificationCodeSentAt = DateTime.UtcNow
             };
 
             user.Profile = new UserProfile
@@ -67,12 +78,14 @@ namespace MatchYourMatch.WebAPI.Services
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-            return GenerateResponse(user);
+            await _emailService.SendEmailVerificationAsync(email, verificationCode);
+            return new RegistrationResponseDto { Email = email };
         }
 
         public async Task<AuthInfoDto> LoginAsync(LoginDto dto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null)
                 throw new Exception("Pogresan email.");
@@ -83,7 +96,41 @@ namespace MatchYourMatch.WebAPI.Services
             if (!user.IsActive) 
                 throw new Exception("Nalog je deaktiviran.");
 
+            if (!user.EmailConfirmed)
+                throw new Exception("Please verify your email before logging in.");
+
             return GenerateResponse(user);
+        }
+
+        public async Task VerifyEmailAsync(VerifyEmailDto dto)
+        {
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || user.EmailConfirmed || string.IsNullOrWhiteSpace(user.EmailVerificationCodeHash) ||
+                user.EmailVerificationCodeExpiresAt <= DateTime.UtcNow || !VerificationCodeMatches(dto.Code, user.EmailVerificationCodeHash))
+                throw new Exception("Verification code is invalid or expired.");
+
+            user.EmailConfirmed = true;
+            user.EmailConfirmedAt = DateTime.UtcNow;
+            user.EmailVerificationCodeHash = null;
+            user.EmailVerificationCodeExpiresAt = null;
+            user.EmailVerificationCodeSentAt = null;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task ResendVerificationAsync(ResendVerificationDto dto)
+        {
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || user.EmailConfirmed) return;
+            if (user.EmailVerificationCodeSentAt > DateTime.UtcNow.AddSeconds(-30)) return;
+
+            var code = GenerateVerificationCode();
+            user.EmailVerificationCodeHash = HashVerificationCode(code);
+            user.EmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+            user.EmailVerificationCodeSentAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            await _emailService.SendEmailVerificationAsync(email, code);
         }
 
         private AuthInfoDto GenerateResponse(User user)
@@ -168,6 +215,21 @@ namespace MatchYourMatch.WebAPI.Services
 
             user.Email = dto.NewEmail;
             await _context.SaveChangesAsync();
+        }
+
+        private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+
+        private static string HashVerificationCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+
+        private static bool VerificationCodeMatches(string code, string storedHash)
+        {
+            try
+            {
+                return CryptographicOperations.FixedTimeEquals(
+                    SHA256.HashData(Encoding.UTF8.GetBytes(code.Trim())),
+                    Convert.FromHexString(storedHash));
+            }
+            catch { return false; }
         }
     }
 }

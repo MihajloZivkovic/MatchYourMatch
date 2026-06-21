@@ -51,7 +51,10 @@ function Register() {
         return { error: message || t("auth.registrationFailed"), values };
       }
 
-      navigate("/login");
+      const data = await response.json();
+      const verificationEmail = data.email || values.email;
+      sessionStorage.setItem('pendingVerificationEmail', verificationEmail);
+      navigate("/verify-email", { replace: true, state: { email: verificationEmail } });
       return { error: null, values: emptyValues };
     } catch {
       return { error: t("auth.registrationFailed"), values };

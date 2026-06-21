@@ -535,7 +535,11 @@
 .profile-tag-editor__input-row button { display:flex; align-items:center; gap:.3rem; padding:0 .75rem; border:1px solid rgba(244,163,0,.35); border-radius:var(--radius-sm); color:var(--accent); }
 .profile-tag-editor__input-row button:disabled { opacity:.4; }
 .profile-tag-editor__suggestions { display:flex; flex-wrap:wrap; gap:.35rem; }
-.profile-tag-editor__suggestions button { padding:.3rem .55rem; border:1px solid var(--color-border); border-radius:var(--radius-pill); color:var(--text-muted); font-size:.66rem; }
+.profile-tag-editor__suggestion-area { display:grid; gap:.45rem; }
+.profile-tag-editor__suggestion-area > small { color:var(--text-muted); font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.profile-tag-editor__suggestions button { padding:.36rem .62rem; border:1px solid rgba(244,163,0,.3); border-radius:var(--radius-pill); background:rgba(244,163,0,.055); color:var(--text-muted); font-size:.66rem; transition:border-color .2s ease, color .2s ease, background .2s ease; }
+.profile-tag-editor__suggestions button:hover { border-color:var(--accent); background:rgba(244,163,0,.12); color:var(--accent); }
+.profile-tag-editor__show-more { width:max-content; color:var(--accent); font-size:.68rem; font-weight:700; }
 .profile-tag-editor__error { color:#ef7777; font-size:.72rem; }
 .profile-tag-editor__actions { display:flex; justify-content:flex-end; align-items:center; gap:.6rem; }
 .profile-tag-editor__actions button { min-height:34px; padding:0 .8rem; border-radius:var(--radius-pill); color:var(--text-muted); font-size:.72rem; }
@@ -544,14 +548,33 @@
 .profile-tag-editor--compact .profile-tag-editor__heading { margin-bottom:.45rem; }
 .profile-tag-editor--compact .profile-tag-editor__heading > span { color:var(--text-muted); font-family:var(--font-body); font-size:.68rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; }
 .profile-tag-editor--compact .profile-tag-editor__chips > span { padding:.42rem .7rem; border-color:rgba(244,163,0,.22); background:rgba(244,163,0,.07); }
+.profile__lifestyle { margin-bottom:1.75rem; }
+.profile__lifestyle-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:.8rem; }
+.profile__lifestyle-heading h3 { font-family:var(--font-display); font-size:1.15rem; letter-spacing:.08em; }
+.profile__lifestyle-heading button { color:var(--accent); font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.profile__energy-editor { display:grid; gap:.55rem; }
+.profile__energy-editor strong { color:var(--accent); font-size:1.25rem; }
+.profile__energy-editor input { width:100%; accent-color:var(--accent); }
+.profile__energy-editor small { color:var(--text-muted); }
+.profile__lifestyle-select { width:100%; min-height:40px; padding:0 .7rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-input); color:var(--text); }
+.profile__lifestyle-select { color-scheme: dark; }
+.profile__lifestyle-select option { background:#111114; color:#f4f1eb; }
+:root[data-theme="light"] .profile__lifestyle-select { color-scheme: light; }
+:root[data-theme="light"] .profile__lifestyle-select option { background:#fffdf8; color:#211d18; }
+.profile__lifestyle-error { margin-top:.7rem; color:#ef7777; font-size:.75rem; }
+.profile__lifestyle-actions { display:flex; justify-content:flex-end; gap:.65rem; margin-top:.8rem; }
+.profile__lifestyle-actions button { min-height:38px; padding:0 1rem; border-radius:var(--radius-pill); color:var(--text-muted); }
+.profile__lifestyle-actions .saveButton { color:#15110a; background:var(--accent); }
 @media (max-width:560px) { .profile-tag-editor__input-row { grid-template-columns:1fr; } .profile-tag-editor__input-row button { justify-content:center; min-height:38px; } }
 
 /* —— Body & tabs —— */
 .profile__body {
-  --profile-content-width: 980px;
-  max-width: 1100px;
+  --profile-content-width: 1100px;
+  width: 100%;
+  max-width: 1160px;
   margin: 0 auto;
   padding: 0 var(--container-padding);
+  box-sizing: border-box;
 }
 
 .profile__tabs {
@@ -644,6 +667,17 @@
 }
 
 /* —— About tab —— */
+.profile__about,
+.profile__about > *,
+.profile__about .profile__block,
+.profile__about .profile__little-things,
+.profile__about .profile__lifestyle,
+.profile__about .profile__mini-grid {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .profile__block {
   margin-bottom: 1.75rem;
 }
@@ -660,6 +694,7 @@
 
 .profile__block textarea {
   width: 100%;
+  box-sizing: border-box;
   padding: 1rem;
   background: linear-gradient(
     180deg,
@@ -710,14 +745,15 @@
 }
 
 .profile__mini-grid {
+  width: 100%;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
-@media (min-width: 600px) {
+@media (max-width: 800px) {
   .profile__mini-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 

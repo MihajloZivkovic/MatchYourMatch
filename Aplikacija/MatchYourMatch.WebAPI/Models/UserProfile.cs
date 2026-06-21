@@ -20,6 +20,10 @@
         public bool ShowAge { get; set; }
         public string? LittleThingsJson { get; set; }
         public string? ExploringTagsJson { get; set; }
+        public string? FavoriteActivitiesJson { get; set; }
+        public int? SocialEnergy { get; set; }
+        public string? ConversationStyle { get; set; }
+        public string? LookingForJson { get; set; }
         public User User { get; set; } = null!;
     }
 }

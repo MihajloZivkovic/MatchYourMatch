@@ -119,6 +119,21 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [Authorize]
+        [HttpPut("me/lifestyle")]
+        public async Task<IActionResult> UpdateProfileLifestyle(UpdateProfileLifestyleDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                return Ok(await _service.UpdateProfileLifestyleAsync(userId, dto));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
         [HttpGet("location-suggestions")]
         public async Task<IActionResult> GetLocationSuggestions([FromQuery] string? query)
         {

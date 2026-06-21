@@ -39,8 +39,6 @@ const VIBE_OPTIONS = [
   "Spontaneous",
 ];
 
-const DEFAULT_INTERESTS = ["Music", "Coffee Dates", "Design", "Travel"];
-const DEFAULT_VIBE = "Creative";
 const NO_BIO_TEXT = "No bio added yet.";
 
 function getMatchName(match) {
@@ -85,8 +83,8 @@ function mapDeepMatchToConnection(match) {
 
 function Dashboard(props) {
   const { t } = useTranslation();
-  const [interests, setInterests] = useState(DEFAULT_INTERESTS);
-  const [vibe, setVibe] = useState(DEFAULT_VIBE);
+  const [interests, setInterests] = useState([]);
+  const [vibe, setVibe] = useState("");
   const [suggestedConnections, setSuggestedConnections] = useState([]);
   const [suggestedStatus, setSuggestedStatus] = useState("loading");
   const [suggestedMessage, setSuggestedMessage] = useState("");
@@ -99,6 +97,7 @@ function Dashboard(props) {
 
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
 
     const loadSuggestedConnections = async () => {
       setSuggestedStatus("loading");
@@ -116,8 +115,8 @@ function Dashboard(props) {
         };
 
         const [preferencesResponse, availabilityResponse] = await Promise.all([
-          fetch("/api/UserProfile/me/deep-preferences", { headers }),
-          fetch("/api/UserProfile/me/availability", { headers }),
+          fetch("/api/UserProfile/me/deep-preferences", { headers, signal:controller.signal }),
+          fetch("/api/UserProfile/me/availability", { headers, signal:controller.signal }),
         ]);
 
         if (
@@ -147,7 +146,10 @@ function Dashboard(props) {
           return;
         }
 
-        const matchesResponse = await fetch("/api/DeepMatch/matches", { headers });
+        const query = new URLSearchParams();
+        if (interests.length) query.set("interests", interests.join(","));
+        if (vibe) query.set("vibes", vibe);
+        const matchesResponse = await fetch(`/api/DeepMatch/matches${query.size ? `?${query}` : ""}`, { headers, signal:controller.signal });
 
         if (matchesResponse.status === 401 || matchesResponse.status === 403) {
           throw new Error("Please log in again.");
@@ -174,6 +176,7 @@ function Dashboard(props) {
           );
         }
       } catch (err) {
+        if (err.name === "AbortError") return;
         if (mounted) {
           setSuggestedConnections([]);
           setSuggestedStatus("error");
@@ -186,8 +189,9 @@ function Dashboard(props) {
 
     return () => {
       mounted = false;
+      controller.abort();
     };
-  }, []);
+  }, [interests, vibe]);
 
   return (
     <div className="page-fade-in dashboard">
@@ -312,7 +316,7 @@ function Dashboard(props) {
                 key={option}
                 type="button"
                 className={`dashboard__vibe-pill app-pill-select${vibe === option ? " dashboard__vibe-pill--on" : ""}`}
-                onClick={() => setVibe(option)}
+                onClick={() => setVibe(current => current === option ? "" : option)}
               >
                 {t(`dashboardOptions.${option}`)}
               </button>

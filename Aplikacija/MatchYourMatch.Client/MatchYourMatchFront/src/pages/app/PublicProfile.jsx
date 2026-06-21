@@ -8,6 +8,14 @@ import UserActionsMenu from '../../components/UserActionsMenu';
 
 function PublicProfile() {
   const { t } = useTranslation();
+  const formatProfileValue = value => {
+    const key = `profileValues.${value}`;
+    const translated = t(key);
+    if (translated !== key) return translated;
+    const legacyKey = `profileOptions.${value}`;
+    const legacy = t(legacyKey);
+    return legacy === legacyKey ? value : legacy;
+  };
   const { id } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -262,7 +270,7 @@ function PublicProfile() {
         {profile.littleThings?.length > 0 && <article className="public-profile__card public-profile__card--wide">
           <h2><Sparkles size={17}/>{t('profile.littleThings')}</h2>
           <div className="public-profile__pills">
-            {profile.littleThings.map(tag => <span key={tag}>{tag}</span>)}
+            {profile.littleThings.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}
           </div>
         </article>}
 
@@ -312,8 +320,23 @@ function PublicProfile() {
         {profile.currentlyExploring?.length > 0 && <article className="public-profile__card">
           <h2><Compass size={17} />{t('profile.exploring')}</h2>
           <div className="public-profile__pills">
-            {profile.currentlyExploring.map(tag => <span key={tag}>{t(`profileOptions.${tag}`) === `profileOptions.${tag}` ? tag : t(`profileOptions.${tag}`)}</span>)}
+            {profile.currentlyExploring.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}
           </div>
+        </article>}
+
+        {profile.favoriteActivities?.length > 0 && <article className="public-profile__card">
+          <h2><Sparkles size={17}/>{t('profile.favoriteActivities')}</h2>
+          <div className="public-profile__pills">{profile.favoriteActivities.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}</div>
+        </article>}
+        {profile.socialEnergy != null && <article className="public-profile__card">
+          <h2>{t('profile.socialEnergy')}</h2><p>{profile.socialEnergy}% · {profile.socialEnergy<=30?t('profileLifestyle.lowKey'):profile.socialEnergy<=70?t('profileLifestyle.balanced'):t('profileLifestyle.verySocial')}</p>
+        </article>}
+        {profile.conversationStyle && <article className="public-profile__card">
+          <h2><MessageCircle size={17}/>{t('profile.conversationStyle')}</h2><p>{formatProfileValue(profile.conversationStyle)}</p>
+        </article>}
+        {profile.lookingFor?.length > 0 && <article className="public-profile__card">
+          <h2><Heart size={17}/>{t('profile.lookingFor')}</h2>
+          <div className="public-profile__pills">{profile.lookingFor.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}</div>
         </article>}
 
         <article className="public-profile__card">
