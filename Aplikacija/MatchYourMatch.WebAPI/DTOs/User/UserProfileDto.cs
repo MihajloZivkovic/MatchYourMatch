@@ -24,5 +24,7 @@
         public DateOnly? DateOfBirth { get; set; }
         public bool ShowAge { get; set; }
         public int? Age { get; set; }
+        public List<string> LittleThings { get; set; } = new();
+        public List<string> CurrentlyExploring { get; set; } = new();
     }
 }

@@ -229,3 +229,4 @@
     flex-direction: column;
   }
 }
+.deep-match__card-actions { display:flex; align-items:center; gap:.5rem; }

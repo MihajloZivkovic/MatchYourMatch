@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Bell, BellOff, Camera, Check, CheckCheck, Clock, Crown, LogOut, MoreHorizontal, Paperclip, Search, Send, ShieldCheck, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
 import ConfirmModal from "../../components/ConfirmModal";
 import UserAvatar from "../../components/UserAvatar";
+import UserActionsMenu from "../../components/UserActionsMenu";
 import MessageReactions from "../../components/chat/MessageReactions";
 import { useChat } from "../../context/ChatContext";
 import "./Chat.css";
@@ -89,6 +90,7 @@ function Chat() {
   const [savingGroupName, setSavingGroupName] = useState(false);
   const [savingGroupPhoto, setSavingGroupPhoto] = useState(false);
   const [updatingMute, setUpdatingMute] = useState(false);
+  const [blockedUserIds, setBlockedUserIds] = useState(() => new Set());
   const groupPhotoInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const startedFromUrlRef = useRef("");
@@ -347,6 +349,9 @@ function Chat() {
     conversations[0] ||
     null;
   const messages = messagesByConversation[activeConversation?.conversationId] || [];
+  const activeUserBlocked = !isGroupConversation(activeConversation) &&
+    blockedUserIds.has(Number(activeConversation?.otherUserId));
+  const canSendActive = canSendMessages && !activeUserBlocked;
 
   useEffect(() => {
     setShowGroupSettings(false);
@@ -390,7 +395,7 @@ function Chat() {
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text || !activeConversation || sending || !canSendMessages) {
+    if (!text || !activeConversation || sending || !canSendActive) {
       return;
     }
 
@@ -990,12 +995,15 @@ function Chat() {
                       : formatDateTime(activeConversation.lastMessageAt) || t('chatUi.newConversation')}
                   </p>
                 </div>
-                <button type="button" className="chat-icon-btn" aria-label={t('chatUi.openSettings')} onClick={handleOpenChatSettings}>
+                {isGroupConversation(activeConversation) ? <button type="button" className="chat-icon-btn" aria-label={t('chatUi.openSettings')} onClick={handleOpenChatSettings}>
                   <MoreHorizontal size={20} />
-                </button>
+                </button> : <UserActionsMenu userId={activeConversation.otherUserId}
+                  username={activeConversation.otherUsername || getConversationDisplayName(activeConversation)} context="chat" allowHide={false}
+                  onBlocked={(id) => setBlockedUserIds(current => new Set(current).add(Number(id)))}/>} 
               </header>
 
               {error && <div className="chat-error">{error}</div>}
+              {activeUserBlocked && <div className="chat-error">You blocked this user.</div>}
 
               {showGroupSettings && isGroupConversation(activeConversation) ? (
                 <GroupSettingsView
@@ -1095,7 +1103,7 @@ function Chat() {
                 <div ref={messagesEndRef} aria-hidden="true" />
               </div>
 
-              {canSendMessages ? (
+              {canSendActive ? (
                 <form className="chat-composer" onSubmit={handleSend}>
                   {editingMessage && (
                     <div className="chat-composer__editing">

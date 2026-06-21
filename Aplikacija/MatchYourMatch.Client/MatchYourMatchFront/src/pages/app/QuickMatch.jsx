@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import './QuickMatch.css';
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
+import UserActionsMenu from '../../components/UserActionsMenu';
 
 const initialForm = {
   startTime: '',
@@ -69,6 +70,8 @@ const mapMatchToProfile = (match, t) => {
 
   return {
     id: match.id,
+    userId: match.userId,
+    username: match.username,
     name: match.username,
     initials: getInitials(match.username),
     profilePicture: match.profilePicture,
@@ -451,6 +454,10 @@ function QuickMatch() {
                 }${isTop && animating === 'match' ? ' quick-match__card--match' : ''}`}
                 style={{ '--depth': depth, zIndex: i + 1 }}
               >
+                {isTop && <UserActionsMenu className="quick-match__user-actions" userId={profile.userId}
+                  username={profile.username} context="matchCard"
+                  onHidden={(id) => setStack(current => current.filter(item => item.userId !== id))}
+                  onBlocked={(id) => setStack(current => current.filter(item => item.userId !== id))}/>} 
                 <span className="quick-match__compat">
                   <span className="quick-match__compat-val">{profile.compatibility}%</span>
                   <span className="quick-match__compat-label">{t('quick.match')}</span>

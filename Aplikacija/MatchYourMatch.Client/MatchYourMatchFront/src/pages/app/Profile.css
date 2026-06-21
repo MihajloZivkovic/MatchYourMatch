@@ -520,6 +520,32 @@
 @media (max-width: 560px) { .profile-settings-backdrop { padding: calc(var(--app-nav-height, 68px) + 12px) 12px 12px; } .profile-settings-panel { width: calc(100vw - 24px); max-height: calc(100dvh - var(--app-nav-height, 68px) - 24px); border-radius: var(--radius-lg); } .profile-settings-fields { grid-template-columns: 1fr; } .profile-settings-picture { grid-template-columns: 44px minmax(0, 1fr); } .profile-settings-picture__button { grid-column: 1 / -1; justify-content: center; } }
 :root[data-theme="light"] .profile-settings-backdrop { background: rgba(30, 22, 12, .34); }
 
+.profile-tag-editor { width: 100%; }
+.profile-tag-editor__heading { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:.75rem; }
+.profile-tag-editor__heading > span { color:var(--text); font-family:var(--font-display); font-size:1.15rem; letter-spacing:.08em; }
+.profile-tag-editor__heading > button { color:var(--accent); font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.profile-tag-editor__chips { display:flex; flex-wrap:wrap; gap:.55rem; }
+.profile-tag-editor__chips > span { display:inline-flex; align-items:center; gap:.35rem; max-width:100%; padding:.55rem .8rem; border:1px solid var(--glass-border); border-radius:var(--radius-pill); background:rgba(255,255,255,.035); color:var(--text-muted); font-size:.78rem; line-height:1.25; overflow-wrap:anywhere; }
+.profile-tag-editor__chips > span button { display:grid; place-items:center; color:var(--text-muted); }
+.profile-tag-editor__chips > small { color:var(--text-muted); font-size:.76rem; }
+.profile-tag-editor__edit { display:grid; gap:.65rem; margin-top:.7rem; padding:.8rem; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:var(--color-surface-soft); }
+.profile-tag-editor__input-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.5rem; }
+.profile-tag-editor__input-row input { min-width:0; min-height:40px; padding:0 .75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); outline:none; background:var(--color-input); color:var(--text); }
+.profile-tag-editor__input-row input:focus { border-color:rgba(244,163,0,.55); box-shadow:0 0 0 3px rgba(244,163,0,.08); }
+.profile-tag-editor__input-row button { display:flex; align-items:center; gap:.3rem; padding:0 .75rem; border:1px solid rgba(244,163,0,.35); border-radius:var(--radius-sm); color:var(--accent); }
+.profile-tag-editor__input-row button:disabled { opacity:.4; }
+.profile-tag-editor__suggestions { display:flex; flex-wrap:wrap; gap:.35rem; }
+.profile-tag-editor__suggestions button { padding:.3rem .55rem; border:1px solid var(--color-border); border-radius:var(--radius-pill); color:var(--text-muted); font-size:.66rem; }
+.profile-tag-editor__error { color:#ef7777; font-size:.72rem; }
+.profile-tag-editor__actions { display:flex; justify-content:flex-end; align-items:center; gap:.6rem; }
+.profile-tag-editor__actions button { min-height:34px; padding:0 .8rem; border-radius:var(--radius-pill); color:var(--text-muted); font-size:.72rem; }
+.profile-tag-editor__actions .saveButton { color:#15110a; background:var(--accent); }
+.profile-tag-editor--compact { max-width:520px; margin-top:.7rem; }
+.profile-tag-editor--compact .profile-tag-editor__heading { margin-bottom:.45rem; }
+.profile-tag-editor--compact .profile-tag-editor__heading > span { color:var(--text-muted); font-family:var(--font-body); font-size:.68rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; }
+.profile-tag-editor--compact .profile-tag-editor__chips > span { padding:.42rem .7rem; border-color:rgba(244,163,0,.22); background:rgba(244,163,0,.07); }
+@media (max-width:560px) { .profile-tag-editor__input-row { grid-template-columns:1fr; } .profile-tag-editor__input-row button { justify-content:center; min-height:38px; } }
+
 /* —— Body & tabs —— */
 .profile__body {
   --profile-content-width: 980px;
@@ -2128,3 +2154,5 @@
 :root[data-theme="light"] .profile__energy-ring > span {
   color: #8a5a00;
 }
+.profile__event-message-author { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+.profile__event-message-author .user-actions__trigger { width:28px; height:28px; }

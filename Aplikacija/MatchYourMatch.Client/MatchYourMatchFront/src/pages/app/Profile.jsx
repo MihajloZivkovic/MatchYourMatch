@@ -26,8 +26,10 @@ import {
 import EventCard from "../../components/EventCard";
 import AvailabilityScheduleEditor from "../../components/profile/AvailabilityScheduleEditor";
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
+import ProfileTagEditor from "../../components/profile/ProfileTagEditor";
 import UserAvatar from "../../components/UserAvatar";
-import { CURRENT_USER, LITTLE_THINGS } from "../../data/matches";
+import UserActionsMenu from "../../components/UserActionsMenu";
+import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from '../../hooks/useTranslation';
 
@@ -42,6 +44,7 @@ const ACTIVITIES = [
 ];
 const SOCIAL_ENERGY = 72;
 const CONVERSATION = "Thoughtful & playful";
+const EXPLORING_SUGGESTIONS = ["Deep Thinker", "Music Lover", "Night Owl", "Coffee Lover", "Gamer", "Study Buddy", "Creative", "Explorer", "Active", "Low Pressure", "Spontaneous"];
 
 function Profile(props) {
   const { t } = useTranslation();
@@ -107,7 +110,7 @@ function Profile(props) {
     setLocationPrivacyDraft(privacy);
     setFullNameDraft(props.userProfile.fullName || "");
     setShowFullNameDraft(Boolean(props.userProfile.showFullName));
-    setDateOfBirthDraft(props.userProfile.dateOfBirth || "");
+    setDateOfBirthDraft(toDateInputValue(props.userProfile.dateOfBirth));
     setShowAgeDraft(Boolean(props.userProfile.showAge));
   }, [
     props.currentUser?.bio,
@@ -236,6 +239,8 @@ function Profile(props) {
         dateOfBirth: data.dateOfBirth ?? "",
         showAge: Boolean(data.showAge),
         age: data.age ?? null,
+        littleThings: Array.isArray(data.littleThings) ? data.littleThings : [],
+        currentlyExploring: Array.isArray(data.currentlyExploring) ? data.currentlyExploring : [],
       }));
     } catch (error) {
       console.error("[Profile API] /api/UserProfile/me failed", {
@@ -380,7 +385,7 @@ function Profile(props) {
       throw new Error(body || "We couldn't save your profile right now.");
     }
 
-    return response;
+    return response.json();
   };
 
   const sendImg = async (event) => {
@@ -426,7 +431,7 @@ function Profile(props) {
     setLocationPrivacyDraft(profileLocationPrivacy);
     setFullNameDraft(props.userProfile.fullName || "");
     setShowFullNameDraft(Boolean(props.userProfile.showFullName));
-    setDateOfBirthDraft(props.userProfile.dateOfBirth || "");
+    setDateOfBirthDraft(toDateInputValue(props.userProfile.dateOfBirth));
     setShowAgeDraft(Boolean(props.userProfile.showAge));
     setProfileError("");
     setProfileSuccess("");
@@ -465,20 +470,12 @@ function Profile(props) {
     setProfileSuccess("");
 
     try {
-      await updateProfile({
+      const savedProfile = await updateProfile({
         nextBio: profileBio,
         nextPicture: props.userProfile.profilePicture,
         nextLocation: locationDraft.trim(),
         nextPrivacy: locationPrivacyDraft,
       });
-
-      const token = localStorage.getItem("token");
-      const profileResponse = await fetch("/api/UserProfile/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const savedProfile = profileResponse.ok ? await profileResponse.json() : null;
       const savedLocation =
         savedProfile?.locationDisplayName ||
         savedProfile?.location ||
@@ -516,6 +513,24 @@ function Profile(props) {
     } finally {
       setProfileSaving(false);
     }
+  };
+
+  const saveProfileTags = async changes => {
+    const response = await fetch("/api/UserProfile/me/tags", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+      body: JSON.stringify({
+        littleThings: changes.littleThings ?? props.userProfile.littleThings ?? [],
+        currentlyExploring: changes.currentlyExploring ?? props.userProfile.currentlyExploring ?? [],
+      }),
+    });
+    if (!response.ok) throw new Error((await response.text()) || t("profileTags.saveError"));
+    const saved = await response.json();
+    props.setUserProfile(previous => ({
+      ...previous,
+      littleThings: Array.isArray(saved.littleThings) ? saved.littleThings : [],
+      currentlyExploring: Array.isArray(saved.currentlyExploring) ? saved.currentlyExploring : [],
+    }));
   };
 
   const handleBioSave = async (event) => {
@@ -566,7 +581,11 @@ function Profile(props) {
   const savedLocationInput = props.currentUser?.locationRawInput || props.userProfile.location || "";
   const profileHasChanges =
     locationDraft.trim() !== savedLocationInput.trim() ||
-    locationPrivacyDraft !== profileLocationPrivacy;
+    locationPrivacyDraft !== profileLocationPrivacy ||
+    fullNameDraft.trim() !== (props.userProfile.fullName || "").trim() ||
+    showFullNameDraft !== Boolean(props.userProfile.showFullName) ||
+    dateOfBirthDraft !== toDateInputValue(props.userProfile.dateOfBirth) ||
+    showAgeDraft !== Boolean(props.userProfile.showAge);
 
   const statCards = [
     { icon: Heart, label: t('profile.matches'), value: matchesDisplay },
@@ -657,14 +676,9 @@ function Profile(props) {
                   {t(`profileOptions.${CURRENT_USER.personalityType}`)}
                 </span>
               </div>
-              <span className="profile__exploring">{t('profile.exploring')}</span>
-              <div className="profile__trait-tags">
-                {CURRENT_USER.badges.map((b) => (
-                  <span key={b} className="profile__trait">
-                    {t(`profileOptions.${b}`)}
-                  </span>
-                ))}
-              </div>
+              <ProfileTagEditor compact title={t('profile.exploring')} tags={props.userProfile.currentlyExploring || []}
+                maxTags={5} placeholder={t('profileTags.exploringPlaceholder')} emptyText={t('profile.noExploringTags')}
+                suggestions={EXPLORING_SUGGESTIONS} onSave={tags => saveProfileTags({ currentlyExploring: tags })}/>
             </div>
           </div>
 
@@ -854,14 +868,9 @@ function Profile(props) {
               </form>
 
               <section className="profile__block profile__little-things">
-                <h3>{t('profile.littleThings').toUpperCase()}</h3>
-                <div className="profile__little-grid">
-                  {LITTLE_THINGS.map((item) => (
-                    <span key={item} className="profile__little-card app-tilt-hover">
-                      {t(`profileOptions.${item}`)}
-                    </span>
-                  ))}
-                </div>
+                <ProfileTagEditor title={t('profile.littleThings').toUpperCase()} tags={props.userProfile.littleThings || []}
+                  maxTags={10} placeholder={t('profileTags.littlePlaceholder')} emptyText={t('profileTags.noLittleThings')}
+                  onSave={tags => saveProfileTags({ littleThings: tags })}/>
               </section>
 
               <div className="profile__mini-grid">
@@ -1124,6 +1133,7 @@ function EventDiscussion({ event, onJoin }) {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [blockedAuthors, setBlockedAuthors] = useState(() => new Set());
   const messagesRef = useRef(null);
 
   const loadDiscussion = useCallback(async () => {
@@ -1253,6 +1263,7 @@ function EventDiscussion({ event, onJoin }) {
         )}
         {messages.map((message) => {
           const mine = Boolean(message.isMine);
+          const authorBlocked = blockedAuthors.has(Number(message.userId));
 
           return (
             <div
@@ -1261,11 +1272,12 @@ function EventDiscussion({ event, onJoin }) {
                 mine ? " profile__event-message--mine" : ""
               }`}
             >
-              {!mine && (
-                <span>{message.displayName || message.username || t('profileUi.member')}</span>
-              )}
+              {!mine && <div className="profile__event-message-author"><span>{message.displayName || message.username || t('profileUi.member')}</span>
+                <UserActionsMenu userId={message.userId} username={message.username || message.displayName || 'member'}
+                  context="eventDiscussion" allowHide={false}
+                  onBlocked={(id) => setBlockedAuthors(current => new Set(current).add(Number(id)))}/></div>}
               <p>
-                {message.isDeleted ? t('profileUi.deletedMessage') : message.body}
+                {authorBlocked ? "Comment from blocked user hidden" : message.isDeleted ? t('profileUi.deletedMessage') : message.body}
               </p>
               <small>{formatChatTime(message.createdAt)}</small>
             </div>
@@ -1356,6 +1368,11 @@ function mapConnectionToProfileMatch(match) {
     matchedAt: match.matchedAt ?? match.MatchedAt ?? null,
     isRecentlyActive: Boolean(match.isRecentlyActive ?? match.IsRecentlyActive ?? match.activeToday),
   };
+}
+
+function toDateInputValue(value) {
+  if (!value || typeof value !== "string") return "";
+  return value.split("T")[0];
 }
 
 function getMaximumDateOfBirth() {

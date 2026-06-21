@@ -18,6 +18,9 @@ namespace MatchYourMatch.WebAPI.DTOs.User
         public int RatingsCount { get; set; }
         public string? FullName { get; set; }
         public int? Age { get; set; }
+        public List<string> LittleThings { get; set; } = new();
+        public List<string> CurrentlyExploring { get; set; } = new();
+        public bool CanMessage { get; set; }
         public List<InterestDto> Interests { get; set; } = new();
     }
 }

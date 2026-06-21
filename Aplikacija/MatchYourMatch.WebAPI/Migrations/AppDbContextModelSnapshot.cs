@@ -877,11 +877,17 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
+                    b.Property<string>("ExploringTagsJson")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FullName")
                         .HasColumnType("longtext");
 
                     b.Property<double?>("Latitude")
                         .HasColumnType("double");
+
+                    b.Property<string>("LittleThingsJson")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Location")
                         .HasColumnType("longtext");

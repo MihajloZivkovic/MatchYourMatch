@@ -33,7 +33,6 @@ namespace MatchYourMatch.WebAPI.Services
             if (post.UserId == userId)
                 throw new InvalidOperationException("You cannot match with yourself.");
             var actorName = await _context.Users.Where(u => u.Id == userId).Select(u => u.Username).FirstAsync();
-            var conversation = await _chatService.StartConversationAsync(userId, post.UserId);
             var userAId = Math.Min(userId, post.UserId);
             var userBId = Math.Max(userId, post.UserId);
             var match = await _context.UserMatches.FirstOrDefaultAsync(value =>
@@ -53,6 +52,7 @@ namespace MatchYourMatch.WebAPI.Services
                 match.IsActive = true;
             }
             await _context.SaveChangesAsync();
+            var conversation = await _chatService.StartConversationAsync(userId, post.UserId);
             await _notifications.CreateNotificationAsync(post.UserId, userId, "QuickMatch",
                 "New Quick Match", $"You matched with {actorName}.",
                 "User", userId, true);
@@ -135,7 +135,8 @@ namespace MatchYourMatch.WebAPI.Services
                     p.IsActive)
                 .ToListAsync();
 
-            posts = posts.Where(post => IsEligibleBySettings(currentUser, post.User, true)).ToList();
+            var excludedIds = await GetExcludedUserIdsAsync(userId);
+            posts = posts.Where(post => !excludedIds.Contains(post.UserId) && IsEligibleBySettings(currentUser, post.User, true)).ToList();
 
             var matches = posts
                 .Select(post =>
@@ -197,6 +198,9 @@ namespace MatchYourMatch.WebAPI.Services
                     p.IsActive)
                 .OrderBy(p => p.StartTime)
                 .ToListAsync();
+
+            var excludedIds = await GetExcludedUserIdsAsync(userId);
+            posts = posts.Where(post => !excludedIds.Contains(post.UserId)).ToList();
 
             return posts
                 .Select(post => MapToDto(
@@ -363,6 +367,12 @@ namespace MatchYourMatch.WebAPI.Services
                 CalculateDistanceKm(lat1, lon1, lat2, lon2) > maximum) return false;
             return true;
         }
+
+        private async Task<List<int>> GetExcludedUserIdsAsync(int userId) => await _context.BlockedUsers
+            .Where(x => x.BlockerUserId == userId || x.BlockedUserId == userId)
+            .Select(x => x.BlockerUserId == userId ? x.BlockedUserId : x.BlockerUserId)
+            .Concat(_context.HiddenProfiles.Where(x => x.UserId == userId).Select(x => x.HiddenUserId))
+            .Distinct().ToListAsync();
 
         private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
         {

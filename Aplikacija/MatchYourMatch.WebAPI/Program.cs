@@ -240,7 +240,9 @@ using (var scope = app.Services.CreateScope())
         (Name: "FullName", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `FullName` varchar(160) NULL"),
         (Name: "ShowFullName", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ShowFullName` tinyint(1) NOT NULL DEFAULT 0"),
         (Name: "DateOfBirth", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `DateOfBirth` date NULL"),
-        (Name: "ShowAge", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ShowAge` tinyint(1) NOT NULL DEFAULT 0")
+        (Name: "ShowAge", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ShowAge` tinyint(1) NOT NULL DEFAULT 0"),
+        (Name: "LittleThingsJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `LittleThingsJson` longtext NULL"),
+        (Name: "ExploringTagsJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ExploringTagsJson` longtext NULL")
     })
     {
         db.Database.ExecuteSqlRaw($"""

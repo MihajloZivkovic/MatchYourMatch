@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './DeepMatch.css';
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
+import UserActionsMenu from '../../components/UserActionsMenu';
 
 function DeepMatch() {
   const [preferences, setPreferences] = useState(null);
@@ -133,7 +134,11 @@ function DeepMatch() {
                       <h2>{match.displayName || match.username}</h2>
                       <p>{match.location || t('deep.unknownLocation')}</p>
                     </div>
-                    <span className="deep-match__score-badge">{match.compatibilityScore}%</span>
+                    <div className="deep-match__card-actions"><span className="deep-match__score-badge">{match.compatibilityScore}%</span>
+                      <UserActionsMenu userId={match.userId} username={match.username} context="matchCard"
+                        onHidden={(id) => setMatches(current => current.filter(item => item.userId !== id))}
+                        onBlocked={(id) => setMatches(current => current.filter(item => item.userId !== id))} />
+                    </div>
                   </div>
 
                   {match.about && <p className="deep-match__about">{match.about}</p>}

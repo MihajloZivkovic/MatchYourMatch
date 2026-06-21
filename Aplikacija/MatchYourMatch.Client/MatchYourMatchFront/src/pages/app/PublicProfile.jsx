@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Flag, Heart, MapPin, MessageCircle, Sparkles, Star, UserPlus } from "lucide-react";
+import { ArrowLeft, Check, Compass, Heart, MapPin, MessageCircle, Sparkles, Star, UserPlus } from "lucide-react";
 import "./PublicProfile.css";
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
+import UserActionsMenu from '../../components/UserActionsMenu';
 
 function PublicProfile() {
   const { t } = useTranslation();
@@ -15,7 +16,8 @@ function PublicProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followError, setFollowError] = useState("");
-  const [isReported, setIsReported] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const [ratingStatus, setRatingStatus] = useState(null);
   const [ratingLoading, setRatingLoading] = useState(true);
   const [ratingSaving, setRatingSaving] = useState(false);
@@ -231,24 +233,22 @@ function PublicProfile() {
               type="button"
               className={`public-profile__follow${isFollowing ? " public-profile__follow--active" : ""}`}
               onClick={handleFollow}
-              disabled={followLoading}
+              disabled={followLoading || isBlocked}
               title={isFollowing ? t('publicProfile.unfollow') : t('publicProfile.follow')}
             >
               {isFollowing ? <Check size={16} /> : <UserPlus size={16} />}
               {isFollowing ? t('publicProfile.following') : t('publicProfile.follow')}
             </button>
-            <button
-              type="button"
-              className={`public-profile__report${isReported ? " public-profile__report--active" : ""}`}
-              onClick={() => setIsReported(true)}
-            >
-              <Flag size={15} />
-              {isReported ? "Reported" : "Report"}
-            </button>
+            <UserActionsMenu userId={profile.id} username={profile.username} context="profile"
+              onBlocked={() => setIsBlocked(true)} onHidden={() => setIsHidden(true)} />
           </div>
           {followError && <p className="public-profile__action-error">{followError}</p>}
         </div>
       </header>
+
+      {(isBlocked || isHidden) && <div className="public-profile__state">
+        {isBlocked ? "You blocked this user." : "This profile is hidden from your suggestions."}
+      </div>}
 
       <section className="public-profile__grid">
         <article className="public-profile__card public-profile__card--wide">
@@ -259,7 +259,14 @@ function PublicProfile() {
           <p>{profile.bio || "This user has not added a bio yet."}</p>
         </article>
 
-        <article className="public-profile__card public-profile__card--wide public-profile__rating-card">
+        {profile.littleThings?.length > 0 && <article className="public-profile__card public-profile__card--wide">
+          <h2><Sparkles size={17}/>{t('profile.littleThings')}</h2>
+          <div className="public-profile__pills">
+            {profile.littleThings.map(tag => <span key={tag}>{tag}</span>)}
+          </div>
+        </article>}
+
+        {!isBlocked && <article className="public-profile__card public-profile__card--wide public-profile__rating-card">
           <div className="public-profile__rating-head">
             <h2><Star size={17} />{t('publicProfile.rateUser')}</h2>
             <div>
@@ -300,7 +307,14 @@ function PublicProfile() {
           )}
           {ratingError && <p className="public-profile__rating-error">{ratingError}</p>}
           {ratingSuccess && <p className="public-profile__rating-success">{ratingSuccess}</p>}
-        </article>
+        </article>}
+
+        {profile.currentlyExploring?.length > 0 && <article className="public-profile__card">
+          <h2><Compass size={17} />{t('profile.exploring')}</h2>
+          <div className="public-profile__pills">
+            {profile.currentlyExploring.map(tag => <span key={tag}>{t(`profileOptions.${tag}`) === `profileOptions.${tag}` ? tag : t(`profileOptions.${tag}`)}</span>)}
+          </div>
+        </article>}
 
         <article className="public-profile__card">
           <h2>
@@ -327,12 +341,14 @@ function PublicProfile() {
           <button
             type="button"
             className="public-profile__cta"
+            disabled={isBlocked || profile.canMessage === false}
             onClick={() =>
               navigate(`/app/chat?userId=${profile.id}&username=${encodeURIComponent(profile.username)}`)
             }
           >
             Say hello
           </button>
+          {profile.canMessage === false && !isBlocked && <p className="public-profile__rating-hint">This user only accepts messages from matches or allowed contacts.</p>}
         </article>
       </section>
     </main>

@@ -4,6 +4,7 @@ import { CalendarDays, Hash, Search, Sparkles, User } from "lucide-react";
 import "./SearchResults.css";
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
+import UserActionsMenu from '../../components/UserActionsMenu';
 
 const emptyResults = {
   people: [],
@@ -139,10 +140,9 @@ function SearchResults() {
         <div className="search-results__grid">
           <ResultSection title="People" icon={<User size={17} />} items={results.people}>
             {(person) => (
-              <button
+              <div className="search-results__person-wrap" key={`person-${person.id}`}><button
                 type="button"
                 className="search-results__card"
-                key={`person-${person.id}`}
                 onClick={() => navigate(`/app/users/${person.id}`)}
               >
                 <UserAvatar className="search-results__avatar" profilePicture={person.profilePicture}
@@ -155,7 +155,9 @@ function SearchResults() {
                   </small>
                   {person.tags?.length > 0 && <em>{person.tags.slice(0, 3).join(" - ")}</em>}
                 </span>
-              </button>
+              </button><UserActionsMenu userId={person.id} username={person.username} context="matchCard"
+                onHidden={(id) => setResults(current => ({...current,people:current.people.filter(item=>item.id!==id)}))}
+                onBlocked={(id) => setResults(current => ({...current,people:current.people.filter(item=>item.id!==id)}))}/></div>
             )}
           </ResultSection>
 

@@ -95,6 +95,8 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (!IsOrdinaryUser(otherUser))
                 throw new UnauthorizedAccessException("You can only message ordinary users.");
+            if (!await CanContactAsync(userId, otherUserId))
+                throw new UnauthorizedAccessException("This user does not accept messages from you.");
 
             var firstId = Math.Min(userId, otherUserId);
             var secondId = Math.Max(userId, otherUserId);
@@ -162,6 +164,9 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (users.Any(user => !IsOrdinaryUser(user)))
                 throw new UnauthorizedAccessException("Groups can include only ordinary users.");
+            foreach (var memberId in memberIds)
+                if (!await CanAddToGroupAsync(userId, memberId))
+                    throw new UnauthorizedAccessException("One or more users do not accept group chat invitations from you.");
 
             var now = DateTime.UtcNow;
             var conversation = new ChatConversation
@@ -301,6 +306,8 @@ namespace MatchYourMatch.WebAPI.Services
 
                 if (!IsOrdinaryUser(receiver))
                     throw new UnauthorizedAccessException("You can only message ordinary users.");
+                if (!await CanContactAsync(userId, receiverId!.Value))
+                    throw new UnauthorizedAccessException("This user does not accept messages from you, or one of you blocked the other.");
             }
 
             var message = new ChatMessage
@@ -334,6 +341,33 @@ namespace MatchYourMatch.WebAPI.Services
 
             message.Sender = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
             return MapMessage(message, userId);
+        }
+
+        private async Task<bool> CanContactAsync(int senderId, int receiverId)
+        {
+            if (await _context.BlockedUsers.AnyAsync(x =>
+                (x.BlockerUserId == senderId && x.BlockedUserId == receiverId) ||
+                (x.BlockerUserId == receiverId && x.BlockedUserId == senderId))) return false;
+            var policy = await _context.UserAppSettings.Where(x => x.UserId == receiverId)
+                .Select(x => x.WhoCanMessageMe).FirstOrDefaultAsync() ?? "MatchesOnly";
+            if (policy == "Everyone") return true;
+            if (policy == "PeopleIFollow") return await _context.Follows.AnyAsync(x => x.FollowerId == receiverId && x.FollowingId == senderId);
+            if (policy == "Followers") return await _context.Follows.AnyAsync(x => x.FollowerId == senderId && x.FollowingId == receiverId);
+            return await _context.UserMatches.AnyAsync(x => x.IsActive && x.Source == "QuickMatch" &&
+                ((x.UserAId == senderId && x.UserBId == receiverId) || (x.UserBId == senderId && x.UserAId == receiverId)));
+        }
+
+        private async Task<bool> CanAddToGroupAsync(int inviterId, int inviteeId)
+        {
+            if (await _context.BlockedUsers.AnyAsync(x =>
+                (x.BlockerUserId == inviterId && x.BlockedUserId == inviteeId) ||
+                (x.BlockerUserId == inviteeId && x.BlockedUserId == inviterId))) return false;
+            var policy = await _context.UserAppSettings.Where(x => x.UserId == inviteeId)
+                .Select(x => x.AllowGroupChatInvitesFrom).FirstOrDefaultAsync() ?? "MatchesOnly";
+            if (policy == "Everyone") return true;
+            if (policy == "PeopleIFollow") return await _context.Follows.AnyAsync(x => x.FollowerId == inviteeId && x.FollowingId == inviterId);
+            return await _context.UserMatches.AnyAsync(x => x.IsActive && x.Source == "QuickMatch" &&
+                ((x.UserAId == inviterId && x.UserBId == inviteeId) || (x.UserBId == inviterId && x.UserAId == inviteeId)));
         }
 
         public async Task<ChatMessageDto> UpdateMessageAsync(int userId, int messageId, UpdateChatMessageDto request)

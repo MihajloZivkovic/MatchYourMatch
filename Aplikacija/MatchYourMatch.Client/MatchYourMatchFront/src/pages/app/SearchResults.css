@@ -200,3 +200,6 @@ button.search-results__card:hover {
     width: 100%;
   }
 }
+.search-results__person-wrap { position:relative; }
+.search-results__person-wrap > .user-actions { position:absolute; top:.65rem; right:.65rem; }
+.search-results__person-wrap .search-results__card { width:100%; padding-right:3.2rem; }
