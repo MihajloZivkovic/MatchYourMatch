@@ -225,7 +225,7 @@
 }
 
 .profile__location-editor option {
-  color: #0a0a0a;
+  color: var(--color-accent-on);
 }
 
 .profile__location-editor p {
@@ -273,7 +273,7 @@
 .profile__location-error {
   display: block;
   margin-top: 0.55rem;
-  color: #ffb3b3;
+  color: var(--color-danger);
   font-size: 0.78rem;
 }
 
@@ -683,7 +683,7 @@
 }
 
 .profile__pref-field option {
-  color: #0a0a0a;
+  color: var(--color-accent-on);
 }
 
 .profile__week-planner {
@@ -847,7 +847,7 @@
   border: 1px solid rgba(255, 99, 99, 0.28);
   border-radius: var(--radius-sm);
   background: rgba(255, 99, 99, 0.08);
-  color: #ffb3b3;
+  color: var(--color-danger);
   font-size: 0.82rem;
 }
 
@@ -1059,7 +1059,7 @@
 .profile__match-online {
   display: block;
   font-size: 0.65rem;
-  color: #22c55e;
+  color: var(--color-status-online);
   margin-bottom: 0.75rem;
 }
 
@@ -1114,6 +1114,6 @@
 }
 
 .saveAnimation{
-  background-color: green;
+  background-color: var(--color-status-success);
   transition: var(--transition);
 }

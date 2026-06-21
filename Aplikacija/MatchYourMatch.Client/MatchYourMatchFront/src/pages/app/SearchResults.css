@@ -74,7 +74,7 @@
 
 .search-results__state--error {
   border-color: rgba(255, 96, 80, 0.28);
-  color: #ffb1a8;
+  color: var(--color-danger-soft);
 }
 
 .search-results__grid {

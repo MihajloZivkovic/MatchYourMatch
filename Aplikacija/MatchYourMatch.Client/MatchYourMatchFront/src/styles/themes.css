@@ -1,0 +1,224 @@
+/* ============================================
+   MYM DESIGN TOKENS — Dark & Light themes
+   ============================================ */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Public site */
+  --color-bg: #000000;
+  --color-bg-elevated: #0a0a0a;
+  --color-text: #ffffff;
+  --color-text-muted: rgba(255, 255, 255, 0.55);
+  --color-text-subtle: rgba(255, 255, 255, 0.3);
+  --color-text-body: #aaaaaa;
+  --color-accent: #f4a300;
+  --color-accent-bright: #ffb520;
+  --color-accent-hover: #ffb930;
+  --color-accent-glow: rgba(244, 163, 0, 0.45);
+  --color-accent-soft: rgba(244, 163, 0, 0.12);
+  --color-accent-on: #000000;
+  --color-accent-shimmer: #ffd080;
+
+  --color-surface-glass: rgba(255, 255, 255, 0.04);
+  --color-surface-glass-strong: rgba(255, 255, 255, 0.08);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-accent: rgba(244, 163, 0, 0.12);
+
+  --color-input-bg: rgba(0, 0, 0, 0.35);
+  --color-input-bg-focus: rgba(0, 0, 0, 0.5);
+  --color-input-border: rgba(255, 255, 255, 0.12);
+  --color-input-border-hover: rgba(255, 255, 255, 0.2);
+  --color-input-placeholder: rgba(255, 255, 255, 0.3);
+  --color-input-focus-ring: rgba(244, 163, 0, 0.22);
+
+  --color-navbar-bg-top: rgba(255, 255, 255, 0.03);
+  --color-navbar-bg-bottom: rgba(255, 255, 255, 0.01);
+  --color-navbar-bg: rgba(5, 5, 5, 0.78);
+  --color-navbar-link: rgba(255, 255, 255, 0.65);
+  --color-navbar-link-hover: #ffffff;
+  --color-navbar-dropdown-bg: rgba(8, 8, 10, 0.96);
+  --color-navbar-drawer-start: rgba(12, 12, 14, 0.98);
+  --color-navbar-drawer-end: rgba(5, 5, 8, 0.99);
+
+  --color-overlay: rgba(0, 0, 0, 0.55);
+  --color-danger: #ffb3b3;
+  --color-danger-soft: #ffb1a8;
+  --color-status-online: #f4a300;
+  --color-status-success: #f4a300;
+  --color-warning: #fbbf24;
+
+  --color-page-gradient-accent: rgba(244, 163, 0, 0.06);
+  --color-page-gradient-white: rgba(255, 255, 255, 0.02);
+  --color-page-gradient-start: #050505;
+  --color-page-gradient-mid: #000000;
+  --color-page-gradient-end: #000000;
+  --color-page-vignette: rgba(0, 0, 0, 0.35);
+
+  --color-card-gradient-mid: #141418;
+  --color-card-gradient-end: #0a0a0c;
+  --color-card-surface-start: #161616;
+  --color-card-surface-end: #0a0a0a;
+  --color-card-elevated-start: #1a1a1a;
+  --color-card-elevated-end: #0a0a0a;
+
+  /* App shell aliases */
+  --bg: var(--color-bg);
+  --accent: var(--color-accent);
+  --accent-hover: var(--color-accent-hover);
+  --accent-glow: rgba(244, 163, 0, 0.2);
+  --text: var(--color-text);
+  --text-muted: var(--color-text-muted);
+  --text-subtle: var(--color-text-subtle);
+  --glass-bg: var(--color-surface-glass);
+  --glass-border: var(--color-border);
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: var(--color-border-accent);
+
+  --tint-blue: rgba(120, 120, 255, 0.03);
+  --tint-purple: rgba(140, 100, 200, 0.025);
+  --tint-amber: rgba(244, 163, 0, 0.06);
+  --glow-tl: rgba(244, 163, 0, 0.04);
+  --glow-br: rgba(100, 110, 200, 0.035);
+  --bg-gradient-end: #000000;
+  --bg-gradient-start: #050505;
+
+  --elev-1: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --elev-2: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(244, 163, 0, 0.08),
+    0 0 80px var(--tint-blue);
+  --elev-3: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 40px rgba(120, 120, 255, 0.04);
+
+  --scrollbar-track: rgba(255, 255, 255, 0.03);
+  --scrollbar-thumb: rgba(244, 163, 0, 0.35);
+  --scrollbar-thumb-hover: rgba(244, 163, 0, 0.55);
+
+  --shadow-auth: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 80px rgba(244, 163, 0, 0.08);
+  --shadow-auth-inset: 0 0 0 1px rgba(244, 163, 0, 0.06) inset;
+  --shadow-focus-input: 0 0 20px rgba(244, 163, 0, 0.2);
+  --shadow-btn-glow: 0 0 28px var(--color-accent-glow), 0 0 60px rgba(244, 163, 0, 0.15);
+  --shadow-navbar: 0 1px 0 rgba(244, 163, 0, 0.08);
+  --shadow-drawer: -8px 0 40px rgba(0, 0, 0, 0.5);
+
+  --skeleton-from: rgba(255, 255, 255, 0.03);
+  --skeleton-mid: rgba(255, 255, 255, 0.07);
+  --online-pulse: rgba(244, 163, 0, 0.35);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-bg: #f3f1ed;
+  --color-bg-elevated: #eae7e2;
+  --color-text: #1c1917;
+  --color-text-muted: rgba(28, 25, 23, 0.62);
+  --color-text-subtle: rgba(28, 25, 23, 0.42);
+  --color-text-body: #5c5650;
+  --color-accent: #c97d08;
+  --color-accent-bright: #e08f0a;
+  --color-accent-hover: #d4880a;
+  --color-accent-glow: rgba(201, 125, 8, 0.32);
+  --color-accent-soft: rgba(201, 125, 8, 0.12);
+  --color-accent-on: #1c1917;
+  --color-accent-shimmer: #f0b040;
+
+  --color-surface-glass: rgba(255, 255, 255, 0.78);
+  --color-surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --color-surface-hover: rgba(28, 25, 23, 0.04);
+  --color-border: rgba(28, 25, 23, 0.1);
+  --color-border-subtle: rgba(28, 25, 23, 0.06);
+  --color-border-accent: rgba(201, 125, 8, 0.22);
+
+  --color-input-bg: rgba(255, 255, 255, 0.88);
+  --color-input-bg-focus: #faf9f7;
+  --color-input-border: rgba(28, 25, 23, 0.14);
+  --color-input-border-hover: rgba(28, 25, 23, 0.22);
+  --color-input-placeholder: rgba(28, 25, 23, 0.38);
+  --color-input-focus-ring: rgba(201, 125, 8, 0.2);
+
+  --color-navbar-bg-top: rgba(255, 255, 255, 0.72);
+  --color-navbar-bg-bottom: rgba(255, 255, 255, 0.55);
+  --color-navbar-bg: rgba(243, 241, 237, 0.82);
+  --color-navbar-link: rgba(28, 25, 23, 0.62);
+  --color-navbar-link-hover: #1c1917;
+  --color-navbar-dropdown-bg: rgba(250, 249, 247, 0.96);
+  --color-navbar-drawer-start: rgba(250, 249, 247, 0.98);
+  --color-navbar-drawer-end: rgba(243, 241, 237, 0.99);
+
+  --color-overlay: rgba(28, 25, 23, 0.32);
+  --color-danger: #c2415a;
+  --color-danger-soft: #be4f4f;
+  --color-status-online: #c97d08;
+  --color-status-success: #c97d08;
+  --color-warning: #d97706;
+
+  --color-page-gradient-accent: rgba(201, 125, 8, 0.07);
+  --color-page-gradient-white: rgba(255, 255, 255, 0.55);
+  --color-page-gradient-start: #ebe8e3;
+  --color-page-gradient-mid: #f3f1ed;
+  --color-page-gradient-end: #f3f1ed;
+  --color-page-vignette: rgba(28, 25, 23, 0.04);
+
+  --color-card-gradient-mid: #f8f6f3;
+  --color-card-gradient-end: #f0ede8;
+  --color-card-surface-start: #faf9f7;
+  --color-card-surface-end: #f0ede8;
+  --color-card-elevated-start: #faf9f7;
+  --color-card-elevated-end: #eae7e2;
+
+  --bg: var(--color-bg);
+  --accent: var(--color-accent);
+  --accent-hover: var(--color-accent-hover);
+  --accent-glow: rgba(201, 125, 8, 0.18);
+  --text: var(--color-text);
+  --text-muted: var(--color-text-muted);
+  --text-subtle: var(--color-text-subtle);
+  --glass-bg: var(--color-surface-glass);
+  --glass-border: var(--color-border);
+  --card-bg: rgba(255, 255, 255, 0.72);
+  --card-border: var(--color-border-accent);
+
+  --tint-blue: rgba(96, 165, 250, 0.07);
+  --tint-purple: rgba(146, 110, 255, 0.06);
+  --tint-amber: rgba(201, 125, 8, 0.07);
+  --glow-tl: rgba(201, 125, 8, 0.06);
+  --glow-br: rgba(146, 110, 255, 0.05);
+  --bg-gradient-end: #f3f1ed;
+  --bg-gradient-start: #ebe8e3;
+
+  --elev-1: 0 4px 24px rgba(28, 25, 23, 0.08);
+  --elev-2: 0 8px 40px rgba(28, 25, 23, 0.1), 0 0 30px rgba(201, 125, 8, 0.08),
+    0 0 80px var(--tint-blue);
+  --elev-3: 0 16px 48px rgba(28, 25, 23, 0.12), 0 0 40px rgba(96, 165, 250, 0.06);
+
+  --scrollbar-track: rgba(28, 25, 23, 0.04);
+  --scrollbar-thumb: rgba(201, 125, 8, 0.35);
+  --scrollbar-thumb-hover: rgba(201, 125, 8, 0.55);
+
+  --shadow-auth: 0 24px 48px rgba(28, 25, 23, 0.1), 0 0 80px rgba(201, 125, 8, 0.06);
+  --shadow-auth-inset: 0 0 0 1px rgba(201, 125, 8, 0.08) inset;
+  --shadow-focus-input: 0 0 20px rgba(201, 125, 8, 0.14);
+  --shadow-btn-glow: 0 0 28px var(--color-accent-glow), 0 0 60px rgba(201, 125, 8, 0.1);
+  --shadow-navbar: 0 1px 0 rgba(201, 125, 8, 0.1);
+  --shadow-drawer: -8px 0 40px rgba(28, 25, 23, 0.12);
+
+  --skeleton-from: rgba(28, 25, 23, 0.04);
+  --skeleton-mid: rgba(28, 25, 23, 0.08);
+  --online-pulse: rgba(201, 125, 8, 0.35);
+}
+
+/* Smooth theme transitions (enabled briefly on toggle) */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    fill 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    stroke 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}

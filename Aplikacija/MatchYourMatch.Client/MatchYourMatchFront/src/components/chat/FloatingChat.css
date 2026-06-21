@@ -38,8 +38,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 2px solid #090909;
-  background: #ff4d3d;
+  border: 2px solid var(--color-bg);
+  background: var(--color-danger);
   color: #fff;
   font-size: 0.68rem;
   font-weight: 900;
@@ -138,8 +138,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #0b0b0d;
-  background: #22c55e;
+  border: 2px solid var(--color-bg);
+  background: var(--color-status-online);
 }
 
 .floating-chat__controls {
@@ -197,7 +197,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #ff4d3d;
+  background: var(--color-danger);
   color: #fff;
   font-size: 0.62rem;
 }

@@ -24,15 +24,20 @@
   background:
     radial-gradient(
       ellipse 80% 50% at 50% 35%,
-      rgba(244, 163, 0, 0.06) 0%,
+      var(--color-page-gradient-accent) 0%,
       transparent 65%
     ),
     radial-gradient(
       ellipse 60% 40% at 80% 80%,
-      rgba(255, 255, 255, 0.02) 0%,
+      var(--color-page-gradient-white) 0%,
       transparent 50%
     ),
-    linear-gradient(180deg, #050505 0%, #000000 40%, #000000 100%);
+    linear-gradient(
+      180deg,
+      var(--color-page-gradient-start) 0%,
+      var(--color-page-gradient-mid) 40%,
+      var(--color-page-gradient-end) 100%
+    );
 }
 
 .page__noise {
@@ -122,9 +127,7 @@
   background-color: var(--color-accent-bright);
   border-color: var(--color-accent-bright);
   transform: scale(1.04);
-  box-shadow:
-    0 0 28px var(--color-accent-glow),
-    0 0 60px rgba(244, 163, 0, 0.15);
+  box-shadow: var(--shadow-btn-glow);
 }
 
 /* ============================================
@@ -444,8 +447,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(244, 163, 0, 0.35) 20%,
-    rgba(244, 163, 0, 0.35) 80%,
+    var(--color-border-accent) 20%,
+    var(--color-border-accent) 80%,
     transparent
   );
   margin-bottom: clamp(1rem, 3vw, 1.75rem);
@@ -702,15 +705,14 @@
   display: flex;
   flex-direction: column;
   gap: 1.35rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-border);
   border-radius: 1.25rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow:
-    0 0 0 1px rgba(244, 163, 0, 0.06) inset,
-    0 24px 48px rgba(0, 0, 0, 0.5),
-    0 0 80px rgba(244, 163, 0, 0.08);
+    var(--shadow-auth-inset),
+    var(--shadow-auth);
   animation: authCardIn 0.7s var(--ease-entrance) 0.15s both;
 }
 
@@ -746,8 +748,8 @@
   font-size: 0.9rem;
   font-weight: 300;
   color: var(--color-text);
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
   border-radius: 0.65rem;
   transition:
     border-color var(--transition-smooth),
@@ -760,20 +762,20 @@
 }
 
 .auth__input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-input-placeholder);
 }
 
 .auth__input:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-input-border-hover);
 }
 
 .auth__input:focus {
   outline: none;
   border-color: var(--color-accent);
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-input-bg-focus);
   box-shadow:
     0 0 0 1px var(--color-accent),
-    0 0 20px rgba(244, 163, 0, 0.2);
+    var(--shadow-focus-input);
 }
 
 .auth__submit {
@@ -872,7 +874,7 @@
   font-size: 1rem;
   font-weight: 300;
   line-height: 1.7;
-  color: #aaaaaa;
+  color: var(--color-text-body);
   max-width: 560px;
 }
 
@@ -891,8 +893,8 @@
   flex-direction: column;
   gap: 1rem;
   padding: 40px 32px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -903,7 +905,7 @@
   padding-top: 42px;
   min-height: calc(100% + 12px);
   transform: translateY(-6px);
-  box-shadow: 0 0 40px rgba(244, 163, 0, 0.06);
+  box-shadow: 0 0 40px var(--accent-glow);
 }
 
 .about-pillar__icon {
@@ -928,7 +930,7 @@
   font-size: 0.9rem;
   font-weight: 300;
   line-height: 1.65;
-  color: #aaaaaa;
+  color: var(--color-text-body);
 }
 
 /* --- Section 3: Manifesto quote --- */
@@ -963,7 +965,7 @@
   font-size: 0.75rem;
   font-weight: 300;
   letter-spacing: 0.08em;
-  color: #aaaaaa;
+  color: var(--color-text-body);
 }
 
 /* --- Section 4: Stats --- */
@@ -998,7 +1000,7 @@
   font-weight: 400;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #aaaaaa;
+  color: var(--color-text-body);
 }
 
 /* --- Section 5: CTA strip --- */

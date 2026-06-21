@@ -142,13 +142,13 @@
 .public-profile__report:hover {
   transform: translateY(-1px);
   border-color: rgba(255, 178, 170, 0.35);
-  color: #ffb1a8;
+  color: var(--color-danger-soft);
 }
 
 .public-profile__report--active {
   border-color: rgba(255, 178, 170, 0.28);
   background: rgba(255, 96, 80, 0.08);
-  color: #ffb1a8;
+  color: var(--color-danger-soft);
 }
 
 .public-profile__grid {
@@ -229,7 +229,7 @@
 
 .public-profile__state--error {
   border-color: rgba(255, 96, 80, 0.28);
-  color: #ffb1a8;
+  color: var(--color-danger-soft);
 }
 
 @media (max-width: 720px) {

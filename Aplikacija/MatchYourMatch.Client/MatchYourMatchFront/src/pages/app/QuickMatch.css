@@ -61,7 +61,11 @@
 .quick-match__setup-card {
   width: 100%;
   padding: 1.75rem;
-  background: linear-gradient(160deg, #161616 0%, #0a0a0a 100%);
+  background: linear-gradient(
+    160deg,
+    var(--color-card-surface-start) 0%,
+    var(--color-card-surface-end) 100%
+  );
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
@@ -207,7 +211,7 @@
 
 .quick-match__select option,
 .quick-match__select optgroup {
-  color: #0a0a0a;
+  color: var(--color-accent-on);
 }
 
 .quick-match__submit,
@@ -249,7 +253,7 @@
   border: 1px solid rgba(255, 99, 99, 0.28);
   border-radius: var(--radius-sm);
   background: rgba(255, 99, 99, 0.08);
-  color: #ffb3b3;
+  color: var(--color-danger);
   font-size: 0.82rem;
   line-height: 1.4;
 }
@@ -268,7 +272,11 @@
   width: 100%;
   height: 100%;
   padding: 1.75rem 1.5rem 1.5rem;
-  background: linear-gradient(160deg, #161616 0%, #0a0a0a 100%);
+  background: linear-gradient(
+    160deg,
+    var(--color-card-surface-start) 0%,
+    var(--color-card-surface-end) 100%
+  );
   border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.06);

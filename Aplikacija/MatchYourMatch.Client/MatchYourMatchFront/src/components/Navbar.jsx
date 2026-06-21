@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 
 function Navbar({ isExiting = false, onAboutClick }) {
   return (
@@ -9,6 +10,7 @@ function Navbar({ isExiting = false, onAboutClick }) {
         </Link>
 
         <div className="navbar__actions">
+          <ThemeToggle />
           <a href="/about" className="navbar__link" onClick={onAboutClick}>
             ABOUT 
           </a>

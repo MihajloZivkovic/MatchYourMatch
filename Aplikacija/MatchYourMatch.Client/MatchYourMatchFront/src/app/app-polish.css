@@ -23,7 +23,7 @@
   background: radial-gradient(
     ellipse 90% 80% at 50% 40%,
     transparent 40%,
-    rgba(0, 0, 0, 0.35) 100%
+    var(--color-page-vignette) 100%
   );
 }
 
@@ -53,7 +53,7 @@
 }
 
 .app-shell .app-btn-pill:hover {
-  box-shadow: 0 0 20px rgba(244, 163, 0, 0.18);
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .app-shell .app-btn-pill:active {
@@ -61,7 +61,7 @@
 }
 
 .app-shell .app-btn-pill--outline:hover {
-  box-shadow: 0 0 16px rgba(244, 163, 0, 0.1);
+  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 /* App inputs (create event, profile textarea) */
@@ -78,18 +78,18 @@
 .app-shell .app-input::placeholder,
 .create-event__field input::placeholder,
 .create-event__field textarea::placeholder {
-  color: rgba(255, 255, 255, 0.28);
+  color: var(--color-input-placeholder);
 }
 
 .create-event__field input:focus,
 .create-event__field textarea:focus,
 .profile__block textarea:focus {
   outline: none;
-  border-color: rgba(244, 163, 0, 0.45);
+  border-color: var(--color-border-accent);
   box-shadow:
-    0 0 0 2px rgba(244, 163, 0, 0.22),
-    0 0 24px rgba(244, 163, 0, 0.06);
-  background: rgba(255, 255, 255, 0.05);
+    0 0 0 2px var(--color-input-focus-ring),
+    0 0 24px var(--accent-glow);
+  background: var(--color-input-bg-focus);
 }
 
 /* Empty states */
@@ -132,9 +132,9 @@
   border-radius: var(--radius-sm);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.07) 50%,
-    rgba(255, 255, 255, 0.03) 100%
+    var(--skeleton-from) 0%,
+    var(--skeleton-mid) 50%,
+    var(--skeleton-from) 100%
   );
   background-size: 200% 100%;
   animation: skeletonShimmer 1.8s var(--ease-premium) infinite;

@@ -1,16 +1,11 @@
+@import './styles/themes.css';
+
 /* ============================================
                   DESIGN TOKENS
+   (structural — colors live in themes.css)
    ============================================ */
 
 :root {
-  --color-bg: #000000;
-  --color-bg-elevated: #0a0a0a;
-  --color-text: #ffffff;
-  --color-text-muted: rgba(255, 255, 255, 0.55);
-  --color-accent: #f4a300;
-  --color-accent-bright: #ffb520;
-  --color-accent-glow: rgba(244, 163, 0, 0.45);
-
   --font-display: 'Bebas Neue', 'Anton', sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
 

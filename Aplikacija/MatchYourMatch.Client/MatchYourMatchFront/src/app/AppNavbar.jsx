@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
+import ThemeToggle from "../components/ThemeToggle";
 import "./AppNavbar.css";
 
 function AppNavbar(props) {
@@ -64,6 +65,8 @@ function AppNavbar(props) {
         </div>
 
         <div className="app-navbar__right">
+          <ThemeToggle variant="app" className="app-navbar__theme" />
+
           <Link to="/app/events/create" className="app-navbar__create">
             + CREATE EVENT
           </Link>
@@ -153,6 +156,9 @@ function AppNavbar(props) {
         >
           My Profile
         </Link>
+        <div className="app-navbar__drawer-theme">
+          <ThemeToggle variant="app" />
+        </div>
         <button
           type="button"
           className="app-navbar__drawer-logout"
