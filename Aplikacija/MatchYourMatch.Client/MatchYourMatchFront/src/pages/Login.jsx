@@ -1,8 +1,10 @@
 import { useActionState, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from '../hooks/useTranslation';
 
 function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [vrstaGreske, setVrstaGreske] = useState("")
   const [state, formAction] = useActionState(handleSubmit, {
     error: null,
@@ -51,24 +53,24 @@ function Login() {
       <main className="page__main page__main--auth">
         <div className="auth">
           <form className="auth__card" action={formAction}>
-            <h1 className="auth__title">LOGIN</h1>
+            <h1 className="auth__title">{t('nav.login').toUpperCase()}</h1>
 
             {state.error && (
               <p className="auth__error" role="alert">
-                {state.error}
+                {vrstaGreske === 'email' ? t('auth.wrongEmail') : t('auth.wrongPassword')}
               </p>
             )}
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="login-email">
-                Email
+                {t('auth.email')}
               </label>
               <input
                 id="login-email"
                 className={`auth__input ${vrstaGreske === "email" ? "input-danger" : ""}`}
                 type="email"
                 name="email"
-                placeholder={vrstaGreske === "email" ? "pogresan email" : "you@example.com"}
+                placeholder={vrstaGreske === "email" ? t('auth.wrongEmail') : "you@example.com"}
                 autoComplete="email"
                 defaultValue={vrstaGreske === "password" ? state.values.email : ""} //ako je greska u lozinci, ostaje mejl na mesto, ako nije onda se brise
               />
@@ -76,7 +78,7 @@ function Login() {
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="login-password">
-                Password
+                {t('auth.password')}
               </label>
               <input
                 id="login-password"
@@ -89,13 +91,13 @@ function Login() {
             </div>
 
             <button type="submit" className="btn btn--primary auth__submit">
-              SIGN IN
+              {t('auth.signIn').toUpperCase()}
             </button>
 
             <p className="auth__switch">
-              Don&apos;t have an account?{' '}
+              {t('auth.noAccount')}{' '}
               <Link to="/register" className="auth__switch-link">
-                Register
+                {t('nav.register')}
               </Link>
             </p>
           </form>

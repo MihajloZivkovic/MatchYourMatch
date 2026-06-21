@@ -1,0 +1,10 @@
+.language-switcher { position: relative; }
+.language-switcher__button { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface-soft); color: var(--text); transition: var(--transition); }
+.language-switcher__button:hover { border-color: rgba(244,163,0,.34); color: var(--accent); box-shadow: 0 0 18px rgba(244,163,0,.12); }
+.language-switcher__menu { position: absolute; top: calc(100% + .5rem); right: 0; z-index: 1010; min-width: 155px; padding: .35rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-surface) 96%, transparent); box-shadow: var(--elev-3); backdrop-filter: blur(16px); }
+.language-switcher__menu button { width: 100%; min-height: 36px; display: flex; align-items: center; gap: .65rem; padding: 0 .7rem; border-radius: 7px; color: var(--text-muted); font-size: .78rem; font-weight: 700; text-align: left; }
+.language-switcher__menu button span { font-weight: 500; }
+.language-switcher__menu button:hover, .language-switcher__menu .language-switcher__active { color: var(--accent); background: rgba(244,163,0,.1); }
+.language-switcher--compact { width: 100%; }
+.language-switcher--compact .language-switcher__button { width: 36px; padding: 0; }
+.language-switcher--compact .language-switcher__menu { position: static; margin-top: .35rem; width: 100%; box-shadow: none; }

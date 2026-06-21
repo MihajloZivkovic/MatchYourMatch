@@ -23,6 +23,7 @@ import Profile from "./pages/app/Profile";
 import SearchResults from "./pages/app/SearchResults";
 import PublicProfile from "./pages/app/PublicProfile";
 import Chat from "./pages/app/Chat";
+import Settings from "./pages/app/Settings";
 import "./App.css";
 
 const USER_ID_CLAIMS = [
@@ -45,6 +46,13 @@ function App() {
     eventsJoinedCount: null,
     profileScorePercent: null,
     responseRatePercent: null,
+    fullName: "",
+    showFullName: false,
+    dateOfBirth: "",
+    showAge: false,
+    age: null,
+    littleThings: [],
+    currentlyExploring: [],
   });
   const exitTimerRef = useRef(null);
   const navigate = useNavigate();
@@ -128,6 +136,13 @@ function App() {
             eventsJoinedCount: null,
             profileScorePercent: null,
             responseRatePercent: null,
+            fullName: "",
+            showFullName: false,
+            dateOfBirth: "",
+            showAge: false,
+            age: null,
+            littleThings: [],
+            currentlyExploring: [],
           });
         }
         return;
@@ -153,6 +168,13 @@ function App() {
             eventsJoinedCount: data.eventsJoinedCount ?? null,
             profileScorePercent: data.profileScorePercent ?? null,
             responseRatePercent: data.responseRatePercent ?? null,
+            fullName: data.fullName ?? "",
+            showFullName: Boolean(data.showFullName),
+            dateOfBirth: data.dateOfBirth ?? "",
+            showAge: Boolean(data.showAge),
+            age: data.age ?? null,
+            littleThings: Array.isArray(data.littleThings) ? data.littleThings : [],
+            currentlyExploring: Array.isArray(data.currentlyExploring) ? data.currentlyExploring : [],
           });
         }
       } catch (error) {
@@ -231,6 +253,7 @@ function App() {
           <Route path="search" element={<SearchResults />} />
           <Route path="users/:id" element={<PublicProfile />} />
           <Route path="chat" element={<Chat />} />
+          <Route path="settings" element={<Settings />} />
           <Route
             path="profile"
             element={<Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>}

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import './QuickMatch.css';
+import { useTranslation } from '../../hooks/useTranslation';
+import UserAvatar from '../../components/UserAvatar';
+import UserActionsMenu from '../../components/UserActionsMenu';
 
 const initialForm = {
   startTime: '',
@@ -62,26 +65,30 @@ const getInitials = (name) => {
   return name.trim().slice(0, 2).toUpperCase();
 };
 
-const mapMatchToProfile = (match) => {
+const mapMatchToProfile = (match, t) => {
   const overlapMinutes = match.overlapMinutes ?? 0;
 
   return {
     id: match.id,
+    userId: match.userId,
+    username: match.username,
     name: match.username,
     initials: getInitials(match.username),
-    location: match.location || 'Unknown location',
+    profilePicture: match.profilePicture,
+    location: match.location || t('quick.unknownLocation'),
     timeRange: `${match.startTime} - ${match.endTime}`,
     message: match.description,
     interests: [
       match.activityName,
       match.activityCategoryName,
-      `${overlapMinutes} min overlap`,
+      t('quick.overlap', { count: overlapMinutes }),
     ].filter(Boolean),
     compatibility: Math.min(99, 60 + Math.floor(overlapMinutes / 5)),
   };
 };
 
 function QuickMatch() {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState('setup');
   const [form, setForm] = useState(initialForm);
   const [activities, setActivities] = useState([]);
@@ -92,6 +99,7 @@ function QuickMatch() {
   const [stack, setStack] = useState([]);
   const [animating, setAnimating] = useState(null);
   const [selectedQuickTime, setSelectedQuickTime] = useState('');
+  const [matchError, setMatchError] = useState('');
 
   const top = stack[0];
   const remaining = stack.length;
@@ -100,17 +108,17 @@ function QuickMatch() {
     () => [
       {
         id: 'now-1h',
-        label: 'Now + 1h',
+        label: t('quick.nowOneHour'),
         getTimes: () => getRelativeTimeWindow(60),
       },
       {
         id: 'next-2h',
-        label: 'Next 2h',
+        label: t('quick.nextTwoHours'),
         getTimes: () => getRelativeTimeWindow(120),
       },
       ...fixedQuickTimes,
     ],
-    [],
+    [t],
   );
 
   const groupedActivities = useMemo(
@@ -178,13 +186,13 @@ function QuickMatch() {
     };
 
     loadActivities();
-  }, []);
+  }, [t]);
 
   const validateForm = () => {
-    if (!form.startTime) return 'Choose your available start time.';
-    if (!form.endTime) return 'Choose your available end time.';
-    if (!form.activityId) return 'Choose the activity you want.';
-    if (form.startTime >= form.endTime) return 'Start time must be before end time.';
+    if (!form.startTime) return t('quick.validationStart');
+    if (!form.endTime) return t('quick.validationEnd');
+    if (!form.activityId) return t('quick.validationActivity');
+    if (form.startTime >= form.endTime) return t('quick.validationOrder');
     return '';
   };
 
@@ -243,7 +251,7 @@ function QuickMatch() {
       }
 
       const data = await response.json();
-      setStack(data.map(mapMatchToProfile));
+      setStack(data.map((match) => mapMatchToProfile(match, t)));
       setAnimating(null);
       setPhase('matching');
     } catch (error) {
@@ -259,8 +267,23 @@ function QuickMatch() {
     setAnimating(null);
   };
 
-  const handleAction = (action) => {
+  const handleAction = async (action) => {
     if (!top || animating) return;
+    setMatchError('');
+
+    if (action === 'match') {
+      try {
+        const response = await fetch(`/api/QuickMatch/${top.id}/connect`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        if (!response.ok) throw new Error(await response.text() || 'Quick Match could not be created.');
+      } catch (error) {
+        setMatchError(error.message || 'Quick Match could not be created.');
+        return;
+      }
+    }
+
     setAnimating(action);
     setTimeout(() => {
       setStack((prev) => prev.slice(1));
@@ -278,12 +301,12 @@ function QuickMatch() {
 
         <section className="quick-match__setup">
           <form className="quick-match__setup-card" onSubmit={handleSubmit}>
-            <h1 className="quick-match__setup-title">Quick Match</h1>
-            <p className="quick-match__setup-text">Set your window and activity for today.</p>
+            <h1 className="quick-match__setup-title">{t('quick.title')}</h1>
+            <p className="quick-match__setup-text">{t('quick.subtitle')}</p>
 
             <div className="quick-match__time-section">
-              <span className="quick-match__label">When are you free?</span>
-              <div className="quick-match__time-options" aria-label="Quick time windows">
+              <span className="quick-match__label">{t('quick.free')}</span>
+              <div className="quick-match__time-options" aria-label={t('quick.windows')}>
                 {quickTimeOptions.map((option) => (
                   <button
                     key={option.id}
@@ -301,7 +324,7 @@ function QuickMatch() {
 
             <div className="quick-match__time-grid">
               <label className="quick-match__field">
-                <span className="quick-match__label">Start time</span>
+                <span className="quick-match__label">{t('quick.start')}</span>
                 <input
                   className="quick-match__input quick-match__input--time"
                   type="time"
@@ -313,7 +336,7 @@ function QuickMatch() {
               </label>
 
               <label className="quick-match__field">
-                <span className="quick-match__label">End time</span>
+                <span className="quick-match__label">{t('quick.end')}</span>
                 <input
                   className="quick-match__input quick-match__input--time"
                   type="time"
@@ -326,7 +349,7 @@ function QuickMatch() {
             </div>
 
             <label className="quick-match__field">
-              <span className="quick-match__label">Activity</span>
+              <span className="quick-match__label">{t('quick.activity')}</span>
               <select
                 className="quick-match__select"
                 name="activityId"
@@ -336,10 +359,10 @@ function QuickMatch() {
                 required
               >
                 <option value="">
-                  {activitiesLoading && 'Loading activities...'}
-                  {!activitiesLoading && activitiesError && 'Activities unavailable'}
-                  {!activitiesLoading && !activitiesError && activities.length === 0 && 'No activities available'}
-                  {!activitiesLoading && !activitiesError && activities.length > 0 && 'Choose activity'}
+                  {activitiesLoading && t('quick.loadingActivities')}
+                  {!activitiesLoading && activitiesError && t('quick.unavailableActivities')}
+                  {!activitiesLoading && !activitiesError && activities.length === 0 && t('quick.noActivities')}
+                  {!activitiesLoading && !activitiesError && activities.length > 0 && t('quick.chooseActivity')}
                 </option>
                 {Object.entries(groupedActivities).map(([category, items]) => (
                   <optgroup key={category} label={category}>
@@ -354,13 +377,13 @@ function QuickMatch() {
             </label>
 
             <label className="quick-match__field">
-              <span className="quick-match__label">Message</span>
+              <span className="quick-match__label">{t('quick.message')}</span>
               <textarea
                 className="quick-match__textarea"
                 name="description"
                 value={form.description}
                 onChange={handleChange}
-                placeholder="Optional note"
+                placeholder={t('quick.optional')}
                 maxLength={500}
               />
             </label>
@@ -380,7 +403,7 @@ function QuickMatch() {
               className="quick-match__submit app-interactive"
               disabled={loading || activitiesLoading || !!activitiesError || activities.length === 0}
             >
-              {loading ? 'Finding matches...' : 'Find matches'}
+              {loading ? t('quick.finding') : t('quick.find')}
             </button>
           </form>
         </section>
@@ -396,10 +419,10 @@ function QuickMatch() {
           <span className="quick-match__vignette" />
         </div>
         <div className="app-empty quick-match__empty-wrap">
-          <p className="app-empty__title">You&apos;re all caught up</p>
-          <p className="app-empty__text">No more matches for this time window.</p>
+          <p className="app-empty__title">{t('quick.caughtUp')}</p>
+          <p className="app-empty__text">{t('quick.noMore')}</p>
           <button type="button" className="quick-match__back app-interactive" onClick={returnToSetup}>
-            Try another time
+            {t('quick.tryAnother')}
           </button>
         </div>
       </div>
@@ -413,7 +436,8 @@ function QuickMatch() {
         <span className="quick-match__vignette" />
       </div>
 
-      <p className="quick-match__status">{remaining} profiles remaining today</p>
+      <p className="quick-match__status">{t('quick.remaining', { count: remaining })}</p>
+      {matchError && <p className="quick-match__error">{matchError}</p>}
 
       <div className="quick-match__stack">
         {stack
@@ -430,11 +454,16 @@ function QuickMatch() {
                 }${isTop && animating === 'match' ? ' quick-match__card--match' : ''}`}
                 style={{ '--depth': depth, zIndex: i + 1 }}
               >
+                {isTop && <UserActionsMenu className="quick-match__user-actions" userId={profile.userId}
+                  username={profile.username} context="matchCard"
+                  onHidden={(id) => setStack(current => current.filter(item => item.userId !== id))}
+                  onBlocked={(id) => setStack(current => current.filter(item => item.userId !== id))}/>} 
                 <span className="quick-match__compat">
                   <span className="quick-match__compat-val">{profile.compatibility}%</span>
-                  <span className="quick-match__compat-label">match</span>
+                  <span className="quick-match__compat-label">{t('quick.match')}</span>
                 </span>
-                <div className="quick-match__avatar">{profile.initials}</div>
+                <UserAvatar className="quick-match__avatar" profilePicture={profile.profilePicture}
+                  initials={profile.initials} alt="" />
                 <h2 className="quick-match__name">{profile.name}</h2>
                 <p className="quick-match__meta">
                   {profile.location} - {profile.timeRange}
@@ -462,7 +491,7 @@ function QuickMatch() {
         <button
           type="button"
           className="quick-match__btn quick-match__btn--skip app-interactive"
-          aria-label="Skip"
+          aria-label={t('quick.skip')}
           onClick={() => handleAction('skip')}
           disabled={!!animating}
         >
@@ -471,7 +500,7 @@ function QuickMatch() {
         <button
           type="button"
           className="quick-match__btn quick-match__btn--match app-interactive"
-          aria-label="Match"
+          aria-label={t('quick.title')}
           onClick={() => handleAction('match')}
           disabled={!!animating}
         >

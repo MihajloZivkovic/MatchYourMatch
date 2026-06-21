@@ -6,8 +6,10 @@ import ConfirmModal from "../ConfirmModal";
 import MessageReactions from "./MessageReactions";
 import { useChat } from "../../context/ChatContext";
 import "./FloatingChat.css";
+import { useTranslation } from '../../hooks/useTranslation';
 
 function FloatingChat() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [draft, setDraft] = useState("");
@@ -277,7 +279,7 @@ function FloatingChat() {
       <button
         type="button"
         className="floating-chat__launcher"
-        aria-label="Open chat"
+        aria-label={t('chatUi.openChat')}
         onClick={() => {
           setOpen(true);
           setMinimized(false);
@@ -307,7 +309,7 @@ function FloatingChat() {
             <small>
               {activeConversation?.isGroup && activeConversation.memberCount
                 ? `${activeConversation.memberCount} members`
-                : activeConversation ? "Messages" : "No conversations"}
+                : activeConversation ? t('chat.messages') : t('chat.noConversations')}
             </small>
           </span>
         </button>
@@ -315,7 +317,7 @@ function FloatingChat() {
           <button type="button" aria-label="Minimize chat" onClick={() => setMinimized((value) => !value)}>
             <Minus size={17} />
           </button>
-          <button type="button" aria-label="Close chat" onClick={() => setOpen(false)}>
+          <button type="button" aria-label={t('chatUi.closeChat')} onClick={() => setOpen(false)}>
             <X size={17} />
           </button>
         </div>
@@ -357,10 +359,10 @@ function FloatingChat() {
               onScroll={handleMessagesScroll}
             >
               {loading && messages.length === 0 && (
-                <div className="floating-chat__state">Loading messages...</div>
+                <div className="floating-chat__state">{t('chat.loadingMessages')}</div>
               )}
               {!loading && !activeConversation && (
-                <div className="floating-chat__state">No conversations yet.</div>
+                <div className="floating-chat__state">{t('chat.noConversations')}</div>
               )}
               {!loading &&
                 messages.map((message) => {
@@ -376,13 +378,13 @@ function FloatingChat() {
                     >
                       {activeConversation?.isGroup && !mine && !message.isDeletedForEveryone && (
                         <span className="floating-chat__message-sender">
-                          {message.senderDisplayName || message.senderUsername || "Member"}
+                          {message.senderDisplayName || message.senderUsername || t('chatUi.member')}
                         </span>
                       )}
-                      <p>{message.isDeletedForEveryone ? "This message was deleted" : message.displayBody ?? message.body}</p>
+                      <p>{message.isDeletedForEveryone ? t('chatUi.deleted') : message.displayBody ?? message.body}</p>
                       <div className="floating-chat__message-meta">
                         <span>{formatTime(message.createdAt)}</span>
-                        {message.editedAt && !message.isDeletedForEveryone && <span title={formatTime(message.editedAt)}>edited</span>}
+                        {message.editedAt && !message.isDeletedForEveryone && <span title={formatTime(message.editedAt)}>{t('chat.edited')}</span>}
                         {mine && (
                           <MessageStatusIcon message={message} />
                         )}
@@ -408,7 +410,7 @@ function FloatingChat() {
                     onClick={handleRetry}
                     disabled={loadingConversations}
                   >
-                    Retry
+                    {t('common.retry')}
                   </button>
                 </div>
               )}
@@ -420,7 +422,7 @@ function FloatingChat() {
             <form className="floating-chat__composer" onSubmit={handleSend}>
               {editingMessage && (
                 <div className="floating-chat__editing">
-                  <span>Editing message</span>
+                  <span>{t('chat.editing')}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -428,23 +430,23 @@ function FloatingChat() {
                       setDraft("");
                     }}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               )}
               <input
                 value={draft}
                 onChange={handleDraftChange}
-                placeholder="Message..."
+                placeholder={t('chat.messagePlaceholder')}
                 maxLength={2000}
               />
-              <button type="submit" aria-label="Send message" disabled={!draft.trim()}>
+              <button type="submit" aria-label={t('chatUi.sendMessage')} disabled={!draft.trim()}>
                 <Send size={16} />
               </button>
             </form>
           ) : (
             <div className="floating-chat__disabled">
-              {canSendMessages ? "Open a profile to start chatting." : "Only ordinary users can send messages."}
+              {canSendMessages ? t('chatUi.openProfile') : t('chatUi.usersOnly')}
             </div>
           )}
 
@@ -467,7 +469,7 @@ function FloatingChat() {
         title={confirmDialog?.title}
         message={confirmDialog?.body}
         confirmText={confirmDialog?.confirmText}
-        cancelText="Cancel"
+        cancelText={t('common.cancel')}
         variant="danger"
         isLoading={confirmLoading}
         onConfirm={handleConfirmDelete}
@@ -479,6 +481,7 @@ function FloatingChat() {
 
 function MessageContextMenu({ menu, currentUserId, onEdit, onDeleteForMe, onDeleteForEveryone }) {
   const isMine = isMessageMine(menu.message, currentUserId);
+  const { t } = useTranslation();
 
   return createPortal(
     <div
@@ -488,15 +491,15 @@ function MessageContextMenu({ menu, currentUserId, onEdit, onDeleteForMe, onDele
     >
       {isMine && !menu.message.isDeletedForEveryone && (
         <button type="button" onClick={() => onEdit(menu.message)}>
-          Edit message
+          {t('chat.editMessage')}
         </button>
       )}
       <button type="button" onClick={() => onDeleteForMe(menu.message)}>
-        Delete for myself
+        {t('chat.deleteSelf')}
       </button>
       {isMine && !menu.message.isDeletedForEveryone && (
         <button type="button" className="chat-message-menu__danger" onClick={() => onDeleteForEveryone(menu.message)}>
-          Delete for everyone
+          {t('chat.deleteEveryone')}
         </button>
       )}
     </div>,

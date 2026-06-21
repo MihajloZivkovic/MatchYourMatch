@@ -14,6 +14,12 @@
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public string LocationPrivacy { get; set; } = "CityOnly";
+        public string? FullName { get; set; }
+        public bool ShowFullName { get; set; }
+        public DateOnly? DateOfBirth { get; set; }
+        public bool ShowAge { get; set; }
+        public string? LittleThingsJson { get; set; }
+        public string? ExploringTagsJson { get; set; }
         public User User { get; set; } = null!;
     }
 }

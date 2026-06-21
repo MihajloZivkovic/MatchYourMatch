@@ -35,6 +35,17 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<AuthInfoDto> RegisterAsync(RegisterDto dto)
         {
+            var fullName = dto.FullName?.Trim();
+            if (string.IsNullOrWhiteSpace(fullName))
+                throw new Exception("Full name is required.");
+
+            if (!dto.DateOfBirth.HasValue)
+                throw new Exception("Date of birth is required.");
+
+            var latestAllowedDate = DateOnly.FromDateTime(DateTime.Today).AddYears(-16);
+            if (dto.DateOfBirth.Value > latestAllowedDate)
+                throw new Exception("You must be at least 16 years old.");
+
             if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
                 throw new Exception("Email u upotrebi.");
 
@@ -44,6 +55,14 @@ namespace MatchYourMatch.WebAPI.Services
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 Role = dto.Role
+            };
+
+            user.Profile = new UserProfile
+            {
+                FullName = fullName,
+                DateOfBirth = dto.DateOfBirth,
+                ShowFullName = false,
+                ShowAge = false
             };
 
             _context.Users.Add(user);

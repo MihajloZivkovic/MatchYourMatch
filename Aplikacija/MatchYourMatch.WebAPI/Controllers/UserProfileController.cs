@@ -45,7 +45,8 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
-                var profile = await _service.GetPublicProfileAsync(id);
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var profile = await _service.GetPublicProfileAsync(id, currentUserId);
                 return Ok(profile);
             }
             catch (Exception ex)
@@ -93,8 +94,23 @@ namespace MatchYourMatch.WebAPI.Controllers
             try
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                await _service.EditProfileAsync(userId, dto);
-                return Ok("Profil azuriran");
+                var profile = await _service.EditProfileAsync(userId, dto);
+                return Ok(profile);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("me/tags")]
+        public async Task<IActionResult> UpdateProfileTags(UpdateProfileTagsDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                return Ok(await _service.UpdateProfileTagsAsync(userId, dto));
             }
             catch (Exception ex)
             {

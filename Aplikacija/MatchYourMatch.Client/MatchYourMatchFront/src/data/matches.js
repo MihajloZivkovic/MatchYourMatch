@@ -27,18 +27,7 @@ export const CURRENT_USER = {
   location: 'Brooklyn, NY',
   completion: 78,
   personalityType: 'Creative Energy',
-  badges: ['Deep Thinker', 'Music Lover', 'Night Owl'],
 };
-
-export const LITTLE_THINGS = [
-  'Always replies late at night',
-  'Makes playlists for everything',
-  'Loves rainy weather',
-  'Can talk about movies for hours',
-  'Probably ordering iced coffee',
-  'Overthinks text messages',
-  'Spontaneous weekend plans >',
-];
 
 export const suggestedConnections = matches.map((m, i) => ({
   ...m,

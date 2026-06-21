@@ -1,6 +1,9 @@
-import { MapPin, Clock } from 'lucide-react';
+import { MapPin, Clock, UserPlus } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
+import UserAvatar from './UserAvatar';
 
-function EventCard({ event, style, mini = false, onJoin, onOpen }) {
+function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
+  const { t } = useTranslation();
   const {
     title,
     category,
@@ -29,7 +32,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
           }
         }}
       >
-        <span className="event-card__category">{category}</span>
+        <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <h4 className="event-card__title event-card__title--mini">{title}</h4>
         <p className="event-card__meta-mini">
           <Clock size={12} /> {date} · {time}
@@ -53,7 +56,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
       }}
     >
       <div className="event-card__top">
-        <span className="event-card__category">{category}</span>
+        <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <span className="event-card__date-pill">{date}</span>
       </div>
       <h3 className="event-card__title">{title}</h3>
@@ -68,28 +71,43 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
       </p>
       <div className="event-card__footer">
         <div className="event-card__attendees">
-          {attendees.map((initial, i) => (
-            <span
-              key={initial + i}
+          {attendees.map((attendee, i) => {
+            const avatar = typeof attendee === 'string'
+              ? { initials: attendee }
+              : attendee;
+
+            return (
+            <UserAvatar
+              key={avatar.userId || `${avatar.initials}-${i}`}
               className="event-card__attendee"
               style={{ zIndex: attendees.length - i }}
-            >
-              {initial}
-            </span>
-          ))}
-          {extra > 0 && <span className="event-card__more">+{extra} more</span>}
+              profilePicture={avatar.profilePicture}
+              initials={avatar.initials}
+              alt={avatar.username || ''}
+            />
+            );
+          })}
+          {extra > 0 && <span className="event-card__more">{t('events.more', { count: extra })}</span>}
         </div>
-        <button
-          type="button"
-          className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
-          onClick={(clickEvent) => {
-            clickEvent.stopPropagation();
-            onJoin?.();
-          }}
-          disabled={isJoinedByCurrentUser}
-        >
-          {isJoinedByCurrentUser ? 'JOINED' : 'JOIN EVENT'}
-        </button>
+        <div className="event-card__actions">
+          {isJoinedByCurrentUser && onInvite && (
+            <button type="button" className="event-card__invite" onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onInvite();
+            }}><UserPlus size={14} />{t('notifications.invite').toUpperCase()}</button>
+          )}
+          <button
+            type="button"
+            className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onJoin?.();
+            }}
+            disabled={isJoinedByCurrentUser}
+          >
+            {isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
+          </button>
+        </div>
       </div>
     </article>
   );

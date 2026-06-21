@@ -164,6 +164,9 @@ button.search-results__card:hover {
   font-weight: 900;
 }
 
+.search-results__avatar { overflow: hidden; }
+.search-results__avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+
 .search-results__content {
   min-width: 0;
   display: grid;
@@ -197,3 +200,6 @@ button.search-results__card:hover {
     width: 100%;
   }
 }
+.search-results__person-wrap { position:relative; }
+.search-results__person-wrap > .user-actions { position:absolute; top:.65rem; right:.65rem; }
+.search-results__person-wrap .search-results__card { width:100%; padding-right:3.2rem; }

@@ -1,4 +1,5 @@
 using MatchYourMatch.WebAPI.DTOs.Match;
+using MatchYourMatch.WebAPI.DTOs.Chat;
 
 namespace MatchYourMatch.WebAPI.Services.Interfaces
 {
@@ -17,5 +18,7 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<List<QuickMatchPostDto>> GetTodayPostsAsync(
             int userId
         );
+
+        Task<ChatConversationDto> ConnectAsync(int userId, int postId);
     }
 }

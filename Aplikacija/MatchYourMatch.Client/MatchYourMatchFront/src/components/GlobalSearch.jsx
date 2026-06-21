@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Loader2, User, CalendarDays, Sparkles, Hash } from "lucide-react";
 import "./GlobalSearch.css";
+import { useTranslation } from "../hooks/useTranslation";
+import UserAvatar from './UserAvatar';
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
@@ -21,6 +23,7 @@ function GlobalSearch({ onNavigate }) {
   const [open, setOpen] = useState(false);
   const searchRef = useRef(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const trimmedQuery = query.trim();
   const hasResults = useMemo(
@@ -82,7 +85,7 @@ function GlobalSearch({ onNavigate }) {
 
         if (response.status === 401 || response.status === 403) {
           setResults(emptyResults);
-          setError("Please log in again");
+          setError(t('search.loginAgain'));
           return;
         }
 
@@ -94,7 +97,7 @@ function GlobalSearch({ onNavigate }) {
             body,
           });
           setResults(emptyResults);
-          setError("Search could not be loaded");
+          setError(t('search.unavailable'));
           return;
         }
 
@@ -109,7 +112,7 @@ function GlobalSearch({ onNavigate }) {
         if (err.name !== "AbortError") {
           console.error("[GlobalSearch] request error", err);
           setResults(emptyResults);
-          setError("Search could not be loaded");
+          setError(t('search.unavailable'));
         }
       } finally {
         setLoading(false);
@@ -120,7 +123,7 @@ function GlobalSearch({ onNavigate }) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [trimmedQuery]);
+  }, [t, trimmedQuery]);
 
   const handleNavigate = (path) => {
     setOpen(false);
@@ -162,8 +165,8 @@ function GlobalSearch({ onNavigate }) {
         <input
           type="search"
           value={query}
-          placeholder="Search people, events, coffee..."
-          aria-label="Global search"
+          placeholder={t('search.placeholder')}
+          aria-label={t('search.label')}
           onFocus={() => {
             if (trimmedQuery.length >= MIN_QUERY_LENGTH) {
               setOpen(true);
@@ -176,23 +179,25 @@ function GlobalSearch({ onNavigate }) {
 
       {open && (
         <div className="global-search__dropdown" role="listbox">
-          {loading && <div className="global-search__state">Searching...</div>}
+          {loading && <div className="global-search__state">{t('search.searching')}</div>}
 
           {!loading && error && <div className="global-search__state global-search__state--error">{error}</div>}
 
           {!loading && !error && !hasResults && (
-            <div className="global-search__state">No results found</div>
+            <div className="global-search__state">{t('search.noResults')}</div>
           )}
 
           {!loading &&
             !error &&
-            renderSection("People", results.people, <User size={14} />, (person) => (
+            renderSection(t('search.people'), results.people, <User size={14} />, (person) => (
               <button
                 type="button"
-                className="global-search__item"
+                className="global-search__item global-search__item--person"
                 key={`person-${person.id}`}
                 onClick={() => handleNavigate(`/app/users/${person.id}`)}
               >
+                <UserAvatar className="global-search__avatar" profilePicture={person.profilePicture}
+                  initials={(person.displayName || person.username).slice(0, 2).toUpperCase()} alt="" />
                 <span className="global-search__item-main">{person.displayName || person.username}</span>
                 <span className="global-search__item-meta">
                   @{person.username}
@@ -206,7 +211,7 @@ function GlobalSearch({ onNavigate }) {
 
           {!loading &&
             !error &&
-            renderSection("Events", results.events, <CalendarDays size={14} />, (event) => (
+            renderSection(t('search.events'), results.events, <CalendarDays size={14} />, (event) => (
               <button
                 type="button"
                 className="global-search__item"
@@ -222,7 +227,7 @@ function GlobalSearch({ onNavigate }) {
 
           {!loading &&
             !error &&
-            renderSection("Activities", results.activities, <Sparkles size={14} />, (activity) => (
+            renderSection(t('search.activities'), results.activities, <Sparkles size={14} />, (activity) => (
               <button
                 type="button"
                 className="global-search__item"
@@ -236,7 +241,7 @@ function GlobalSearch({ onNavigate }) {
 
           {!loading &&
             !error &&
-            renderSection("Interests", results.interests, <Hash size={14} />, (interest) => (
+            renderSection(t('search.interests'), results.interests, <Hash size={14} />, (interest) => (
               <button
                 type="button"
                 className="global-search__item global-search__item--static"

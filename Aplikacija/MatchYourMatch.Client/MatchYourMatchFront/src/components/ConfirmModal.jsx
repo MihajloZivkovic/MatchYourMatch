@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import "./ConfirmModal.css";
+import { useTranslation } from '../hooks/useTranslation';
 
 function ConfirmModal({
   isOpen,
@@ -14,6 +15,7 @@ function ConfirmModal({
   onConfirm,
   onCancel,
 }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -67,7 +69,7 @@ function ConfirmModal({
             disabled={isLoading}
             onClick={onConfirm}
           >
-            {isLoading ? "Working..." : confirmText}
+            {isLoading ? t('common.working') : confirmText}
           </button>
         </div>
       </section>

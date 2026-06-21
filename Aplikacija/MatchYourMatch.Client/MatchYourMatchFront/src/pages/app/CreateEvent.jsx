@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import './CreateEvent.css';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const CATEGORIES = ['Study', 'Gaming', 'Coffee', 'Social', 'Sport'];
 
 function CreateEvent() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [category, setCategory] = useState('Study');
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -57,10 +59,10 @@ function CreateEvent() {
       <div className="page-fade-in create-event">
         <div className="create-event__card create-event__card--success">
           <CheckCircle size={56} className="create-event__check" />
-          <h2>Event Created!</h2>
-          <p>Your community event is now live.</p>
+          <h2>{t('events.created')}</h2>
+          <p>{t('events.live')}</p>
           <Link to="/app/events" className="app-btn-pill">
-            VIEW EVENTS
+            {t('events.viewEvents').toUpperCase()}
           </Link>
         </div>
       </div>
@@ -71,19 +73,19 @@ function CreateEvent() {
     <div className="page-fade-in create-event">
       <form className="create-event__card" onSubmit={handlePublish}>
         <header className="create-event__header">
-          <h1>CREATE EVENT</h1>
-          <p>Bring MYM people together for a community meetup.</p>
+          <h1>{t('events.createTitle').toUpperCase()}</h1>
+          <p>{t('events.createSubtitle')}</p>
         </header>
 
         {error && <div className="create-event__error">{error}</div>}
 
         <label className="create-event__field">
-          <span>Event Title</span>
-          <input type="text" name="title" required placeholder="Coffee & coding session" />
+          <span>{t('events.eventTitle')}</span>
+          <input type="text" name="title" required placeholder={t('events.titlePlaceholder')} />
         </label>
 
         <fieldset className="create-event__field">
-          <span>Category</span>
+          <span>{t('events.category')}</span>
           <div className="create-event__pills">
             {CATEGORIES.map((cat) => (
               <button
@@ -92,7 +94,7 @@ function CreateEvent() {
                 className={`create-event__pill${category === cat ? ' create-event__pill--active' : ''}`}
                 onClick={() => setCategory(cat)}
               >
-                {cat}
+                {t(`events.${cat.toLowerCase()}`)}
               </button>
             ))}
           </div>
@@ -100,41 +102,41 @@ function CreateEvent() {
 
         <div className="create-event__row">
           <label className="create-event__field">
-            <span>Date</span>
+            <span>{t('events.date')}</span>
             <input type="date" name="date" required />
           </label>
           <label className="create-event__field">
-            <span>Time</span>
+            <span>{t('events.time')}</span>
             <input type="time" name="time" required />
           </label>
         </div>
 
         <label className="create-event__field">
-          <span>Location</span>
-          <input type="text" name="location" required placeholder="Nis, Serbia" />
+          <span>{t('events.location')}</span>
+          <input type="text" name="location" required placeholder={t('events.locationPlaceholder')} />
         </label>
 
         <label className="create-event__field">
-          <span>Max Attendees</span>
+          <span>{t('events.maxAttendees')}</span>
           <input type="number" name="maxAttendees" min="2" defaultValue="10" />
         </label>
 
         <label className="create-event__field">
-          <span>Description</span>
+          <span>{t('events.description')}</span>
           <textarea
             name="description"
             rows={4}
             required
-            placeholder="What should people expect?"
+            placeholder={t('events.descriptionPlaceholder')}
           />
         </label>
 
         <div className="create-event__actions">
           <button type="button" className="create-event__cancel" onClick={() => navigate('/app/events')}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className="app-btn-pill" disabled={submitting}>
-            {submitting ? 'PUBLISHING...' : 'PUBLISH EVENT'}
+            {submitting ? t('events.publishing').toUpperCase() : t('events.publish').toUpperCase()}
           </button>
         </div>
       </form>

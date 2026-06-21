@@ -3,6 +3,7 @@ using MatchYourMatch.WebAPI.DTOs.Search;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace MatchYourMatch.WebAPI.Controllers
 {
@@ -33,8 +34,9 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
 
             var normalizedQuery = trimmedQuery.ToLower();
+            var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            response.People = await SearchCategory("people", () => SearchPeople(normalizedQuery));
+            response.People = await SearchCategory("people", () => SearchPeople(normalizedQuery, currentUserId));
             response.Events = await SearchCategory("events", () => SearchEvents(normalizedQuery));
             response.Activities = await SearchCategory("activities", () => SearchActivities(normalizedQuery));
             response.Interests = await SearchCategory("interests", () => SearchInterests(normalizedQuery));
@@ -55,14 +57,17 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        private async Task<List<SearchPersonDto>> SearchPeople(string query)
+        private async Task<List<SearchPersonDto>> SearchPeople(string query, int currentUserId)
         {
+            var excluded = _context.HiddenProfiles.Where(x => x.UserId == currentUserId).Select(x => x.HiddenUserId)
+                .Concat(_context.BlockedUsers.Where(x => x.BlockerUserId == currentUserId || x.BlockedUserId == currentUserId)
+                    .Select(x => x.BlockerUserId == currentUserId ? x.BlockedUserId : x.BlockerUserId));
             var users = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Profile)
                 .Include(u => u.UserInterests)
                     .ThenInclude(ui => ui.Interest)
-                .Where(u => u.IsActive)
+                .Where(u => u.IsActive && u.Id != currentUserId && !excluded.Contains(u.Id))
                 .ToListAsync();
 
             return users
@@ -76,6 +81,7 @@ namespace MatchYourMatch.WebAPI.Controllers
                     Id = x.User.Id,
                     Username = x.User.Username,
                     DisplayName = x.User.Username,
+                    ProfilePicture = x.User.Profile?.ProfilePicture,
                     Role = x.User.Role,
                     LocationDisplayName = GetPublicLocation(x.User.Profile),
                     Tags = x.User.UserInterests

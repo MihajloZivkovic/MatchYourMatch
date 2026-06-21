@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const preferenceFields = [
   {
@@ -40,6 +41,7 @@ const emptyPreferences = {
 };
 
 function DeepPreferencesSection() {
+  const { t } = useTranslation();
   const [preferences, setPreferences] = useState(emptyPreferences);
   const [draft, setDraft] = useState(emptyPreferences);
   const [editing, setEditing] = useState(false);
@@ -123,8 +125,8 @@ function DeepPreferencesSection() {
   if (loading) {
     return (
       <section className="profile__block profile__deep-card">
-        <h3>Deep Match Preferences</h3>
-        <p className="profile__section-note">Loading preferences...</p>
+        <h3>{t('profile.deepPreferences')}</h3>
+        <p className="profile__section-note">{t('profile.loadingPreferences')}</p>
       </section>
     );
   }
@@ -133,12 +135,12 @@ function DeepPreferencesSection() {
     <section className="profile__block profile__deep-card">
       <div className="profile__section-head">
         <div>
-          <h3>Deep Match Preferences</h3>
-          <p className="profile__section-note">Long-term answers used to sort your best matches.</p>
+          <h3>{t('profile.deepPreferences')}</h3>
+          <p className="profile__section-note">{t('profile.preferencesNote')}</p>
         </div>
         {!editing && (
           <button type="button" className="app-btn-pill app-btn-pill--outline" onClick={startEditing}>
-            Edit
+            {t('profileFields.edit')}
           </button>
         )}
       </div>
@@ -147,12 +149,12 @@ function DeepPreferencesSection() {
         <div className="profile__preference-form">
           {preferenceFields.map((field) => (
             <label key={field.name} className="profile__pref-field">
-              <span>{field.label}</span>
+              <span>{t(`profileFields.${field.name}`)}</span>
               <select name={field.name} value={draft[field.name] || ''} onChange={handleChange}>
-                <option value="">Choose option</option>
+                <option value="">{t('profile.chooseOption')}</option>
                 {field.options.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {t(`profileFields.${option}`)}
                   </option>
                 ))}
               </select>
@@ -160,22 +162,22 @@ function DeepPreferencesSection() {
           ))}
 
           <label className="profile__pref-field profile__pref-field--wide">
-            <span>Important values</span>
+            <span>{t('profile.importantValues')}</span>
             <input
               name="importantValues"
               value={draft.importantValues || ''}
               onChange={handleChange}
-              placeholder="Kindness, ambition, humor..."
+              placeholder={t('profileUi.valuesPlaceholder')}
             />
           </label>
 
           <label className="profile__pref-field profile__pref-field--wide">
-            <span>Lifestyle preferences</span>
+            <span>{t('profile.lifestyle')}</span>
             <input
               name="lifestylePreferences"
               value={draft.lifestylePreferences || ''}
               onChange={handleChange}
-              placeholder="Night owl, active weekends..."
+              placeholder={t('profileUi.lifestylePlaceholder')}
             />
           </label>
 
@@ -183,10 +185,10 @@ function DeepPreferencesSection() {
 
           <div className="profile__edit-actions">
             <button type="button" className="app-btn-pill" onClick={savePreferences} disabled={saving}>
-              {saving ? 'Saving...' : 'Save preferences'}
+              {saving ? t('common.loading') : t('common.save')}
             </button>
             <button type="button" className="profile__quiet-btn" onClick={cancelEditing}>
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -195,13 +197,13 @@ function DeepPreferencesSection() {
           <div className="profile__pref-grid">
             {preferenceFields.map((field) => (
               <div key={field.name} className="profile__pref-tile">
-                <span>{field.label}</span>
-                <strong>{preferences[field.name] || 'Not set'}</strong>
+                <span>{t(`profileFields.${field.name}`)}</span>
+                <strong>{preferences[field.name] ? t(`profileFields.${preferences[field.name]}`) : t('profileUi.notSet')}</strong>
               </div>
             ))}
           </div>
           <div className="profile__pills profile__pref-pills">
-            {(preferences.importantValues || 'Important values not set')
+            {(preferences.importantValues || t('profileUi.importantNotSet'))
               .split(',')
               .map((item) => item.trim())
               .filter(Boolean)

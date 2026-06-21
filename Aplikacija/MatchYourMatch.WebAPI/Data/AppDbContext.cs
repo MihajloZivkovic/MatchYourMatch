@@ -18,6 +18,13 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<Activity> Activities { get; set; }
         public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
         public DbSet<Follow> Follows { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<EventInvite> EventInvites { get; set; }
+        public DbSet<UserRating> UserRatings { get; set; }
+        public DbSet<UserMatch> UserMatches { get; set; }
+        public DbSet<UserAppSettings> UserAppSettings { get; set; }
+        public DbSet<BlockedUser> BlockedUsers { get; set; }
+        public DbSet<HiddenProfile> HiddenProfiles { get; set; }
         public DbSet<ChatConversation> ChatConversations { get; set; }
         public DbSet<ChatConversationMember> ChatConversationMembers { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
@@ -40,6 +47,11 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(u => u.DeepMatchPreference)
                 .WithOne(p => p.User)
                 .HasForeignKey<UserDeepMatchPreference>(p => p.UserId);
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.AppSettings).WithOne(s => s.User).HasForeignKey<UserAppSettings>(s => s.UserId);
+            modelBuilder.Entity<UserAppSettings>().HasIndex(s => s.UserId).IsUnique();
+            modelBuilder.Entity<BlockedUser>().HasIndex(x => new { x.BlockerUserId, x.BlockedUserId }).IsUnique();
+            modelBuilder.Entity<HiddenProfile>().HasIndex(x => new { x.UserId, x.HiddenUserId }).IsUnique();
 
             modelBuilder.Entity<UserProfile>()
                 .Property(p => p.LocationDisplayName)
@@ -61,6 +73,7 @@ namespace MatchYourMatch.WebAPI.Data
                 .Property(p => p.LocationPrivacy)
                 .IsRequired()
                 .HasMaxLength(30);
+            modelBuilder.Entity<UserProfile>().Property(p => p.FullName).HasMaxLength(160);
             
             // UserInterest
             modelBuilder.Entity<UserInterest>()
@@ -95,10 +108,54 @@ namespace MatchYourMatch.WebAPI.Data
             modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
 
             // Follow
+            modelBuilder.Entity<Follow>().ToTable("Follows");
             modelBuilder.Entity<Follow>()
                 .HasOne(u => u.Follower).WithMany(u => u.Following).HasForeignKey(f => f.FollowerId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<Follow>()
                 .HasOne(u => u.Following).WithMany(u => u.Followers).HasForeignKey(f => f.FollowingId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Follow>()
+                .HasIndex(f => new { f.FollowerId, f.FollowingId }).IsUnique();
+
+            // Notifications
+            modelBuilder.Entity<Notification>().Property(n => n.Type).HasMaxLength(50).IsRequired();
+            modelBuilder.Entity<Notification>().Property(n => n.Title).HasMaxLength(140).IsRequired();
+            modelBuilder.Entity<Notification>().Property(n => n.Message).HasMaxLength(500).IsRequired();
+            modelBuilder.Entity<Notification>().Property(n => n.RelatedEntityType).HasMaxLength(50);
+            modelBuilder.Entity<Notification>().HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User).WithMany(u => u.Notifications).HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.ActorUser).WithMany(u => u.TriggeredNotifications).HasForeignKey(n => n.ActorUserId).OnDelete(DeleteBehavior.SetNull);
+
+            // Event invites
+            modelBuilder.Entity<EventInvite>().Property(i => i.Status).HasMaxLength(20).IsRequired();
+            modelBuilder.Entity<EventInvite>().HasIndex(i => new { i.EventId, i.InviteeUserId, i.Status });
+            modelBuilder.Entity<EventInvite>()
+                .HasOne(i => i.Event).WithMany(e => e.Invites).HasForeignKey(i => i.EventId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventInvite>()
+                .HasOne(i => i.InviterUser).WithMany(u => u.SentEventInvites).HasForeignKey(i => i.InviterUserId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<EventInvite>()
+                .HasOne(i => i.InviteeUser).WithMany(u => u.ReceivedEventInvites).HasForeignKey(i => i.InviteeUserId).OnDelete(DeleteBehavior.Restrict);
+
+            // User ratings
+            modelBuilder.Entity<UserRating>().Property(r => r.Rating).HasPrecision(2, 1);
+            modelBuilder.Entity<UserRating>()
+                .HasIndex(r => new { r.RaterUserId, r.RatedUserId, r.EventId }).IsUnique();
+            modelBuilder.Entity<UserRating>()
+                .HasOne(r => r.RaterUser).WithMany(u => u.GivenRatings).HasForeignKey(r => r.RaterUserId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UserRating>()
+                .HasOne(r => r.RatedUser).WithMany(u => u.ReceivedRatings).HasForeignKey(r => r.RatedUserId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UserRating>()
+                .HasOne(r => r.Event).WithMany(e => e.UserRatings).HasForeignKey(r => r.EventId).OnDelete(DeleteBehavior.Cascade);
+
+            // Quick Match connections are separate from follows and chats.
+            modelBuilder.Entity<UserMatch>().Property(m => m.Source).HasMaxLength(30).IsRequired();
+            modelBuilder.Entity<UserMatch>()
+                .HasIndex(m => new { m.UserAId, m.UserBId, m.Source }).IsUnique();
+            modelBuilder.Entity<UserMatch>()
+                .HasOne(m => m.UserA).WithMany(u => u.MatchesAsUserA).HasForeignKey(m => m.UserAId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UserMatch>()
+                .HasOne(m => m.UserB).WithMany(u => u.MatchesAsUserB).HasForeignKey(m => m.UserBId).OnDelete(DeleteBehavior.Restrict);
 
             // Chat
             modelBuilder.Entity<ChatConversation>()

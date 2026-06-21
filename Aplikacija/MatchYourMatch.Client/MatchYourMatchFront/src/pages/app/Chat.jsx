@@ -3,9 +3,12 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Bell, BellOff, Camera, Check, CheckCheck, Clock, Crown, LogOut, MoreHorizontal, Paperclip, Search, Send, ShieldCheck, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
 import ConfirmModal from "../../components/ConfirmModal";
+import UserAvatar from "../../components/UserAvatar";
+import UserActionsMenu from "../../components/UserActionsMenu";
 import MessageReactions from "../../components/chat/MessageReactions";
 import { useChat } from "../../context/ChatContext";
 import "./Chat.css";
+import { useTranslation } from '../../hooks/useTranslation';
 
 const QUICK_STARTER_MESSAGES = [
   "Hello! What's up?",
@@ -57,6 +60,7 @@ async function prepareGroupPhoto(file) {
 }
 
 function Chat() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [filter, setFilter] = useState("");
   const [draft, setDraft] = useState("");
@@ -86,6 +90,7 @@ function Chat() {
   const [savingGroupName, setSavingGroupName] = useState(false);
   const [savingGroupPhoto, setSavingGroupPhoto] = useState(false);
   const [updatingMute, setUpdatingMute] = useState(false);
+  const [blockedUserIds, setBlockedUserIds] = useState(() => new Set());
   const groupPhotoInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const startedFromUrlRef = useRef("");
@@ -344,6 +349,9 @@ function Chat() {
     conversations[0] ||
     null;
   const messages = messagesByConversation[activeConversation?.conversationId] || [];
+  const activeUserBlocked = !isGroupConversation(activeConversation) &&
+    blockedUserIds.has(Number(activeConversation?.otherUserId));
+  const canSendActive = canSendMessages && !activeUserBlocked;
 
   useEffect(() => {
     setShowGroupSettings(false);
@@ -387,7 +395,7 @@ function Chat() {
     event.preventDefault();
     const text = draft.trim();
 
-    if (!text || !activeConversation || sending || !canSendMessages) {
+    if (!text || !activeConversation || sending || !canSendActive) {
       return;
     }
 
@@ -835,8 +843,8 @@ function Chat() {
         <aside className="chat-sidebar">
           <div className="chat-sidebar__head">
             <div>
-              <p>Messages</p>
-              <h1>Chat</h1>
+              <p>{t('chat.messages')}</p>
+              <h1>{t('chat.title')}</h1>
             </div>
             <span>{conversations.length}</span>
           </div>
@@ -846,32 +854,32 @@ function Chat() {
             <input
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
-              placeholder="Search chats..."
+              placeholder={`${t('chat.search')}...`}
             />
           </label>
 
           {canSendMessages && (
             <button type="button" className="chat-new-group" onClick={handleOpenGroupModal}>
               <Users size={16} aria-hidden="true" />
-              <span>+ New group</span>
+              <span>+ {t('chat.newGroup')}</span>
             </button>
           )}
 
           <div className="chat-list">
             {loadingConversations && conversations.length === 0 && (
-              <div className="chat-state">Loading conversations...</div>
+              <div className="chat-state">{t('chat.loadingConversations')}</div>
             )}
             {!loadingConversations && error && conversations.length === 0 && (
               <div className="chat-state chat-state--error">
                 <span>{error}</span>
                 <button type="button" onClick={() => loadConversations({ retryNow: true })}>
-                  Retry
+                  {t('common.retry')}
                 </button>
               </div>
             )}
             {!loadingConversations && !error && filteredConversations.length === 0 && (
               <div className="chat-state">
-                {conversations.length === 0 ? "No conversations to show." : "No matching chats."}
+                {conversations.length === 0 ? t('chatUi.noneShown') : t('chatUi.noMatching')}
               </div>
             )}
             {filteredConversations.map((conversation) => (
@@ -906,15 +914,15 @@ function Chat() {
                   </span>
                   <span className="chat-list__copy">
                     <strong>{getConversationDisplayName(conversation)}</strong>
-                    <small>{conversation.lastMessagePreview || "No messages yet"}</small>
+                    <small>{conversation.lastMessagePreview || t('chat.noMessages')}</small>
                   </span>
                   {conversation.unreadCount > 0 && <b>{conversation.unreadCount}</b>}
                 </div>
                 <button
                   type="button"
                   className="chat-list__dismiss"
-                  title="Hide conversation"
-                  aria-label="Hide conversation"
+                  title={t('chatUi.hide')}
+                  aria-label={t('chatUi.hide')}
                   onClick={(event) => {
                     event.stopPropagation();
                     handleHideConversation(conversation.conversationId);
@@ -926,14 +934,14 @@ function Chat() {
             ))}
             {filter.trim().length >= 2 && (
               <div className="chat-list__section">
-                <span>People</span>
+                <span>{t('chat.people')}</span>
               </div>
             )}
-            {searchingPeople && <div className="chat-state">Searching people...</div>}
+            {searchingPeople && <div className="chat-state">{t('chat.searchingPeople')}</div>}
             {!searchingPeople &&
               filter.trim().length >= 2 &&
               filteredPeopleResults.length === 0 && (
-                <div className="chat-state">No new people found.</div>
+                <div className="chat-state">{t('chat.noNewPeople')}</div>
               )}
             {!searchingPeople &&
               filteredPeopleResults.map((person) => (
@@ -943,15 +951,18 @@ function Chat() {
                   className="chat-list__item chat-list__item--person"
                   onClick={() => handleStartWithPerson(person)}
                 >
-                  <span className="chat-avatar">
-                    {getInitials(person.displayName || person.username)}
-                  </span>
+                  <UserAvatar
+                    className="chat-avatar"
+                    profilePicture={person.profilePicture}
+                    initials={getInitials(person.displayName || person.username)}
+                    alt={person.displayName || person.username}
+                  />
                   <span className="chat-list__copy">
                     <strong>{person.displayName || person.username}</strong>
                     <small>
                       {person.locationDisplayName ||
                         person.tags?.slice(0, 2).join(", ") ||
-                        "Start a new chat"}
+                        t('chatUi.startNew')}
                     </small>
                   </span>
                   <UserPlus size={16} aria-hidden="true" />
@@ -981,15 +992,18 @@ function Chat() {
                   <p>
                     {isGroupConversation(activeConversation) && activeConversation.memberCount
                       ? `${activeConversation.memberCount} members`
-                      : formatDateTime(activeConversation.lastMessageAt) || "New conversation"}
+                      : formatDateTime(activeConversation.lastMessageAt) || t('chatUi.newConversation')}
                   </p>
                 </div>
-                <button type="button" className="chat-icon-btn" aria-label="Open chat settings" onClick={handleOpenChatSettings}>
+                {isGroupConversation(activeConversation) ? <button type="button" className="chat-icon-btn" aria-label={t('chatUi.openSettings')} onClick={handleOpenChatSettings}>
                   <MoreHorizontal size={20} />
-                </button>
+                </button> : <UserActionsMenu userId={activeConversation.otherUserId}
+                  username={activeConversation.otherUsername || getConversationDisplayName(activeConversation)} context="chat" allowHide={false}
+                  onBlocked={(id) => setBlockedUserIds(current => new Set(current).add(Number(id)))}/>} 
               </header>
 
               {error && <div className="chat-error">{error}</div>}
+              {activeUserBlocked && <div className="chat-error">You blocked this user.</div>}
 
               {showGroupSettings && isGroupConversation(activeConversation) ? (
                 <GroupSettingsView
@@ -1023,17 +1037,17 @@ function Chat() {
               <>
               <div className="chat-messages" ref={messagesViewportRef} onScroll={handleMessagesScroll}>
                 {loadingMessages && messages.length === 0 && (
-                  <div className="chat-state">Loading messages...</div>
+                  <div className="chat-state">{t('chat.loadingMessages')}</div>
                 )}
                 {!loadingMessages && messages.length === 0 && (
                   <div className="chat-message chat-message--system">
                     <span className="chat-safety chat-safety--empty">
                       <ShieldCheck size={16} />
                       <span>
-                        Messages use browser-side privacy protection before storage. This is a privacy MVP, not full E2EE.
+                        {t('chatUi.privacy')}
                       </span>
                     </span>
-                    <p>Start the conversation with a thoughtful first message.</p>
+                    <p>{t('chat.startConversation')}</p>
                     {canSendMessages && (
                       <div className="chat-starters" aria-label="Quick message suggestions">
                         {QUICK_STARTER_MESSAGES.map((message) => (
@@ -1063,13 +1077,13 @@ function Chat() {
                       >
                         {isGroupConversation(activeConversation) && !mine && !message.isDeletedForEveryone && (
                           <span className="chat-message__sender">
-                            {message.senderDisplayName || message.senderUsername || "Member"}
+                            {message.senderDisplayName || message.senderUsername || t('chatUi.member')}
                           </span>
                         )}
-                        <p>{message.isDeletedForEveryone ? "This message was deleted" : message.displayBody ?? message.body}</p>
+                        <p>{message.isDeletedForEveryone ? t('chatUi.deleted') : message.displayBody ?? message.body}</p>
                         <div className="chat-message__meta">
                           <span>{formatTime(message.createdAt)}</span>
-                          {message.editedAt && !message.isDeletedForEveryone && <span title={formatDateTime(message.editedAt)}>edited</span>}
+                          {message.editedAt && !message.isDeletedForEveryone && <span title={formatDateTime(message.editedAt)}>{t('chat.edited')}</span>}
                           {mine && (
                             <MessageStatusIcon message={message} />
                           )}
@@ -1089,11 +1103,11 @@ function Chat() {
                 <div ref={messagesEndRef} aria-hidden="true" />
               </div>
 
-              {canSendMessages ? (
+              {canSendActive ? (
                 <form className="chat-composer" onSubmit={handleSend}>
                   {editingMessage && (
                     <div className="chat-composer__editing">
-                      <span>Editing message</span>
+                      <span>{t('chat.editing')}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -1101,7 +1115,7 @@ function Chat() {
                           setDraft("");
                         }}
                       >
-                        Cancel
+                        {t('common.cancel')}
                       </button>
                     </div>
                   )}
@@ -1120,7 +1134,7 @@ function Chat() {
                   <button
                     type="submit"
                     className="chat-composer__send"
-                    aria-label={editingMessage ? "Save message" : "Send message"}
+                    aria-label={editingMessage ? t('chatUi.saveMessage') : t('chatUi.sendMessage')}
                     disabled={sending || !draft.trim()}
                   >
                     <Send size={18} />
@@ -1137,8 +1151,8 @@ function Chat() {
           ) : (
             <div className="chat-empty-panel">
               <ShieldCheck size={24} />
-              <h2>No chat selected</h2>
-              <p>Open a user profile or suggested connection to start a conversation.</p>
+              <h2>{t('chat.noSelected')}</h2>
+              <p>{t('chat.openProfile')}</p>
               {error && <span>{error}</span>}
             </div>
           )}
@@ -1159,7 +1173,7 @@ function Chat() {
         message={confirmDialog?.body}
         errorMessage={confirmError}
         confirmText={confirmDialog?.confirmText}
-        cancelText="Cancel"
+        cancelText={t('common.cancel')}
         variant="danger"
         isLoading={confirmLoading}
         onConfirm={handleConfirmDelete}
@@ -1211,25 +1225,26 @@ function GroupSettingsView({
   onDeleteGroup,
 }) {
   const isAdmin = Boolean(settings?.isCurrentUserAdmin);
+  const { t } = useTranslation();
 
   return (
     <div className="chat-settings">
       <div className="chat-settings__top">
         <button type="button" className="chat-settings__back" onClick={onBack}>
           <ArrowLeft size={17} aria-hidden="true" />
-          <span>Back to chat</span>
+          <span>{t('chat.backToChat')}</span>
         </button>
         <div>
-          <p>Group settings</p>
-          <h3>{settings?.groupName || "Group chat"}</h3>
+          <p>{t('chat.groupSettings')}</p>
+          <h3>{settings?.groupName || t('chat.groupChat')}</h3>
         </div>
       </div>
 
-      {loading && !settings && <div className="chat-state">Loading group settings...</div>}
+      {loading && !settings && <div className="chat-state">{t('chat.loadingSettings')}</div>}
       {error && (
         <div className="chat-state chat-state--error">
           <span>{error}</span>
-          <button type="button" onClick={onReload}>Retry</button>
+          <button type="button" onClick={onReload}>{t('common.retry')}</button>
         </div>
       )}
 
@@ -1256,8 +1271,8 @@ function GroupSettingsView({
           <section className="chat-settings__section">
             <div className="chat-settings__section-head">
               <div>
-                <h4>Group photo</h4>
-                <p>{isAdmin ? "Admins can update the group avatar." : "Only admins can update the group avatar."}</p>
+                <h4>{t('chat.groupPhoto')}</h4>
+                <p>{isAdmin ? t('chatUi.adminsPhoto') : t('chatUi.onlyAdminsPhoto')}</p>
               </div>
               <input
                 ref={photoInputRef}
@@ -1281,8 +1296,8 @@ function GroupSettingsView({
           <section className="chat-settings__section">
             <div className="chat-settings__section-head">
               <div>
-                <h4>Group name</h4>
-                <p>{isAdmin ? "Admins can rename this group." : "Only admins can rename this group."}</p>
+                <h4>{t('chat.groupName')}</h4>
+                <p>{isAdmin ? t('chatUi.adminsRename') : t('chatUi.onlyAdminsRename')}</p>
               </div>
               {!editingName && isAdmin && (
                 <button type="button" className="chat-settings__soft-action" onClick={onEditName}>
@@ -1297,9 +1312,9 @@ function GroupSettingsView({
                   onChange={(event) => onNameDraftChange(event.target.value)}
                   maxLength={120}
                 />
-                <button type="button" onClick={onCancelEditName} disabled={savingName}>Cancel</button>
+                <button type="button" onClick={onCancelEditName} disabled={savingName}>{t('common.cancel')}</button>
                 <button type="submit" disabled={savingName || !nameDraft.trim()}>
-                  {savingName ? "Saving..." : "Save"}
+                  {savingName ? t('common.loading') : t('common.save')}
                 </button>
               </form>
             ) : (
@@ -1309,8 +1324,8 @@ function GroupSettingsView({
 
           <section className="chat-settings__section chat-settings__toggle-row">
             <div>
-              <h4>Mute group</h4>
-              <p>Stores your personal mute preference. Push notifications are not wired yet.</p>
+              <h4>{t('chat.muteGroup')}</h4>
+              <p>{t('chat.muteNote')}</p>
             </div>
             <button
               type="button"
@@ -1320,14 +1335,14 @@ function GroupSettingsView({
               aria-pressed={settings.isMuted}
             >
               {settings.isMuted ? <BellOff size={16} /> : <Bell size={16} />}
-              <span>{settings.isMuted ? "Muted" : "Mute"}</span>
+              <span>{settings.isMuted ? t('chatUi.muted') : t('chatUi.mute')}</span>
             </button>
           </section>
 
           <section className="chat-settings__section">
             <div className="chat-settings__section-head">
               <div>
-                <h4>Members</h4>
+                <h4>{t('chat.members')}</h4>
                 <p>{settings.memberCount} people in this group</p>
               </div>
             </div>
@@ -1350,7 +1365,7 @@ function GroupSettingsView({
                   {isAdmin && !member.isCurrentUser && (
                     <button type="button" className="chat-settings__danger-action" onClick={() => onRemoveMember(member)}>
                       <UserMinus size={15} aria-hidden="true" />
-                      <span>Remove</span>
+                      <span>{t('chat.remove')}</span>
                     </button>
                   )}
                 </div>
@@ -1361,11 +1376,11 @@ function GroupSettingsView({
           <section className="chat-settings__section">
             <div className="chat-settings__section-head">
               <div>
-                <h4>Admin controls</h4>
+                <h4>{t('chat.adminControls')}</h4>
                 <p>
                   {isAdmin
-                    ? "You can rename the group and remove members."
-                    : "Admin actions are hidden for members."}
+                    ? t('chatUi.adminsManage')
+                    : t('chatUi.adminHidden')}
                 </p>
               </div>
             </div>
@@ -1374,19 +1389,19 @@ function GroupSettingsView({
           <section className="chat-settings__section chat-settings__leave">
             <button type="button" onClick={onLeaveGroup}>
               <LogOut size={16} aria-hidden="true" />
-              <span>Leave group</span>
+              <span>{t('chat.leave')}</span>
             </button>
           </section>
 
           {isAdmin && (
             <section className="chat-settings__section chat-settings__delete">
               <div>
-                <h4>Permanently delete</h4>
-                <p>Deletes this group chat and all group messages for everyone.</p>
+                <h4>{t('chat.permanentlyDelete')}</h4>
+                <p>{t('chat.deleteGroupNote')}</p>
               </div>
               <button type="button" onClick={onDeleteGroup}>
                 <Trash2 size={16} aria-hidden="true" />
-                <span>Permanently delete</span>
+                <span>{t('chat.permanentlyDelete')}</span>
               </button>
             </section>
           )}
@@ -1411,6 +1426,7 @@ function CreateGroupModal({
   onSubmit,
   onClose,
 }) {
+  const { t } = useTranslation();
   const selectedMembersLength = Array.isArray(selectedMembers) ? selectedMembers.length : 0;
   const canCreateGroup =
     groupName.trim().length > 0 &&
@@ -1422,31 +1438,31 @@ function CreateGroupModal({
       <form className="chat-group-modal__panel" onSubmit={onSubmit}>
         <div className="chat-group-modal__head">
           <div>
-            <p>Group chat</p>
-            <h2 id="chat-group-title">Create group</h2>
+            <p>{t('chat.groupChat')}</p>
+            <h2 id="chat-group-title">{t('chat.createGroup')}</h2>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} disabled={creating}>
+          <button type="button" aria-label={t('chatUi.close')} onClick={onClose} disabled={creating}>
             <X size={18} />
           </button>
         </div>
 
         <label className="chat-group-field">
-          <span>Group name</span>
+          <span>{t('chat.groupName')}</span>
           <input
             value={groupName}
             onChange={(event) => onGroupNameChange(event.target.value)}
-            placeholder="Group study"
+            placeholder={t('chatUi.groupStudy')}
             maxLength={120}
             autoFocus
           />
         </label>
 
         <label className="chat-group-field">
-          <span>Add members</span>
+          <span>{t('chat.addMembers')}</span>
           <input
             value={memberQuery}
             onChange={(event) => onMemberQueryChange(event.target.value)}
-            placeholder="Search people..."
+            placeholder={t('chatUi.searchPeople')}
           />
         </label>
 
@@ -1455,7 +1471,7 @@ function CreateGroupModal({
             {selectedMembers.map((person) => (
               <span key={person.id}>
                 {person.displayName || person.username}
-                <button type="button" onClick={() => onRemoveMember(person.id)} aria-label="Remove member">
+                <button type="button" onClick={() => onRemoveMember(person.id)} aria-label={t('chatUi.removeMember')}>
                   <X size={13} />
                 </button>
               </span>
@@ -1464,14 +1480,19 @@ function CreateGroupModal({
         )}
 
         <div className="chat-group-results">
-          {searching && <div className="chat-state">Searching people...</div>}
+          {searching && <div className="chat-state">{t('chat.searchingPeople')}</div>}
           {!searching && memberQuery.trim().length >= 2 && results.length === 0 && (
-            <div className="chat-state">No people found.</div>
+            <div className="chat-state">{t('chat.noPeople')}</div>
           )}
           {!searching &&
             results.map((person) => (
               <button key={person.id} type="button" onClick={() => onAddMember(person)}>
-                <span className="chat-avatar">{getInitials(person.displayName || person.username)}</span>
+                <UserAvatar
+                  className="chat-avatar"
+                  profilePicture={person.profilePicture}
+                  initials={getInitials(person.displayName || person.username)}
+                  alt={person.displayName || person.username}
+                />
                 <span>
                   <strong>{person.displayName || person.username}</strong>
                   <small>{person.locationDisplayName || "Add to group"}</small>
@@ -1484,7 +1505,7 @@ function CreateGroupModal({
         {error && <div className="chat-error">{error}</div>}
         <div className="chat-group-modal__actions">
           <button type="button" className="chat-group-modal__cancel" onClick={onClose} disabled={creating}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -1493,7 +1514,7 @@ function CreateGroupModal({
             data-can-create={canCreateGroup ? "true" : "false"}
             onClick={onSubmit}
           >
-            {creating ? "Creating..." : "Create group"}
+            {creating ? t('common.loading') : t('chat.createGroup')}
           </button>
         </div>
       </form>
@@ -1504,6 +1525,7 @@ function CreateGroupModal({
 
 function MessageContextMenu({ menu, currentUserId, onEdit, onDeleteForMe, onDeleteForEveryone }) {
   const isMine = isMessageMine(menu.message, currentUserId);
+  const { t } = useTranslation();
 
   return createPortal(
     <div
@@ -1513,15 +1535,15 @@ function MessageContextMenu({ menu, currentUserId, onEdit, onDeleteForMe, onDele
     >
       {isMine && !menu.message.isDeletedForEveryone && (
         <button type="button" onClick={() => onEdit(menu.message)}>
-          Edit message
+          {t('chat.editMessage')}
         </button>
       )}
       <button type="button" onClick={() => onDeleteForMe(menu.message)}>
-        Delete for myself
+        {t('chat.deleteSelf')}
       </button>
       {isMine && !menu.message.isDeletedForEveryone && (
         <button type="button" className="chat-message-menu__danger" onClick={() => onDeleteForEveryone(menu.message)}>
-          Delete for everyone
+          {t('chat.deleteEveryone')}
         </button>
       )}
     </div>,

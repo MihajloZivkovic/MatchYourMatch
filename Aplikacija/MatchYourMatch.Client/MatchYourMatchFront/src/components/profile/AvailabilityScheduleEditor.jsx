@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const days = [
   { value: 1, label: 'Monday' },
@@ -28,6 +29,7 @@ const normalizeSlots = (slots) =>
     .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
 
 function AvailabilityScheduleEditor() {
+  const { t } = useTranslation();
   const [slots, setSlots] = useState([]);
   const [draftSlots, setDraftSlots] = useState([]);
   const [dayDrafts, setDayDrafts] = useState(defaultDraftByDay);
@@ -189,8 +191,8 @@ function AvailabilityScheduleEditor() {
   if (loading) {
     return (
       <section className="profile__block profile__deep-card">
-        <h3>Free Time Schedule</h3>
-        <p className="profile__section-note">Loading availability...</p>
+        <h3>{t('profile.schedule')}</h3>
+        <p className="profile__section-note">{t('profile.loadingAvailability')}</p>
       </section>
     );
   }
@@ -199,12 +201,12 @@ function AvailabilityScheduleEditor() {
     <section className="profile__block profile__deep-card">
       <div className="profile__section-head">
         <div>
-          <h3>Free Time Schedule</h3>
-          <p className="profile__section-note">Used by Deep Match to find people free at similar times.</p>
+          <h3>{t('profile.schedule')}</h3>
+          <p className="profile__section-note">{t('profile.scheduleNote')}</p>
         </div>
         {!editing && (
           <button type="button" className="app-btn-pill app-btn-pill--outline" onClick={startEditing}>
-            Edit
+            {t('profileFields.edit')}
           </button>
         )}
       </div>
@@ -217,13 +219,13 @@ function AvailabilityScheduleEditor() {
           return (
             <article key={day.value} className="profile__day-card">
               <div className="profile__day-head">
-                <h4>{day.label}</h4>
-                <span>{daySlots.length} set</span>
+                <h4>{t(`profileFields.${day.label}`)}</h4>
+                <span>{t('profileUi.slotsSet', { count: daySlots.length })}</span>
               </div>
 
               <div className="profile__day-slots">
                 {daySlots.length === 0 ? (
-                  <span className="profile__day-empty">No availability set</span>
+                  <span className="profile__day-empty">{t('profile.noAvailability')}</span>
                 ) : (
                   daySlots.map((slot, index) => (
                     <span key={`${day.value}-${slot.startTime}-${slot.endTime}-${index}`} className="profile__time-pill">
@@ -231,7 +233,7 @@ function AvailabilityScheduleEditor() {
                       {editing && (
                         <button
                           type="button"
-                          aria-label={`Remove ${day.label} ${slot.startTime} to ${slot.endTime}`}
+                          aria-label={t('profileUi.removeSlot', { day: t(`profileFields.${day.label}`), start: slot.startTime, end: slot.endTime })}
                           onClick={() => removeSlot(day.value, index)}
                         >
                           x
@@ -269,10 +271,10 @@ function AvailabilityScheduleEditor() {
       {editing && (
         <div className="profile__edit-actions">
           <button type="button" className="app-btn-pill" onClick={saveSlots} disabled={saving}>
-            {saving ? 'Saving...' : 'Save schedule'}
+            {saving ? t('common.loading') : t('common.save')}
           </button>
           <button type="button" className="profile__quiet-btn" onClick={cancelEditing}>
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       )}

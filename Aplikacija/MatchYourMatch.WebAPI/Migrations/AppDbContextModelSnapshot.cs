@@ -73,6 +73,239 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("ActivityCategories");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.BlockedUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BlockedUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BlockerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockerUserId", "BlockedUserId")
+                        .IsUnique();
+
+                    b.ToTable("BlockedUsers");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatConversation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("GroupName")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<string>("GroupPhoto")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsGroup")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsHiddenForUserA")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsHiddenForUserB")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("UserAId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserBId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("UserBId");
+
+                    b.HasIndex("UserAId", "UserBId")
+                        .IsUnique();
+
+                    b.ToTable("ChatConversations");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatConversationMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConversationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsMuted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LastReadAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LeftAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ConversationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ChatConversationMembers");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int>("ConversationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsDeletedForEveryone")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeletedForReceiver")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeletedForSender")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("ReceiverId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SenderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("ChatMessages");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessageReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<int>("MessageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MessageId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ChatMessageReactions");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessageUserDeletion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("MessageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MessageId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ChatMessageUserDeletions");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
                 {
                     b.Property<int>("Id")
@@ -119,6 +352,100 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("Events");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.EventDiscussionMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("EventId", "CreatedAt");
+
+                    b.ToTable("EventDiscussionMessages");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.EventInvite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InviteeUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InviterUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InviteeUserId");
+
+                    b.HasIndex("InviterUserId");
+
+                    b.HasIndex("EventId", "InviteeUserId", "Status");
+
+                    b.ToTable("EventInvites");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.EventParticipant", b =>
+                {
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("EventId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("EventParticipants");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Follow", b =>
                 {
                     b.Property<int>("Id")
@@ -135,11 +462,12 @@ namespace MatchYourMatch.WebAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FollowerId");
-
                     b.HasIndex("FollowingId");
 
-                    b.ToTable("Follows");
+                    b.HasIndex("FollowerId", "FollowingId")
+                        .IsUnique();
+
+                    b.ToTable("Follows", (string)null);
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.FreeTimeSlot", b =>
@@ -169,6 +497,31 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("FreeTimeSlots");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.HiddenProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("HiddenUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "HiddenUserId")
+                        .IsUnique();
+
+                    b.ToTable("HiddenProfiles");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Interest", b =>
                 {
                     b.Property<int>("Id")
@@ -188,6 +541,60 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Interests");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("RelatedEntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RelatedEntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("varchar(140)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.QuickMatchPost", b =>
@@ -276,6 +683,82 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserAppSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllowEventInvitesFrom")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AllowGroupChatInvitesFrom")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("MaxAge")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaximumDistanceKm")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MinAge")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("NotifyChatMessages")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyEventDiscussionReplies")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyEventInvites")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyEventStartingSoon")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyGroupMessages")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyNewEventNearby")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyNewFollowers")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyNewMatchNearby")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("NotifyQuickMatches")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("PreferPeopleNearby")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ShowMeInDeepMatch")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ShowMeInQuickMatch")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WhoCanMessageMe")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserAppSettings");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserDeepMatchPreference", b =>
                 {
                     b.Property<int>("Id")
@@ -342,6 +825,44 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("UserInterests");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserMatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CompatibilityScore")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("UserAId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserBId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserBId");
+
+                    b.HasIndex("UserAId", "UserBId", "Source")
+                        .IsUnique();
+
+                    b.ToTable("UserMatches");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -353,8 +874,20 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Property<string>("Bio")
                         .HasColumnType("longtext");
 
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExploringTagsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("FullName")
+                        .HasColumnType("longtext");
+
                     b.Property<double?>("Latitude")
                         .HasColumnType("double");
+
+                    b.Property<string>("LittleThingsJson")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Location")
                         .HasColumnType("longtext");
@@ -386,6 +919,12 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Property<string>("ProfilePicture")
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("ShowAge")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ShowFullName")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -395,6 +934,45 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsUnique();
 
                     b.ToTable("UserProfiles");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserRating", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RatedUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RaterUserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Rating")
+                        .HasPrecision(2, 1)
+                        .HasColumnType("decimal(2,1)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("RatedUserId");
+
+                    b.HasIndex("RaterUserId", "RatedUserId", "EventId")
+                        .IsUnique();
+
+                    b.ToTable("UserRatings");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Activity", b =>
@@ -408,6 +986,113 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("ActivityCategory");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatConversation", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "CreatedByUser")
+                        .WithMany("CreatedChatConversations")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "UserA")
+                        .WithMany("ChatConversationsAsUserA")
+                        .HasForeignKey("UserAId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "UserB")
+                        .WithMany("ChatConversationsAsUserB")
+                        .HasForeignKey("UserBId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("UserA");
+
+                    b.Navigation("UserB");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatConversationMember", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.ChatConversation", "Conversation")
+                        .WithMany("Members")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("ChatConversationMemberships")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessage", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.ChatConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "Receiver")
+                        .WithMany("ReceivedChatMessages")
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "Sender")
+                        .WithMany("SentChatMessages")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessageReaction", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.ChatMessage", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("ChatMessageReactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessageUserDeletion", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.ChatMessage", "Message")
+                        .WithMany("DeletedForUsers")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("DeletedChatMessages")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.Interest", "Interest")
@@ -417,11 +1102,77 @@ namespace MatchYourMatch.WebAPI.Migrations
 
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", "Organizer")
                         .WithMany("Events")
-                        .HasForeignKey("OrganizerId");
+                        .HasForeignKey("OrganizerId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Interest");
 
                     b.Navigation("Organizer");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.EventDiscussionMessage", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Event", "Event")
+                        .WithMany("DiscussionMessages")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("EventDiscussionMessages")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.EventInvite", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Event", "Event")
+                        .WithMany("Invites")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "InviteeUser")
+                        .WithMany("ReceivedEventInvites")
+                        .HasForeignKey("InviteeUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "InviterUser")
+                        .WithMany("SentEventInvites")
+                        .HasForeignKey("InviterUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("InviteeUser");
+
+                    b.Navigation("InviterUser");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.EventParticipant", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Event", "Event")
+                        .WithMany("Participants")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("EventParticipations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Follow", b =>
@@ -452,6 +1203,24 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Notification", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "ActorUser")
+                        .WithMany("TriggeredNotifications")
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.QuickMatchPost", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.Activity", "Activity")
@@ -467,6 +1236,17 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Activity");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserAppSettings", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithOne("AppSettings")
+                        .HasForeignKey("MatchYourMatch.WebAPI.Models.UserAppSettings", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -501,6 +1281,25 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserMatch", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "UserA")
+                        .WithMany("MatchesAsUserA")
+                        .HasForeignKey("UserAId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "UserB")
+                        .WithMany("MatchesAsUserB")
+                        .HasForeignKey("UserBId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UserA");
+
+                    b.Navigation("UserB");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserProfile", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
@@ -510,6 +1309,32 @@ namespace MatchYourMatch.WebAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.UserRating", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.Event", "Event")
+                        .WithMany("UserRatings")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "RatedUser")
+                        .WithMany("ReceivedRatings")
+                        .HasForeignKey("RatedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "RaterUser")
+                        .WithMany("GivenRatings")
+                        .HasForeignKey("RaterUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("RatedUser");
+
+                    b.Navigation("RaterUser");
                 });
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Activity", b =>
@@ -522,6 +1347,31 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("Activities");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatConversation", b =>
+                {
+                    b.Navigation("Members");
+
+                    b.Navigation("Messages");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ChatMessage", b =>
+                {
+                    b.Navigation("DeletedForUsers");
+
+                    b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Event", b =>
+                {
+                    b.Navigation("DiscussionMessages");
+
+                    b.Navigation("Invites");
+
+                    b.Navigation("Participants");
+
+                    b.Navigation("UserRatings");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Interest", b =>
                 {
                     b.Navigation("Events");
@@ -531,7 +1381,25 @@ namespace MatchYourMatch.WebAPI.Migrations
 
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.User", b =>
                 {
+                    b.Navigation("AppSettings");
+
+                    b.Navigation("ChatConversationMemberships");
+
+                    b.Navigation("ChatConversationsAsUserA");
+
+                    b.Navigation("ChatConversationsAsUserB");
+
+                    b.Navigation("ChatMessageReactions");
+
+                    b.Navigation("CreatedChatConversations");
+
                     b.Navigation("DeepMatchPreference");
+
+                    b.Navigation("DeletedChatMessages");
+
+                    b.Navigation("EventDiscussionMessages");
+
+                    b.Navigation("EventParticipations");
 
                     b.Navigation("Events");
 
@@ -541,9 +1409,29 @@ namespace MatchYourMatch.WebAPI.Migrations
 
                     b.Navigation("FreeTimeSlots");
 
+                    b.Navigation("GivenRatings");
+
+                    b.Navigation("MatchesAsUserA");
+
+                    b.Navigation("MatchesAsUserB");
+
+                    b.Navigation("Notifications");
+
                     b.Navigation("Profile");
 
                     b.Navigation("QuickMatchPosts");
+
+                    b.Navigation("ReceivedChatMessages");
+
+                    b.Navigation("ReceivedEventInvites");
+
+                    b.Navigation("ReceivedRatings");
+
+                    b.Navigation("SentChatMessages");
+
+                    b.Navigation("SentEventInvites");
+
+                    b.Navigation("TriggeredNotifications");
 
                     b.Navigation("UserInterests");
                 });

@@ -3,6 +3,7 @@ using MatchYourMatch.WebAPI.DTOs.User;
 using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace MatchYourMatch.WebAPI.Services
 {
@@ -17,7 +18,7 @@ namespace MatchYourMatch.WebAPI.Services
             _geocodingService = geocodingService;
         }
 
-        public async Task EditProfileAsync(int userId, EditProfileDto dto)
+        public async Task<UserProfileDto> EditProfileAsync(int userId, EditProfileDto dto)
         {
             var user = await _context.Users
                 .Include(u => u.Profile)
@@ -32,10 +33,18 @@ namespace MatchYourMatch.WebAPI.Services
             }
 
             var locationInput = NormalizeLocationInput(dto.Location ?? dto.LocationDisplayName);
+            if (dto.FullName?.Trim().Length > 160)
+                throw new Exception("Full name cannot be longer than 160 characters.");
+            if (dto.DateOfBirth.HasValue && dto.DateOfBirth.Value > DateOnly.FromDateTime(DateTime.Today).AddYears(-16))
+                throw new Exception("You must be at least 16 years old.");
 
             user.Profile.Bio = dto.Bio;
             user.Profile.ProfilePicture = dto.ProfilePicture;
             user.Profile.LocationPrivacy = NormalizeLocationPrivacy(dto.LocationPrivacy);
+            user.Profile.FullName = string.IsNullOrWhiteSpace(dto.FullName) ? null : dto.FullName.Trim();
+            user.Profile.ShowFullName = dto.ShowFullName;
+            user.Profile.DateOfBirth = dto.DateOfBirth;
+            user.Profile.ShowAge = dto.ShowAge;
 
             if (string.IsNullOrWhiteSpace(locationInput))
             {
@@ -70,6 +79,7 @@ namespace MatchYourMatch.WebAPI.Services
             }
 
             await _context.SaveChangesAsync();
+            return await GetProfileAsync(userId);
         }
 
         public async Task<UserProfileDto> GetProfileAsync(int userId)
@@ -84,6 +94,9 @@ namespace MatchYourMatch.WebAPI.Services
             var matchesCount = await CalculateMatchesCountAsync(userId);
             var eventsJoinedCount = await CalculateEventsJoinedCountAsync(userId);
             var profileScorePercent = await CalculateProfileScoreAsync(userId);
+            var followersCount = await _context.Follows.CountAsync(f => f.FollowingId == userId);
+            var followingCount = await _context.Follows.CountAsync(f => f.FollowerId == userId);
+            var rating = await GetRatingSummaryAsync(userId);
 
             return new UserProfileDto
             {
@@ -99,11 +112,42 @@ namespace MatchYourMatch.WebAPI.Services
                 MatchesCount = matchesCount,
                 EventsJoinedCount = eventsJoinedCount,
                 ProfileScorePercent = profileScorePercent,
-                ResponseRatePercent = responseRatePercent
+                ResponseRatePercent = responseRatePercent,
+                FollowersCount = followersCount,
+                FollowingCount = followingCount,
+                AverageRating = rating.Average,
+                RatingsCount = rating.Count
+                ,FullName = user.Profile?.FullName
+                ,ShowFullName = user.Profile?.ShowFullName ?? false
+                ,DateOfBirth = user.Profile?.DateOfBirth
+                ,ShowAge = user.Profile?.ShowAge ?? false
+                ,Age = CalculateAge(user.Profile?.DateOfBirth)
+                ,LittleThings = DeserializeTags(user.Profile?.LittleThingsJson, 10)
+                ,CurrentlyExploring = DeserializeTags(user.Profile?.ExploringTagsJson, 5)
             };
         }
 
-        public async Task<PublicUserProfileDto> GetPublicProfileAsync(int userId)
+        public async Task<UserProfileDto> UpdateProfileTagsAsync(int userId, UpdateProfileTagsDto dto)
+        {
+            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) throw new Exception("Korisnik nije pronadjen");
+
+            if (user.Profile == null)
+            {
+                user.Profile = new UserProfile { UserId = userId };
+                _context.UserProfiles.Add(user.Profile);
+            }
+
+            if (dto.LittleThings != null)
+                user.Profile.LittleThingsJson = JsonSerializer.Serialize(NormalizeTags(dto.LittleThings, 10));
+            if (dto.CurrentlyExploring != null)
+                user.Profile.ExploringTagsJson = JsonSerializer.Serialize(NormalizeTags(dto.CurrentlyExploring, 5));
+
+            await _context.SaveChangesAsync();
+            return await GetProfileAsync(userId);
+        }
+
+        public async Task<PublicUserProfileDto> GetPublicProfileAsync(int userId, int currentUserId)
         {
             var user = await _context.Users
                 .AsNoTracking()
@@ -119,6 +163,12 @@ namespace MatchYourMatch.WebAPI.Services
             var matchesCount = await CalculateMatchesCountAsync(userId);
             var eventsJoinedCount = await CalculateEventsJoinedCountAsync(userId);
             var profileScorePercent = await CalculateProfileScoreAsync(userId);
+            var followersCount = await _context.Follows.CountAsync(f => f.FollowingId == userId);
+            var followingCount = await _context.Follows.CountAsync(f => f.FollowerId == userId);
+            var rating = await GetRatingSummaryAsync(userId);
+            var isFollowing = await _context.Follows.AnyAsync(f =>
+                f.FollowerId == currentUserId && f.FollowingId == userId);
+            var canMessage = await CanMessageAsync(currentUserId, userId);
 
             return new PublicUserProfileDto
             {
@@ -131,6 +181,16 @@ namespace MatchYourMatch.WebAPI.Services
                 EventsJoinedCount = eventsJoinedCount,
                 ProfileScorePercent = profileScorePercent,
                 ResponseRatePercent = responseRatePercent,
+                IsFollowing = isFollowing,
+                FollowersCount = followersCount,
+                FollowingCount = followingCount,
+                AverageRating = rating.Average,
+                RatingsCount = rating.Count,
+                FullName = user.Profile?.ShowFullName == true ? user.Profile.FullName : null,
+                Age = user.Profile?.ShowAge == true ? CalculateAge(user.Profile.DateOfBirth) : null,
+                LittleThings = DeserializeTags(user.Profile?.LittleThingsJson, 10),
+                CurrentlyExploring = DeserializeTags(user.Profile?.ExploringTagsJson, 5),
+                CanMessage = canMessage,
                 Interests = user.UserInterests
                     .Where(ui => ui.Interest != null)
                     .Select(ui => new InterestDto
@@ -146,29 +206,27 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<List<UserMatchDto>> GetMatchesAsync(int userId)
         {
-            var conversations = await _context.ChatConversations
+            var matches = await _context.UserMatches
                 .AsNoTracking()
-                .Include(c => c.UserA)
+                .Include(match => match.UserA)
                     .ThenInclude(u => u!.Profile)
-                .Include(c => c.UserA)
+                .Include(match => match.UserA)
                     .ThenInclude(u => u!.UserInterests)
                         .ThenInclude(ui => ui.Interest)
-                .Include(c => c.UserB)
+                .Include(match => match.UserB)
                     .ThenInclude(u => u!.Profile)
-                .Include(c => c.UserB)
+                .Include(match => match.UserB)
                     .ThenInclude(u => u!.UserInterests)
                         .ThenInclude(ui => ui.Interest)
-                .Where(conversation =>
-                    !conversation.IsGroup &&
-                    ((conversation.UserAId == userId && !conversation.IsHiddenForUserA) ||
-                     (conversation.UserBId == userId && !conversation.IsHiddenForUserB)))
-                .OrderByDescending(conversation => conversation.LastMessageAt ?? conversation.CreatedAt)
+                .Where(match => match.IsActive && match.Source == "QuickMatch" &&
+                    (match.UserAId == userId || match.UserBId == userId))
+                .OrderByDescending(match => match.CreatedAt)
                 .ToListAsync();
 
-            return conversations
-                .Select(conversation =>
+            return matches
+                .Select(match =>
                 {
-                    var otherUser = conversation.UserAId == userId ? conversation.UserB : conversation.UserA;
+                    var otherUser = match.UserAId == userId ? match.UserB : match.UserA;
                     if (otherUser == null || otherUser.Id == userId || !otherUser.IsActive)
                         return null;
 
@@ -181,8 +239,9 @@ namespace MatchYourMatch.WebAPI.Services
                         ProfilePicture = otherUser.Profile?.ProfilePicture,
                         LocationDisplayName = GetPublicLocation(otherUser.Profile),
                         Bio = otherUser.Profile?.Bio,
-                        MatchedAt = conversation.CreatedAt,
-                        Source = "Chat",
+                        MatchedAt = match.CreatedAt,
+                        Source = match.Source,
+                        CompatibilityScore = match.CompatibilityScore,
                         Tags = otherUser.UserInterests
                             .Where(ui => ui.Interest != null)
                             .Select(ui => ui.Interest!.Name)
@@ -452,11 +511,10 @@ namespace MatchYourMatch.WebAPI.Services
 
         private async Task<int> CalculateMatchesCountAsync(int userId)
         {
-            return await _context.ChatConversations
+            return await _context.UserMatches
                 .AsNoTracking()
-                .CountAsync(conversation =>
-                    (conversation.UserAId == userId && !conversation.IsHiddenForUserA) ||
-                    (conversation.UserBId == userId && !conversation.IsHiddenForUserB));
+                .CountAsync(match => match.IsActive && match.Source == "QuickMatch" &&
+                    (match.UserAId == userId || match.UserBId == userId));
         }
 
         private Task<int> CalculateEventsJoinedCountAsync(int userId)
@@ -468,46 +526,18 @@ namespace MatchYourMatch.WebAPI.Services
 
         private async Task<int> CalculateProfileScoreAsync(int userId)
         {
-            var user = await _context.Users
-                .AsNoTracking()
-                .Include(u => u.Profile)
-                .Include(u => u.UserInterests)
-                .Include(u => u.DeepMatchPreference)
-                .Include(u => u.FreeTimeSlots)
-                .Include(u => u.QuickMatchPosts)
-                .FirstOrDefaultAsync(u => u.Id == userId);
+            var summary = await GetRatingSummaryAsync(userId);
+            return summary.Average.HasValue
+                ? (int)Math.Round(summary.Average.Value / 5m * 100m, MidpointRounding.AwayFromZero)
+                : 0;
+        }
 
-            if (user == null)
-            {
-                return 0;
-            }
-
-            var score = 0;
-            var profile = user.Profile;
-
-            if (!string.IsNullOrWhiteSpace(profile?.Bio))
-                score += 15;
-
-            if (!string.IsNullOrWhiteSpace(profile?.LocationDisplayName) ||
-                !string.IsNullOrWhiteSpace(profile?.Location))
-                score += 15;
-
-            if (!string.IsNullOrWhiteSpace(profile?.ProfilePicture))
-                score += 10;
-
-            if (user.UserInterests.Any())
-                score += 15;
-
-            if (IsDeepMatchPreferenceComplete(user.DeepMatchPreference))
-                score += 20;
-
-            if (user.FreeTimeSlots.Any())
-                score += 15;
-
-            if (user.QuickMatchPosts.Any(post => post.IsActive))
-                score += 10;
-
-            return Math.Min(score, 100);
+        private async Task<(decimal? Average, int Count)> GetRatingSummaryAsync(int userId)
+        {
+            var ratings = _context.UserRatings.AsNoTracking().Where(rating => rating.RatedUserId == userId);
+            var count = await ratings.CountAsync();
+            var average = count == 0 ? (decimal?)null : await ratings.AverageAsync(rating => rating.Rating);
+            return (average.HasValue ? decimal.Round(average.Value, 1) : null, count);
         }
 
         private static bool IsDeepMatchPreferenceComplete(UserDeepMatchPreference? preference)
@@ -550,6 +580,53 @@ namespace MatchYourMatch.WebAPI.Services
 
             var initials = string.Join("", parts);
             return string.IsNullOrWhiteSpace(initials) ? "MY" : initials;
+        }
+
+        private static int? CalculateAge(DateOnly? dateOfBirth)
+        {
+            if (!dateOfBirth.HasValue) return null;
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var age = today.Year - dateOfBirth.Value.Year;
+            if (dateOfBirth.Value > today.AddYears(-age)) age--;
+            return age is >= 0 and <= 120 ? age : null;
+        }
+
+        private static List<string> NormalizeTags(IEnumerable<string>? tags, int maxTags)
+        {
+            var normalized = (tags ?? Enumerable.Empty<string>())
+                .Select(tag => tag?.Trim())
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => tag!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (normalized.Any(tag => tag.Length > 60))
+                throw new Exception("Tags cannot be longer than 60 characters.");
+            if (normalized.Count > maxTags)
+                throw new Exception($"You can add up to {maxTags} tags.");
+
+            return normalized;
+        }
+
+        private static List<string> DeserializeTags(string? json, int maxTags)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+            try { return NormalizeTags(JsonSerializer.Deserialize<List<string>>(json), maxTags); }
+            catch { return new List<string>(); }
+        }
+
+        private async Task<bool> CanMessageAsync(int senderId, int receiverId)
+        {
+            if (await _context.BlockedUsers.AnyAsync(x =>
+                (x.BlockerUserId == senderId && x.BlockedUserId == receiverId) ||
+                (x.BlockerUserId == receiverId && x.BlockedUserId == senderId))) return false;
+            var policy = await _context.UserAppSettings.Where(x => x.UserId == receiverId)
+                .Select(x => x.WhoCanMessageMe).FirstOrDefaultAsync() ?? "MatchesOnly";
+            if (policy == "Everyone") return true;
+            if (policy == "PeopleIFollow") return await _context.Follows.AnyAsync(x => x.FollowerId == receiverId && x.FollowingId == senderId);
+            if (policy == "Followers") return await _context.Follows.AnyAsync(x => x.FollowerId == senderId && x.FollowingId == receiverId);
+            return await _context.UserMatches.AnyAsync(x => x.IsActive && x.Source == "QuickMatch" &&
+                ((x.UserAId == senderId && x.UserBId == receiverId) || (x.UserBId == senderId && x.UserAId == receiverId)));
         }
     }
 }

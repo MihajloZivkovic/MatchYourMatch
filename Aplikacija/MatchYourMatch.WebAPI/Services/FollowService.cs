@@ -9,10 +9,12 @@ namespace MatchYourMatch.WebAPI.Services
     public class FollowService: IFollowService
     {
         private readonly AppDbContext _context;
+        private readonly INotificationService _notifications;
 
-        public FollowService(AppDbContext context)
+        public FollowService(AppDbContext context, INotificationService notifications)
         {
             _context = context;
+            _notifications = notifications;
         }
 
         public async Task<List<FollowDto>> GetFollowersAsync(int userId)
@@ -39,15 +41,24 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task FollowAsync(int followerId, int followingId)
         {
+            if (followerId == followingId)
+                throw new Exception("You cannot follow yourself.");
+            var follower = await _context.Users.FindAsync(followerId)
+                ?? throw new Exception("Follower does not exist.");
+            if (!await _context.Users.AnyAsync(u => u.Id == followingId && u.IsActive))
+                throw new Exception("User does not exist.");
             var exists = await _context.Follows.AnyAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
             if (exists)
-                throw new Exception("Korisnik je vec zapracen.");
+                return;
             _context.Follows.Add(new Follow
             {
                 FollowerId = followerId,
                 FollowingId = followingId
             });
             await _context.SaveChangesAsync();
+            await _notifications.CreateNotificationAsync(followingId, followerId, "Follow",
+                "New follower", $"{follower.Username} started following you.",
+                "User", followerId, true);
         }
 
         public async Task UnfollowAsync(int followerId, int followingId)
@@ -55,7 +66,7 @@ namespace MatchYourMatch.WebAPI.Services
             var exists = await _context.Follows
                 .FirstOrDefaultAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
             if (exists == null)
-                throw new Exception("Korisnik nije zapracen.");
+                return;
             _context.Follows.Remove(exists);
             await _context.SaveChangesAsync();
         }

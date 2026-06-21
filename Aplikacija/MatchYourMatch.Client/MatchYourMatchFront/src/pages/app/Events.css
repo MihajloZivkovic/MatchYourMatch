@@ -99,3 +99,6 @@
 .events-page__state {
   margin-top: 1rem;
 }
+.event-card__actions { display: flex; align-items: center; gap: .45rem; }
+.event-card__invite { min-height: 31px; padding: 0 .75rem; display: inline-flex; align-items: center; gap: .35rem; border: 1px solid rgba(244, 163, 0, .38); border-radius: var(--radius-pill); color: var(--accent); font-size: .66rem; font-weight: 700; }
+.event-card__invite:hover { background: rgba(244, 163, 0, .1); }

@@ -26,6 +26,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .Include(e => e.Interest)
                 .Include(e => e.Participants)
                     .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.Profile)
                 .AsQueryable();
 
             if (!includePast)
@@ -59,6 +60,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .Include(e => e.Interest)
                 .Include(e => e.Participants)
                     .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.Profile)
                 .Where(e =>
                     e.Participants.Any(p => p.UserId == currentUserId) ||
                     e.OrganizerId == currentUserId)
@@ -92,6 +94,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .Include(e => e.Interest)
                 .Include(e => e.Participants)
                     .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.Profile)
                 .FirstOrDefaultAsync(e => e.Id == id);
             if (e == null)
                 throw new Exception("Event ne postoji");
@@ -292,6 +295,17 @@ namespace MatchYourMatch.WebAPI.Services
                 ParticipantInitials = participants
                     .Take(4)
                     .Select(p => GetInitials(p.User?.Username))
+                    .ToList(),
+                ParticipantAvatars = participants
+                    .Where(p => p.User != null)
+                    .Take(4)
+                    .Select(p => new EventParticipantAvatarDto
+                    {
+                        UserId = p.UserId,
+                        Username = p.User!.Username,
+                        Initials = GetInitials(p.User.Username),
+                        ProfilePicture = p.User.Profile?.ProfilePicture
+                    })
                     .ToList(),
                 IsJoinedByCurrentUser = participants.Any(p => p.UserId == currentUserId)
             };

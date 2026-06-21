@@ -190,9 +190,10 @@
 }
 
 .navbar__theme-btn {
+  width: 2.35rem;
   min-width: 2.35rem;
   height: 2.35rem;
-  padding: 0 0.75rem;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;

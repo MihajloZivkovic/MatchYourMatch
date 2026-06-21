@@ -2,16 +2,36 @@ using MatchYourMatch.WebAPI.Data;
 using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
 DotNetEnv.Env.Load();
+using var backendInstanceMutex = new Mutex(
+    initiallyOwned: true,
+    name: "Local\\MatchYourMatch.WebAPI",
+    createdNew: out var isFirstBackendInstance);
+
+if (!isFirstBackendInstance)
+{
+    Console.Error.WriteLine(
+        "MatchYourMatch WebAPI is already running. Use the existing instance instead of starting another one.");
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+
+var dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("MatchYourMatch.WebAPI");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -43,6 +63,9 @@ builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient<IGeocodingService, GeocodingService>();
 builder.Services.AddScoped<IFollowService, FollowService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IEventInviteService, EventInviteService>();
+builder.Services.AddScoped<IUserRatingService, UserRatingService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<EmailService>();
 
@@ -120,6 +143,116 @@ using (var scope = app.Services.CreateScope())
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
         """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `Follows` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `FollowerId` int NOT NULL,
+            `FollowingId` int NOT NULL,
+            CONSTRAINT `PK_Follows` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_Follows_Users_FollowerId` FOREIGN KEY (`FollowerId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            CONSTRAINT `FK_Follows_Users_FollowingId` FOREIGN KEY (`FollowingId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            UNIQUE INDEX `IX_Follows_FollowerId_FollowingId` (`FollowerId`, `FollowingId`),
+            INDEX `IX_Follows_FollowingId` (`FollowingId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @oldFollowIndexExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Follows'
+              AND INDEX_NAME = 'IX_Follows_FollowerId'
+        );
+        SET @statement := IF(
+            @oldFollowIndexExists > 0,
+            'ALTER TABLE `Follows` DROP INDEX `IX_Follows_FollowerId`',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        DELETE duplicateFollow
+        FROM `Follows` duplicateFollow
+        INNER JOIN `Follows` originalFollow
+            ON duplicateFollow.`FollowerId` = originalFollow.`FollowerId`
+           AND duplicateFollow.`FollowingId` = originalFollow.`FollowingId`
+           AND duplicateFollow.`Id` > originalFollow.`Id`;
+
+        SET @followUniqueIndexExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Follows'
+              AND INDEX_NAME = 'IX_Follows_FollowerId_FollowingId'
+        );
+        SET @statement := IF(
+            @followUniqueIndexExists = 0,
+            'CREATE UNIQUE INDEX `IX_Follows_FollowerId_FollowingId` ON `Follows` (`FollowerId`, `FollowingId`)',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `UserMatches` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `UserAId` int NOT NULL,
+            `UserBId` int NOT NULL,
+            `Source` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'QuickMatch',
+            `CreatedAt` datetime(6) NOT NULL,
+            `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+            `CompatibilityScore` int NULL,
+            CONSTRAINT `PK_UserMatches` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_UserMatches_Users_UserAId` FOREIGN KEY (`UserAId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            CONSTRAINT `FK_UserMatches_Users_UserBId` FOREIGN KEY (`UserBId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            UNIQUE INDEX `IX_UserMatches_UserAId_UserBId_Source` (`UserAId`, `UserBId`, `Source`),
+            INDEX `IX_UserMatches_UserBId` (`UserBId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `UserAppSettings` (
+            `Id` int NOT NULL AUTO_INCREMENT, `UserId` int NOT NULL,
+            `MaximumDistanceKm` int NULL, `ShowMeInQuickMatch` tinyint(1) NOT NULL DEFAULT 1,
+            `ShowMeInDeepMatch` tinyint(1) NOT NULL DEFAULT 1, `PreferPeopleNearby` tinyint(1) NOT NULL DEFAULT 1,
+            `MinAge` int NULL, `MaxAge` int NULL,
+            `WhoCanMessageMe` varchar(30) NOT NULL DEFAULT 'MatchesOnly',
+            `AllowEventInvitesFrom` varchar(30) NOT NULL DEFAULT 'PeopleIFollow',
+            `AllowGroupChatInvitesFrom` varchar(30) NOT NULL DEFAULT 'MatchesOnly',
+            `NotifyEventInvites` tinyint(1) NOT NULL DEFAULT 1, `NotifyNewFollowers` tinyint(1) NOT NULL DEFAULT 1,
+            `NotifyQuickMatches` tinyint(1) NOT NULL DEFAULT 1, `NotifyChatMessages` tinyint(1) NOT NULL DEFAULT 1,
+            `NotifyGroupMessages` tinyint(1) NOT NULL DEFAULT 1, `NotifyEventDiscussionReplies` tinyint(1) NOT NULL DEFAULT 1,
+            `NotifyNewEventNearby` tinyint(1) NOT NULL DEFAULT 1, `NotifyEventStartingSoon` tinyint(1) NOT NULL DEFAULT 1,
+            `NotifyNewMatchNearby` tinyint(1) NOT NULL DEFAULT 0,
+            CONSTRAINT `PK_UserAppSettings` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_UserAppSettings_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            UNIQUE INDEX `IX_UserAppSettings_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
+        CREATE TABLE IF NOT EXISTS `BlockedUsers` (
+            `Id` int NOT NULL AUTO_INCREMENT, `BlockerUserId` int NOT NULL, `BlockedUserId` int NOT NULL, `CreatedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_BlockedUsers` PRIMARY KEY (`Id`), UNIQUE INDEX `IX_BlockedUsers_BlockerUserId_BlockedUserId` (`BlockerUserId`,`BlockedUserId`)
+        ) CHARACTER SET=utf8mb4;
+        CREATE TABLE IF NOT EXISTS `HiddenProfiles` (
+            `Id` int NOT NULL AUTO_INCREMENT, `UserId` int NOT NULL, `HiddenUserId` int NOT NULL, `CreatedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_HiddenProfiles` PRIMARY KEY (`Id`), UNIQUE INDEX `IX_HiddenProfiles_UserId_HiddenUserId` (`UserId`,`HiddenUserId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+#pragma warning disable EF1002 // The interpolated identifiers and DDL below come only from this fixed local list.
+    foreach (var profileColumn in new[]
+    {
+        (Name: "FullName", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `FullName` varchar(160) NULL"),
+        (Name: "ShowFullName", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ShowFullName` tinyint(1) NOT NULL DEFAULT 0"),
+        (Name: "DateOfBirth", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `DateOfBirth` date NULL"),
+        (Name: "ShowAge", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ShowAge` tinyint(1) NOT NULL DEFAULT 0"),
+        (Name: "LittleThingsJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `LittleThingsJson` longtext NULL"),
+        (Name: "ExploringTagsJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ExploringTagsJson` longtext NULL")
+    })
+    {
+        db.Database.ExecuteSqlRaw($"""
+            SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'UserProfiles' AND COLUMN_NAME = '{profileColumn.Name}');
+            SET @statement := IF(@columnExists = 0, '{profileColumn.Sql}', 'SELECT 1');
+            PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+            """);
+    }
+#pragma warning restore EF1002
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `ChatConversations` (
             `Id` int NOT NULL AUTO_INCREMENT,
@@ -449,6 +582,66 @@ using (var scope = app.Services.CreateScope())
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `UserRatings` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `RaterUserId` int NOT NULL,
+            `RatedUserId` int NOT NULL,
+            `EventId` int NOT NULL,
+            `Rating` decimal(2,1) NOT NULL,
+            `CreatedAt` datetime(6) NOT NULL,
+            `UpdatedAt` datetime(6) NULL,
+            CONSTRAINT `PK_UserRatings` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_UserRatings_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_UserRatings_Users_RatedUserId` FOREIGN KEY (`RatedUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            CONSTRAINT `FK_UserRatings_Users_RaterUserId` FOREIGN KEY (`RaterUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            INDEX `IX_UserRatings_EventId` (`EventId`),
+            INDEX `IX_UserRatings_RatedUserId` (`RatedUserId`),
+            UNIQUE INDEX `IX_UserRatings_RaterUserId_RatedUserId_EventId` (`RaterUserId`, `RatedUserId`, `EventId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @ratingEventNullable := (
+            SELECT `IS_NULLABLE` FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings' AND COLUMN_NAME = 'EventId'
+        );
+        SET @ratingEventFkExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND CONSTRAINT_NAME = 'FK_UserRatings_Events_EventId'
+        );
+        SET @statement := IF(
+            @ratingEventNullable = 'NO' AND @ratingEventFkExists > 0,
+            'ALTER TABLE `UserRatings` DROP FOREIGN KEY `FK_UserRatings_Events_EventId`',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SET @statement := IF(
+            @ratingEventNullable = 'NO',
+            'ALTER TABLE `UserRatings` MODIFY COLUMN `EventId` int NULL',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SET @ratingEventFkExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND CONSTRAINT_NAME = 'FK_UserRatings_Events_EventId'
+        );
+        SET @statement := IF(
+            @ratingEventFkExists = 0,
+            'ALTER TABLE `UserRatings` ADD CONSTRAINT `FK_UserRatings_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `EventDiscussionMessages` (
             `Id` int NOT NULL AUTO_INCREMENT,
             `EventId` int NOT NULL,
@@ -464,6 +657,44 @@ using (var scope = app.Services.CreateScope())
                 FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
             INDEX `IX_EventDiscussionMessages_EventId_CreatedAt` (`EventId`, `CreatedAt`),
             INDEX `IX_EventDiscussionMessages_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `EventInvites` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `EventId` int NOT NULL,
+            `InviterUserId` int NOT NULL,
+            `InviteeUserId` int NOT NULL,
+            `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Pending',
+            `CreatedAt` datetime(6) NOT NULL,
+            `RespondedAt` datetime(6) NULL,
+            CONSTRAINT `PK_EventInvites` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_EventInvites_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_EventInvites_Users_InviteeUserId` FOREIGN KEY (`InviteeUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            CONSTRAINT `FK_EventInvites_Users_InviterUserId` FOREIGN KEY (`InviterUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            INDEX `IX_EventInvites_EventId_InviteeUserId_Status` (`EventId`, `InviteeUserId`, `Status`),
+            INDEX `IX_EventInvites_InviteeUserId` (`InviteeUserId`),
+            INDEX `IX_EventInvites_InviterUserId` (`InviterUserId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `Notifications` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `UserId` int NOT NULL,
+            `ActorUserId` int NULL,
+            `Type` varchar(50) CHARACTER SET utf8mb4 NOT NULL,
+            `Title` varchar(140) CHARACTER SET utf8mb4 NOT NULL,
+            `Message` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+            `RelatedEntityType` varchar(50) CHARACTER SET utf8mb4 NULL,
+            `RelatedEntityId` int NULL,
+            `IsRead` tinyint(1) NOT NULL DEFAULT 0,
+            `CreatedAt` datetime(6) NOT NULL,
+            `ReadAt` datetime(6) NULL,
+            CONSTRAINT `PK_Notifications` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_Notifications_Users_ActorUserId` FOREIGN KEY (`ActorUserId`) REFERENCES `Users` (`Id`) ON DELETE SET NULL,
+            CONSTRAINT `FK_Notifications_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            INDEX `IX_Notifications_ActorUserId` (`ActorUserId`),
+            INDEX `IX_Notifications_UserId_IsRead_CreatedAt` (`UserId`, `IsRead`, `CreatedAt`)
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
@@ -549,8 +780,29 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.Run();
+try
+{
+    app.Run();
+}
+catch (IOException exception) when (IsAddressAlreadyInUse(exception))
+{
+    Console.Error.WriteLine(
+        "MatchYourMatch WebAPI is already running on port 5166. " +
+        "Use the existing instance or stop it before starting another one.");
+}
+
+static bool IsAddressAlreadyInUse(Exception exception)
+{
+    for (var current = exception; current != null; current = current.InnerException)
+    {
+        if (current is AddressInUseException)
+            return true;
+    }
+
+    return false;
+}

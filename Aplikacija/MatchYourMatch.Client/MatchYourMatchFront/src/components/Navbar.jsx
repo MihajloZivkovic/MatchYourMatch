@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from '../hooks/useTranslation';
+import LanguageSwitcher from './LanguageSwitcher';
 
 function Navbar({ isExiting = false, onAboutClick }) {
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const themeRef = useRef(null);
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const { t } = useTranslation();
   const ThemeIcon = theme === 'system' ? Monitor : resolvedTheme === 'light' ? Sun : Moon;
 
   useEffect(() => {
@@ -27,7 +30,7 @@ function Navbar({ isExiting = false, onAboutClick }) {
 
   return (
     <header className={`navbar ${isExiting ? 'navbar--exiting' : ''}`}>
-      <nav className="navbar__inner" aria-label="Main navigation">
+      <nav className="navbar__inner" aria-label={t('nav.main')}>
         <Link to="/" className="navbar__logo">
           <span className="navbar__logo-m">M</span>
           <span className="navbar__logo-accent">Y</span>
@@ -35,21 +38,21 @@ function Navbar({ isExiting = false, onAboutClick }) {
         </Link>
 
         <div className="navbar__actions">
+          <LanguageSwitcher />
           <div className="navbar__theme" ref={themeRef}>
             <button
               type="button"
               className="navbar__theme-btn"
-              aria-label={`Theme: ${theme}`}
+              aria-label={`${t('theme.label')}: ${theme}`}
               aria-expanded={themeMenuOpen}
               aria-haspopup="menu"
               onClick={() => setThemeMenuOpen((open) => !open)}
             >
               <ThemeIcon size={17} aria-hidden="true" />
-              <span>Theme</span>
             </button>
 
             {themeMenuOpen && (
-              <div className="navbar__theme-menu" role="menu" aria-label="Choose theme">
+              <div className="navbar__theme-menu" role="menu" aria-label={t('theme.choose')}>
                 <button
                   type="button"
                   role="menuitemradio"
@@ -58,7 +61,7 @@ function Navbar({ isExiting = false, onAboutClick }) {
                   onClick={() => selectTheme('system')}
                 >
                   <Monitor size={15} aria-hidden="true" />
-                  System
+                  {t('theme.system')}
                 </button>
                 <button
                   type="button"
@@ -68,7 +71,7 @@ function Navbar({ isExiting = false, onAboutClick }) {
                   onClick={() => selectTheme('light')}
                 >
                   <Sun size={15} aria-hidden="true" />
-                  Light
+                  {t('theme.light')}
                 </button>
                 <button
                   type="button"
@@ -78,19 +81,19 @@ function Navbar({ isExiting = false, onAboutClick }) {
                   onClick={() => selectTheme('dark')}
                 >
                   <Moon size={15} aria-hidden="true" />
-                  Dark
+                  {t('theme.dark')}
                 </button>
               </div>
             )}
           </div>
           <a href="/about" className="navbar__link" onClick={onAboutClick}>
-            ABOUT 
+            {t('nav.about').toUpperCase()}
           </a>
           <Link to="/login" className="btn btn--outline navbar__btn">
-            LOGIN
+            {t('nav.login').toUpperCase()}
           </Link>
           <Link to="/register" className="btn btn--outline navbar__btn">
-            REGISTER
+            {t('nav.register').toUpperCase()}
           </Link>
         </div>
       </nav>

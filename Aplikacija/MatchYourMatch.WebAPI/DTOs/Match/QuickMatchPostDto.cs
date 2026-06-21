@@ -8,6 +8,8 @@ namespace MatchYourMatch.WebAPI.DTOs.Match
 
         public string Username { get; set; } = null!;
 
+        public string? ProfilePicture { get; set; }
+
         public string? Location { get; set; }
 
         public int ActivityId { get; set; }
