@@ -147,7 +147,7 @@
   height: 10px;
   border-radius: 50%;
   border: 2px solid #0b0b0d;
-  background: #22c55e;
+  background: var(--color-status-online);
 }
 
 .floating-chat__controls {
