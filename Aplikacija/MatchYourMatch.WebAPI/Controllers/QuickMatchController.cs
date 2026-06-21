@@ -69,6 +69,15 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
+        [HttpPost("{postId:int}/connect")]
+        public async Task<IActionResult> Connect(int postId)
+        {
+            try { return Ok(await _quickMatchService.ConnectAsync(GetCurrentUserId(), postId)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
         private int GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);

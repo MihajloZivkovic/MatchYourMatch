@@ -10,7 +10,8 @@ namespace MatchYourMatch.WebAPI.DTOs.User
         public string? LocationDisplayName { get; set; }
         public string? Bio { get; set; }
         public DateTime MatchedAt { get; set; }
-        public string Source { get; set; } = "Chat";
+        public string Source { get; set; } = "QuickMatch";
+        public int? CompatibilityScore { get; set; }
         public List<string> Tags { get; set; } = new();
     }
 }

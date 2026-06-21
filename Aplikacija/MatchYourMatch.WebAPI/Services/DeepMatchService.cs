@@ -10,7 +10,7 @@ namespace MatchYourMatch.WebAPI.Services
     {
         private readonly AppDbContext _context;
 
-        private const int MaxRawScore = 150;
+        private const int MaxRawScore = 170;
 
         public DeepMatchService(AppDbContext context)
         {
@@ -21,6 +21,7 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var currentUser = await _context.Users
                 .Include(u => u.Profile)
+                .Include(u => u.AppSettings)
                 .Include(u => u.DeepMatchPreference)
                 .Include(u => u.FreeTimeSlots)
                 .Include(u => u.UserInterests)
@@ -34,16 +35,25 @@ namespace MatchYourMatch.WebAPI.Services
 
             var candidates = await _context.Users
                 .Include(u => u.Profile)
+                .Include(u => u.AppSettings)
                 .Include(u => u.DeepMatchPreference)
                 .Include(u => u.FreeTimeSlots)
                 .Include(u => u.UserInterests)
                     .ThenInclude(ui => ui.Interest)
                 .Include(u => u.QuickMatchPosts)
                     .ThenInclude(p => p.Activity)
-                .Where(u => u.Id != userId && u.IsActive)
+                .Where(u => u.Id != userId && u.IsActive &&
+                    (u.AppSettings == null || u.AppSettings.ShowMeInDeepMatch))
                 .ToListAsync();
 
+            var excludedIds = await _context.BlockedUsers
+                .Where(x => x.BlockerUserId == userId || x.BlockedUserId == userId)
+                .Select(x => x.BlockerUserId == userId ? x.BlockedUserId : x.BlockerUserId)
+                .Concat(_context.HiddenProfiles.Where(x => x.UserId == userId).Select(x => x.HiddenUserId))
+                .Distinct().ToListAsync();
+
             return candidates
+                .Where(candidate => !excludedIds.Contains(candidate.Id) && IsEligibleBySettings(currentUser, candidate))
                 .Select(candidate => ScoreCandidate(currentUser, candidate))
                 .Where(match => match.CompatibilityScore > 0)
                 .OrderByDescending(match => match.CompatibilityScore)
@@ -55,6 +65,16 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var score = 0;
             var reasons = new List<string>();
+
+            var currentAge = CalculateAge(currentUser.Profile?.DateOfBirth);
+            var candidateAge = CalculateAge(candidate.Profile?.DateOfBirth);
+            if (currentAge.HasValue && candidateAge.HasValue)
+            {
+                var difference = Math.Abs(currentAge.Value - candidateAge.Value);
+                var ageScore = difference <= 2 ? 20 : difference <= 5 ? 14 : difference <= 10 ? 7 : 0;
+                score += ageScore;
+                if (ageScore > 0) reasons.Add("Similar age range");
+            }
 
             var sharedInterests = currentUser.UserInterests
                 .Select(ui => ui.Interest?.Name)
@@ -115,10 +135,9 @@ namespace MatchYourMatch.WebAPI.Services
 
             score += preferenceScore;
 
-            var locationMatch = ScoreLocation(
-                currentUser.Profile,
-                candidate.Profile,
-                reasons);
+            var locationMatch = currentUser.AppSettings?.PreferPeopleNearby == false
+                ? (Score: 0, Label: (string?)null, Reason: (string?)null)
+                : ScoreLocation(currentUser.Profile, candidate.Profile, reasons);
             score += locationMatch.Score;
 
             if (candidate.IsActive)
@@ -130,6 +149,7 @@ namespace MatchYourMatch.WebAPI.Services
                 Username = candidate.Username,
                 DisplayName = candidate.Username,
                 Initials = GetInitials(candidate.Username),
+                ProfilePicture = candidate.Profile?.ProfilePicture,
                 Location = GetPublicLocation(candidate.Profile),
                 ApproximateDistanceLabel = locationMatch.Label,
                 LocationReason = locationMatch.Reason,
@@ -293,6 +313,26 @@ namespace MatchYourMatch.WebAPI.Services
         private static bool HasCoordinates(UserProfile? profile)
         {
             return profile?.Latitude != null && profile.Longitude != null;
+        }
+
+        private static bool IsEligibleBySettings(User current, User candidate)
+        {
+            var age = CalculateAge(candidate.Profile?.DateOfBirth);
+            if (current.AppSettings?.MinAge is int min && (!age.HasValue || age < min)) return false;
+            if (current.AppSettings?.MaxAge is int max && (!age.HasValue || age > max)) return false;
+            if (current.AppSettings?.MaximumDistanceKm is int maximum && HasCoordinates(current.Profile) && HasCoordinates(candidate.Profile) &&
+                CalculateDistanceKm(current.Profile!.Latitude!.Value, current.Profile.Longitude!.Value,
+                    candidate.Profile!.Latitude!.Value, candidate.Profile.Longitude!.Value) > maximum) return false;
+            return true;
+        }
+
+        private static int? CalculateAge(DateOnly? dob)
+        {
+            if (!dob.HasValue) return null;
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var age = today.Year - dob.Value.Year;
+            if (dob.Value > today.AddYears(-age)) age--;
+            return age;
         }
 
         private static double CalculateDistanceKm(

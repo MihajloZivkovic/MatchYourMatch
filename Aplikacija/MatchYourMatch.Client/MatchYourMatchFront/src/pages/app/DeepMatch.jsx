@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './DeepMatch.css';
 import { useTranslation } from '../../hooks/useTranslation';
+import UserAvatar from '../../components/UserAvatar';
 
 function DeepMatch() {
   const [preferences, setPreferences] = useState(null);
@@ -124,7 +125,8 @@ function DeepMatch() {
           <section className="deep-match__results-list" aria-label={t('deep.results')}>
             {matches.map((match) => (
               <article key={match.userId} className="deep-match__result-card app-tilt-hover">
-                <div className="deep-match__avatar">{match.initials}</div>
+                <UserAvatar className="deep-match__avatar" profilePicture={match.profilePicture}
+                  initials={match.initials} alt="" />
                 <div className="deep-match__result-main">
                   <div className="deep-match__result-head">
                     <div>

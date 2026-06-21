@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, Bell, BellOff, Camera, Check, CheckCheck, Clock, Crown, LogOut, MoreHorizontal, Paperclip, Search, Send, ShieldCheck, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
 import ConfirmModal from "../../components/ConfirmModal";
+import UserAvatar from "../../components/UserAvatar";
 import MessageReactions from "../../components/chat/MessageReactions";
 import { useChat } from "../../context/ChatContext";
 import "./Chat.css";
@@ -945,9 +946,12 @@ function Chat() {
                   className="chat-list__item chat-list__item--person"
                   onClick={() => handleStartWithPerson(person)}
                 >
-                  <span className="chat-avatar">
-                    {getInitials(person.displayName || person.username)}
-                  </span>
+                  <UserAvatar
+                    className="chat-avatar"
+                    profilePicture={person.profilePicture}
+                    initials={getInitials(person.displayName || person.username)}
+                    alt={person.displayName || person.username}
+                  />
                   <span className="chat-list__copy">
                     <strong>{person.displayName || person.username}</strong>
                     <small>
@@ -1475,7 +1479,12 @@ function CreateGroupModal({
           {!searching &&
             results.map((person) => (
               <button key={person.id} type="button" onClick={() => onAddMember(person)}>
-                <span className="chat-avatar">{getInitials(person.displayName || person.username)}</span>
+                <UserAvatar
+                  className="chat-avatar"
+                  profilePicture={person.profilePicture}
+                  initials={getInitials(person.displayName || person.username)}
+                  alt={person.displayName || person.username}
+                />
                 <span>
                   <strong>{person.displayName || person.username}</strong>
                   <small>{person.locationDisplayName || "Add to group"}</small>

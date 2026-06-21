@@ -16,6 +16,7 @@
         public string EventType { get; set; } = "UserCreated";
         public int ParticipantsCount { get; set; }
         public List<string> ParticipantInitials { get; set; } = new();
+        public List<EventParticipantAvatarDto> ParticipantAvatars { get; set; } = new();
         public bool IsJoinedByCurrentUser { get; set; }
     }
 }

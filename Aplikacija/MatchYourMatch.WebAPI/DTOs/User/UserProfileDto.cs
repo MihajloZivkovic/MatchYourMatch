@@ -15,5 +15,14 @@
         public int EventsJoinedCount { get; set; }
         public int ProfileScorePercent { get; set; }
         public int? ResponseRatePercent { get; set; }
+        public int FollowersCount { get; set; }
+        public int FollowingCount { get; set; }
+        public decimal? AverageRating { get; set; }
+        public int RatingsCount { get; set; }
+        public string? FullName { get; set; }
+        public bool ShowFullName { get; set; }
+        public DateOnly? DateOfBirth { get; set; }
+        public bool ShowAge { get; set; }
+        public int? Age { get; set; }
     }
 }

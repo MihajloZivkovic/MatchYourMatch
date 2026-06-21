@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -13,10 +14,19 @@ import {
   RefreshCw,
   Send,
   Users,
+  MoreHorizontal,
+  X,
+  UserRound,
+  Mail,
+  KeyRound,
+  Shield,
+  Trash2,
+  ImagePlus,
 } from "lucide-react";
 import EventCard from "../../components/EventCard";
 import AvailabilityScheduleEditor from "../../components/profile/AvailabilityScheduleEditor";
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
+import UserAvatar from "../../components/UserAvatar";
 import { CURRENT_USER, LITTLE_THINGS } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from '../../hooks/useTranslation';
@@ -40,17 +50,21 @@ function Profile(props) {
   const [eventSegment, setEventSegment] = useState("Upcoming");
   const [profileEditing, setProfileEditing] = useState(false);
   const [bio, setBio] = useState(props.userProfile.bio || "");
-  const [bioDraft, setBioDraft] = useState("");
   const [locationDraft, setLocationDraft] = useState("");
   const [locationPrivacyDraft, setLocationPrivacyDraft] = useState("CityOnly");
   const [profileLocation, setProfileLocation] = useState("");
   const [profileBio, setProfileBio] = useState("");
   const [profileLocationPrivacy, setProfileLocationPrivacy] = useState("CityOnly");
+  const [fullNameDraft, setFullNameDraft] = useState("");
+  const [showFullNameDraft, setShowFullNameDraft] = useState(false);
+  const [dateOfBirthDraft, setDateOfBirthDraft] = useState("");
+  const [showAgeDraft, setShowAgeDraft] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [locationSuggestionsLoading, setLocationSuggestionsLoading] = useState(false);
+  const [locationSearchActive, setLocationSearchActive] = useState(false);
   const [saveButtonText, setSaveButtonText] = useState(() => t('common.save'));
   const [saveButtonAnimating, setSaveButtonAnimating] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -89,9 +103,12 @@ function Profile(props) {
     setLocationDraft(locationInput);
     setProfileBio(currentBio);
     setBio(currentBio);
-    setBioDraft(currentBio);
     setProfileLocationPrivacy(privacy);
     setLocationPrivacyDraft(privacy);
+    setFullNameDraft(props.userProfile.fullName || "");
+    setShowFullNameDraft(Boolean(props.userProfile.showFullName));
+    setDateOfBirthDraft(props.userProfile.dateOfBirth || "");
+    setShowAgeDraft(Boolean(props.userProfile.showAge));
   }, [
     props.currentUser?.bio,
     props.currentUser?.location,
@@ -99,10 +116,14 @@ function Profile(props) {
     props.currentUser?.locationRawInput,
     props.currentUser?.locationPrivacy,
     props.userProfile.bio,
+    props.userProfile.fullName,
+    props.userProfile.showFullName,
+    props.userProfile.dateOfBirth,
+    props.userProfile.showAge,
   ]);
 
   useEffect(() => {
-    if (!profileEditing) {
+    if (!profileEditing || !locationSearchActive) {
       setLocationSuggestions([]);
       setLocationSuggestionsLoading(false);
       return;
@@ -152,7 +173,29 @@ function Profile(props) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [locationDraft, profileEditing]);
+  }, [locationDraft, locationSearchActive, profileEditing]);
+
+  useEffect(() => {
+    if (!profileEditing) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setProfileEditing(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [profileEditing]);
+
+  useEffect(() => {
+    if (!profileEditing) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [profileEditing]);
 
   const fetchProfile = useCallback(async () => {
     const token = localStorage.getItem("token");
@@ -184,6 +227,15 @@ function Profile(props) {
         eventsJoinedCount: data.eventsJoinedCount ?? null,
         profileScorePercent: data.profileScorePercent ?? null,
         responseRatePercent: data.responseRatePercent ?? null,
+        followersCount: data.followersCount ?? 0,
+        followingCount: data.followingCount ?? 0,
+        averageRating: data.averageRating ?? null,
+        ratingsCount: data.ratingsCount ?? 0,
+        fullName: data.fullName ?? "",
+        showFullName: Boolean(data.showFullName),
+        dateOfBirth: data.dateOfBirth ?? "",
+        showAge: Boolean(data.showAge),
+        age: data.age ?? null,
       }));
     } catch (error) {
       console.error("[Profile API] /api/UserProfile/me failed", {
@@ -300,7 +352,9 @@ function Profile(props) {
     navigate("/");
   };
 
-  const updateProfile = async ({ nextBio, nextPicture, nextLocation, nextPrivacy }) => {
+  const updateProfile = async ({ nextBio, nextPicture, nextLocation, nextPrivacy,
+    nextFullName = fullNameDraft, nextShowFullName = showFullNameDraft,
+    nextDateOfBirth = dateOfBirthDraft, nextShowAge = showAgeDraft }) => {
     const token = localStorage.getItem("token");
     const response = await fetch("/api/UserProfile/me", {
       method: "PUT",
@@ -314,6 +368,10 @@ function Profile(props) {
         profilePicture: nextPicture || null,
         location: nextLocation || null,
         locationPrivacy: nextPrivacy,
+        fullName: nextFullName || null,
+        showFullName: nextShowFullName,
+        dateOfBirth: nextDateOfBirth || null,
+        showAge: nextShowAge,
       }),
     });
 
@@ -328,6 +386,9 @@ function Profile(props) {
   const sendImg = async (event) => {
     const img = event.target.files[0];
     if (!img) return;
+    setProfileSaving(true);
+    setProfileError("");
+    setProfileSuccess("");
 
     const convertToBase64 = (fileObj) =>
       new Promise((resolve, reject) => {
@@ -350,33 +411,43 @@ function Profile(props) {
         ...prev,
         profilePicture: convertedImage,
       }));
+      setProfileSuccess(t('profileSettings.pictureSaved'));
     } catch (error) {
       console.error("Failed to save profile image:", error);
+      setProfileError(error.message || t('profileSettings.pictureError'));
+    } finally {
+      setProfileSaving(false);
+      event.target.value = "";
     }
   };
 
   const handleProfileEdit = () => {
     setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
-    setBioDraft(profileBio);
     setLocationPrivacyDraft(profileLocationPrivacy);
+    setFullNameDraft(props.userProfile.fullName || "");
+    setShowFullNameDraft(Boolean(props.userProfile.showFullName));
+    setDateOfBirthDraft(props.userProfile.dateOfBirth || "");
+    setShowAgeDraft(Boolean(props.userProfile.showAge));
     setProfileError("");
     setProfileSuccess("");
     setLocationSuggestions([]);
+    setLocationSearchActive(false);
     setProfileEditing(true);
   };
 
   const handleProfileCancel = () => {
     setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
-    setBioDraft(profileBio);
     setLocationPrivacyDraft(profileLocationPrivacy);
     setProfileError("");
     setProfileSuccess("");
     setLocationSuggestions([]);
+    setLocationSearchActive(false);
     setProfileEditing(false);
   };
 
   const handleLocationDraftChange = (event) => {
     setLocationDraft(event.target.value);
+    setLocationSearchActive(true);
     setProfileSuccess("");
   };
 
@@ -385,6 +456,7 @@ function Profile(props) {
     setProfileError("");
     setProfileSuccess("");
     setLocationSuggestions([]);
+    setLocationSearchActive(false);
   };
 
   const handleProfileSave = async () => {
@@ -394,7 +466,7 @@ function Profile(props) {
 
     try {
       await updateProfile({
-        nextBio: bioDraft.trim(),
+        nextBio: profileBio,
         nextPicture: props.userProfile.profilePicture,
         nextLocation: locationDraft.trim(),
         nextPrivacy: locationPrivacyDraft,
@@ -413,22 +485,30 @@ function Profile(props) {
         (locationPrivacyDraft === "Hidden" ? "Location hidden" : locationDraft.trim());
 
       setProfileLocation(savedLocation);
-      setProfileBio(bioDraft.trim());
-      setBio(bioDraft.trim());
       setProfileLocationPrivacy(locationPrivacyDraft);
       props.setUserProfile((prev) => ({
         ...prev,
-        bio: bioDraft.trim(),
+        bio: profileBio,
         location: savedProfile?.location ?? locationDraft.trim(),
         matchesCount: savedProfile?.matchesCount ?? prev.matchesCount,
         eventsJoinedCount: savedProfile?.eventsJoinedCount ?? prev.eventsJoinedCount,
         profileScorePercent: savedProfile?.profileScorePercent ?? prev.profileScorePercent,
         responseRatePercent: savedProfile?.responseRatePercent ?? prev.responseRatePercent,
+        followersCount: savedProfile?.followersCount ?? prev.followersCount,
+        followingCount: savedProfile?.followingCount ?? prev.followingCount,
+        averageRating: savedProfile?.averageRating ?? prev.averageRating,
+        ratingsCount: savedProfile?.ratingsCount ?? prev.ratingsCount,
+        fullName: savedProfile?.fullName ?? fullNameDraft,
+        showFullName: savedProfile?.showFullName ?? showFullNameDraft,
+        dateOfBirth: savedProfile?.dateOfBirth ?? dateOfBirthDraft,
+        showAge: savedProfile?.showAge ?? showAgeDraft,
+        age: savedProfile?.age ?? prev.age,
       }));
       setProfileSuccess(`Location saved as ${savedLocation || "your profile location"}.`);
       setLocationSuggestions([]);
       styleButton();
       window.dispatchEvent(new Event("tokenChanged"));
+      setProfileEditing(false);
     } catch (err) {
       setProfileError(
         err.message || "We couldn't find that location. Try entering city and country.",
@@ -451,7 +531,6 @@ function Profile(props) {
       });
 
       setProfileBio(bioText);
-      setBioDraft(bioText);
       props.setUserProfile((prev) => ({
         ...prev,
         bio: bioText,
@@ -472,11 +551,22 @@ function Profile(props) {
     props.currentUser?.eventsJoinedCount ?? props.userProfile?.eventsJoinedCount;
   const profileScoreValue =
     props.currentUser?.profileScorePercent ?? props.userProfile?.profileScorePercent;
+  const followersValue =
+    props.currentUser?.followersCount ?? props.userProfile?.followersCount;
+  const ratingsCount = props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
   const matchesDisplay = typeof matchesValue === "number" ? String(matchesValue) : "—";
   const eventsJoinedDisplay =
     typeof eventsJoinedValue === "number" ? String(eventsJoinedValue) : "—";
-  const profileScoreDisplay =
+  const rawProfileScoreDisplay =
     typeof profileScoreValue === "number" ? `${profileScoreValue}%` : "—";
+
+  const profileScoreDisplay = ratingsCount > 0 ? rawProfileScoreDisplay : "Not rated";
+  const followersDisplay = typeof followersValue === "number" ? String(followersValue) : "—";
+
+  const savedLocationInput = props.currentUser?.locationRawInput || props.userProfile.location || "";
+  const profileHasChanges =
+    locationDraft.trim() !== savedLocationInput.trim() ||
+    locationPrivacyDraft !== profileLocationPrivacy;
 
   const statCards = [
     { icon: Heart, label: t('profile.matches'), value: matchesDisplay },
@@ -524,118 +614,40 @@ function Profile(props) {
       <header className="profile__header">
         <div className="profile__header-mesh" aria-hidden="true" />
         <div className="profile__header-inner">
+          <button
+            type="button"
+            className="profile-settings-trigger"
+            aria-label={t('profileSettings.open')}
+            aria-expanded={profileEditing}
+            onClick={handleProfileEdit}
+          >
+            <MoreHorizontal size={23} />
+          </button>
           <div className="profile__identity">
             <div className="profile__avatar-wrap">
-              <div className="profile__avatar">
-                <input
-                  id="imgInput"
-                  type="file"
-                  accept="image/*"
-                  onChange={sendImg}
-                />
+              <label className="profile__avatar" title={t('profileSettings.chooseImage')}>
                 {props.userProfile.profilePicture ? (
                   <img src={props.userProfile.profilePicture} alt="Profile" />
                 ) : (
                   "+"
                 )}
-              </div>
+                <input type="file" accept="image/*" onChange={sendImg}
+                  disabled={profileSaving} aria-label={t('profileSettings.chooseImage')} />
+              </label>
             </div>
             <div className="profile__identity-text">
-              <h1>{props.currentUser.username}</h1>
+              <h1>{props.userProfile.showFullName && props.userProfile.fullName
+                ? props.userProfile.fullName : props.currentUser.username}</h1>
               <p className="profile__username">@{props.currentUser.username}</p>
+              <p className="profile__followers">
+                <Users size={14} />
+                <strong>{followersDisplay}</strong> {t('publicProfile.followers')}
+              </p>
               <p className="profile__location">
                 <MapPin size={14} />
                 {profileLocation || "Add location"}
+                {props.userProfile.showAge && props.userProfile.age != null ? ` · ${props.userProfile.age}` : ""}
               </p>
-              {profileEditing && (
-                <div className="profile__location-editor">
-                  <div className="profile__editor-section">
-                    <h4>{t('profile.basicInfo')}</h4>
-                    <label>
-                      <span>{t('profile.aboutMe')}</span>
-                      <textarea
-                        value={bioDraft}
-                        onChange={(event) => setBioDraft(event.target.value)}
-                        placeholder={t('profileUi.bioPlaceholder')}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="profile__editor-section">
-                    <h4>{t('profile.locationPrivacy')}</h4>
-                    <label>
-                      <span>{t('profile.location')}</span>
-                      <input
-                        type="text"
-                        value={locationDraft}
-                        onChange={handleLocationDraftChange}
-                        placeholder={t('profileUi.cityPlaceholder')}
-                        autoComplete="off"
-                      />
-                      {(locationSuggestionsLoading || locationSuggestions.length > 0) && (
-                        <div className="profile__location-suggestions">
-                          {locationSuggestionsLoading && (
-                            <span className="profile__location-suggestion-note">
-                              Finding places...
-                            </span>
-                          )}
-                          {!locationSuggestionsLoading &&
-                            locationSuggestions.map((suggestion) => (
-                              <button
-                                key={suggestion.locationInput}
-                                type="button"
-                                onClick={() => handleLocationSuggestionSelect(suggestion)}
-                              >
-                                <strong>{suggestion.displayName}</strong>
-                                <span>{suggestion.locationInput}</span>
-                              </button>
-                            ))}
-                        </div>
-                      )}
-                    </label>
-                    <label>
-                      <span>{t('profile.privacy')}</span>
-                      <select
-                        value={locationPrivacyDraft}
-                        onChange={(event) => setLocationPrivacyDraft(event.target.value)}
-                      >
-                        <option value="CityOnly">{t('profile.showCity')}</option>
-                        <option value="Hidden">{t('profile.hideLocation')}</option>
-                      </select>
-                    </label>
-                    <p>
-                      You can enter a city or address. Only your approximate location will
-                      be shown publicly. Exact coordinates are used privately for distance
-                      matching.
-                    </p>
-                  </div>
-                  {profileError && (
-                    <span className="profile__location-error">{profileError}</span>
-                  )}
-                  {profileSuccess && (
-                    <span className="profile__location-success">{profileSuccess}</span>
-                  )}
-                  <div className="profile__location-actions">
-                    <button
-                      type="button"
-                      className={`app-btn-pill saveButton${
-                        saveButtonAnimating ? " saveAnimation" : ""
-                      }`}
-                      onClick={handleProfileSave}
-                      disabled={profileSaving}
-                    >
-                      {profileSaving ? t('common.loading') : saveButtonAnimating ? saveButtonText : t('common.save')}
-                    </button>
-                    <button
-                      type="button"
-                      className="profile__quiet-btn"
-                      onClick={handleProfileCancel}
-                    >
-                      {t('common.cancel')}
-                    </button>
-                  </div>
-                </div>
-              )}
               <div className="profile__badges-row">
                 <span className="glass-pill glass-pill--online">{t('profile.activeToday').toUpperCase()}</span>
                 <span className="profile__completion">
@@ -675,19 +687,135 @@ function Profile(props) {
           )}
 
           <div className="profile__header-actions">
-            <button
-              type="button"
-              className="app-btn-pill app-btn-pill--outline app-interactive"
-              onClick={handleProfileEdit}
-            >
-              {t('profile.edit').toUpperCase()}
-            </button>
             <button type="button" className="profile__logout" onClick={handleLogout}>
               {t('profile.logout').toUpperCase()}
             </button>
           </div>
         </div>
       </header>
+
+      {profileEditing && createPortal((
+        <div className="profile-settings-backdrop" role="presentation" onMouseDown={handleProfileCancel}>
+          <section
+            className="profile-settings-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-settings-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="profile-settings-panel__header">
+              <div>
+                <span>{t('profileSettings.eyebrow')}</span>
+                <h2 id="profile-settings-title">{t('profileSettings.title')}</h2>
+              </div>
+              <button type="button" onClick={handleProfileCancel} aria-label={t('chatUi.close')}>
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="profile-settings-panel__content">
+              <section className="profile-settings-section">
+                <div className="profile-settings-section__heading">
+                  <UserRound size={18} />
+                  <div><h3>{t('profileSettings.publicProfile')}</h3><p>{t('profileSettings.publicProfileText')}</p></div>
+                </div>
+
+                <div className="profile-settings-picture">
+                  <span className="profile-settings-picture__preview">
+                    {props.userProfile.profilePicture
+                      ? <img src={props.userProfile.profilePicture} alt="" />
+                      : props.currentUser.username.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div><strong>{t('profileSettings.picture')}</strong><small>{t('profileSettings.pictureText')}</small></div>
+                  <label className="profile-settings-picture__button">
+                    <ImagePlus size={15} />{t('profileSettings.chooseImage')}
+                    <input type="file" accept="image/*" onChange={sendImg} />
+                  </label>
+                </div>
+
+                <div className="profile-settings-fields">
+                  <label><span>Full name</span><input type="text" maxLength="160" value={fullNameDraft}
+                    onChange={(event) => setFullNameDraft(event.target.value)} placeholder="Your full name" /></label>
+                  <label className="profile-settings-check"><span>Show full name on profile</span><input type="checkbox"
+                    checked={showFullNameDraft} onChange={(event) => setShowFullNameDraft(event.target.checked)} /></label>
+                  <label><span>Date of birth</span><input type="date" value={dateOfBirthDraft}
+                    max={getMaximumDateOfBirth()} onChange={(event) => setDateOfBirthDraft(event.target.value)} /></label>
+                  <label className="profile-settings-check"><span>Show my age on profile</span><input type="checkbox"
+                    checked={showAgeDraft} onChange={(event) => setShowAgeDraft(event.target.checked)} /></label>
+                  <label>
+                    <span>{t('profile.location')}</span>
+                    <input type="text" value={locationDraft} onChange={handleLocationDraftChange}
+                      placeholder={t('profileUi.cityPlaceholder')} autoComplete="off" />
+                    {(locationSuggestionsLoading || locationSuggestions.length > 0) && (
+                      <div className="profile__location-suggestions">
+                        {locationSuggestionsLoading && <span className="profile__location-suggestion-note">{t('profileSettings.findingPlaces')}</span>}
+                        {!locationSuggestionsLoading && locationSuggestions.map((suggestion) => (
+                          <button key={suggestion.locationInput} type="button"
+                            onClick={() => handleLocationSuggestionSelect(suggestion)}>
+                            <strong>{suggestion.displayName}</strong><span>{suggestion.locationInput}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </label>
+                  <label>
+                    <span>{t('profile.privacy')}</span>
+                    <select value={locationPrivacyDraft}
+                      onChange={(event) => setLocationPrivacyDraft(event.target.value)}>
+                      <option value="CityOnly">{t('profile.showCity')}</option>
+                      <option value="Hidden">{t('profile.hideLocation')}</option>
+                    </select>
+                  </label>
+                </div>
+                <p className="profile-settings-section__note">{t('profileSettings.locationNote')}</p>
+              </section>
+
+              <section className="profile-settings-section">
+                <div className="profile-settings-section__heading">
+                  <KeyRound size={18} />
+                  <div><h3>{t('profileSettings.account')}</h3><p>{t('profileSettings.accountText')}</p></div>
+                </div>
+                <div className="profile-settings-coming-list">
+                  <DisabledSetting icon={UserRound} label={t('profileSettings.username')}
+                    value={`@${props.currentUser.username}`} soon={t('profileSettings.comingSoon')} />
+                  <DisabledSetting icon={Mail} label={t('profileSettings.email')}
+                    value={props.currentUser.email || t('profileSettings.privateValue')} soon={t('profileSettings.comingSoon')} />
+                  <DisabledSetting icon={KeyRound} label={t('profileSettings.password')}
+                    value="••••••••" soon={t('profileSettings.comingSoon')} />
+                </div>
+              </section>
+
+              <section className="profile-settings-section">
+                <div className="profile-settings-section__heading">
+                  <Shield size={18} />
+                  <div><h3>{t('profileSettings.privacy')}</h3><p>{t('profileSettings.privacyText')}</p></div>
+                </div>
+                <DisabledSetting icon={Shield} label={t('profileSettings.visibility')}
+                  value={t('profileSettings.visibilityValue')} soon={t('profileSettings.comingSoon')} />
+              </section>
+
+              <section className="profile-settings-section profile-settings-section--danger">
+                <div className="profile-settings-section__heading">
+                  <Trash2 size={18} />
+                  <div><h3>{t('profileSettings.danger')}</h3><p>{t('profileSettings.dangerText')}</p></div>
+                </div>
+                <button type="button" disabled>{t('profileSettings.deactivate')}<span>{t('profileSettings.comingSoon')}</span></button>
+              </section>
+
+              {profileError && <span className="profile__location-error">{profileError}</span>}
+              {profileSuccess && <span className="profile__location-success">{profileSuccess}</span>}
+            </div>
+
+            <footer className="profile-settings-panel__footer">
+              <button type="button" className="profile__quiet-btn" onClick={handleProfileCancel}>{t('common.cancel')}</button>
+              <button type="button" className="app-btn-pill saveButton" onClick={handleProfileSave}
+                disabled={profileSaving || !profileHasChanges}>
+                {profileSaving ? t('common.loading') : t('common.save')}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ), document.body)}
 
       <div className="profile__body">
         <div className="profile__tabs" role="tablist">
@@ -813,7 +941,7 @@ function Profile(props) {
 
               {!matchesLoading && !matchesError && profileMatches.length === 0 && (
                 <div className="profile__matches-state">
-                  {t('profileUi.noMatches')}
+                  No Quick Match matches yet.
                 </div>
               )}
 
@@ -822,7 +950,8 @@ function Profile(props) {
                 profileMatches.map((m) => (
                   <article key={m.id} className="profile__match-card app-tilt-hover">
                     <div className="profile__match-ring">
-                      <div className="profile__match-avatar">{m.initials}</div>
+                      <UserAvatar className="profile__match-avatar" profilePicture={m.profilePicture}
+                        initials={m.initials} alt="" />
                       <span className="profile__match-score">{m.scoreLabel}</span>
                     </div>
                     <h4>{m.name}</h4>
@@ -926,6 +1055,16 @@ function Profile(props) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function DisabledSetting({ icon: Icon, label, value, soon }) {
+  return (
+    <div className="profile-settings-disabled" aria-disabled="true">
+      <Icon size={16} />
+      <div><strong>{label}</strong><span>{value}</span></div>
+      <small>{soon}</small>
     </div>
   );
 }
@@ -1163,7 +1302,12 @@ function mapApiEvent(event) {
     location: event.location ?? event.Location ?? "Community meetup",
     description:
       event.description ?? event.Description ?? "Community event created by a MYM user.",
-    attendees: event.participantInitials ?? event.ParticipantInitials ?? [],
+    attendees:
+      event.participantAvatars ??
+      event.ParticipantAvatars ??
+      event.participantInitials ??
+      event.ParticipantInitials ??
+      [],
     attendeeCount: event.participantsCount ?? event.ParticipantsCount ?? 0,
     maxAttendees: event.maxAttendees ?? event.MaxAttendees ?? 0,
     isJoinedByCurrentUser: Boolean(
@@ -1196,6 +1340,7 @@ function mapConnectionToProfileMatch(match) {
     username: match.username ?? match.Username ?? name,
     name,
     initials: match.initials ?? match.Initials ?? getInitials(name),
+    profilePicture: match.profilePicture ?? match.ProfilePicture ?? null,
     compatibility: compatibilityScore == null ? null : Number(compatibilityScore) || 0,
     scoreLabel: compatibilityScore == null ? "Matched" : `${Number(compatibilityScore) || 0}%`,
     location:
@@ -1211,6 +1356,15 @@ function mapConnectionToProfileMatch(match) {
     matchedAt: match.matchedAt ?? match.MatchedAt ?? null,
     isRecentlyActive: Boolean(match.isRecentlyActive ?? match.IsRecentlyActive ?? match.activeToday),
   };
+}
+
+function getMaximumDateOfBirth() {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 16);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getMatchName(match) {

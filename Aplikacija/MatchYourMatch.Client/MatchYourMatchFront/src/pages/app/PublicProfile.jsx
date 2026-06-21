@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Flag, Heart, MapPin, MessageCircle, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, Check, Flag, Heart, MapPin, MessageCircle, Sparkles, Star, UserPlus } from "lucide-react";
 import "./PublicProfile.css";
 import { useTranslation } from '../../hooks/useTranslation';
+import UserAvatar from '../../components/UserAvatar';
 
 function PublicProfile() {
   const { t } = useTranslation();
@@ -12,7 +13,15 @@ function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followError, setFollowError] = useState("");
   const [isReported, setIsReported] = useState(false);
+  const [ratingStatus, setRatingStatus] = useState(null);
+  const [ratingLoading, setRatingLoading] = useState(true);
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [ratingError, setRatingError] = useState("");
+  const [ratingSuccess, setRatingSuccess] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,6 +70,7 @@ function PublicProfile() {
         }
 
         setProfile(data);
+        setIsFollowing(Boolean(data.isFollowing));
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("[PublicProfile] request error", err);
@@ -76,7 +86,90 @@ function PublicProfile() {
     return () => controller.abort();
   }, [id]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadRating() {
+      if (!id) return;
+      setRatingLoading(true);
+      setRatingError("");
+      try {
+        const response = await fetch(`/api/Users/${id}/rating-status`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(await response.text() || "Rating could not be loaded.");
+        const data = await response.json();
+        setRatingStatus(data);
+        setSelectedEventId(data.eligibleEvents?.[0]?.eventId ? String(data.eligibleEvents[0].eventId) : "");
+      } catch (err) {
+        if (err.name !== "AbortError") setRatingError(err.message || t('publicProfile.ratingLoadError'));
+      } finally {
+        setRatingLoading(false);
+      }
+    }
+    loadRating();
+    return () => controller.abort();
+  }, [id, t]);
+
+  const handleFollow = async () => {
+    if (followLoading) return;
+    const previous = isFollowing;
+    setIsFollowing(!previous);
+    setFollowLoading(true);
+    setFollowError("");
+    setProfile((current) => current ? {
+      ...current,
+      followersCount: Math.max(0, (current.followersCount || 0) + (previous ? -1 : 1)),
+    } : current);
+    try {
+      const response = await fetch(`/api/Follow/${id}`, {
+        method: previous ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('publicProfile.followError'));
+    } catch (err) {
+      setIsFollowing(previous);
+      setProfile((current) => current ? {
+        ...current,
+        followersCount: Math.max(0, (current.followersCount || 0) + (previous ? 1 : -1)),
+      } : current);
+      setFollowError(err.message || t('publicProfile.followError'));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const saveRating = async (value) => {
+    if (!ratingStatus?.canRate || ratingSaving) return;
+    setRatingSaving(true);
+    setRatingError("");
+    setRatingSuccess("");
+    try {
+      const response = await fetch(`/api/Users/${id}/ratings`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eventId: selectedEventId ? Number(selectedEventId) : null,
+          rating: value,
+        }),
+      });
+      if (!response.ok) throw new Error(await response.text() || t('publicProfile.ratingSaveError'));
+      setRatingStatus(await response.json());
+      setRatingSuccess(t('publicProfile.ratingSaved'));
+    } catch (err) {
+      setRatingError(err.message || t('publicProfile.ratingSaveError'));
+    } finally {
+      setRatingSaving(false);
+    }
+  };
+
   const initials = useMemo(() => getInitials(profile?.username || ""), [profile?.username]);
+  const selectedRatingEvent = ratingStatus?.eligibleEvents?.find(
+    (event) => String(event.eventId) === selectedEventId,
+  );
 
   if (loading) {
     return <main className="public-profile"><div className="public-profile__state">{t('publicProfile.loading')}</div></main>;
@@ -118,23 +211,31 @@ function PublicProfile() {
       <header className="public-profile__hero">
         <div className="public-profile__mesh" aria-hidden="true" />
         <div className="public-profile__hero-inner">
-          <div className="public-profile__avatar">{initials}</div>
+          <UserAvatar className="public-profile__avatar" profilePicture={profile.profilePicture}
+            initials={initials} alt={`${profile.username} profile`} />
           <div className="public-profile__identity">
-            <h1>{profile.username}</h1>
+            <h1>{profile.fullName || profile.username}</h1>
             <p>@{profile.username}</p>
             <span>
               <MapPin size={15} />
               {profile.locationDisplayName || "Location not shared"}
+              {profile.age != null ? ` · ${profile.age}` : ""}
             </span>
+            <div className="public-profile__social-counts">
+              <span><strong>{profile.followersCount || 0}</strong> {t('publicProfile.followers')}</span>
+              <span><strong>{profile.followingCount || 0}</strong> {t('publicProfile.followingCount')}</span>
+            </div>
           </div>
           <div className="public-profile__actions">
             <button
               type="button"
               className={`public-profile__follow${isFollowing ? " public-profile__follow--active" : ""}`}
-              onClick={() => setIsFollowing((current) => !current)}
+              onClick={handleFollow}
+              disabled={followLoading}
+              title={isFollowing ? t('publicProfile.unfollow') : t('publicProfile.follow')}
             >
               {isFollowing ? <Check size={16} /> : <UserPlus size={16} />}
-              {isFollowing ? "Following" : "Follow"}
+              {isFollowing ? t('publicProfile.following') : t('publicProfile.follow')}
             </button>
             <button
               type="button"
@@ -145,6 +246,7 @@ function PublicProfile() {
               {isReported ? "Reported" : "Report"}
             </button>
           </div>
+          {followError && <p className="public-profile__action-error">{followError}</p>}
         </div>
       </header>
 
@@ -155,6 +257,49 @@ function PublicProfile() {
             About
           </h2>
           <p>{profile.bio || "This user has not added a bio yet."}</p>
+        </article>
+
+        <article className="public-profile__card public-profile__card--wide public-profile__rating-card">
+          <div className="public-profile__rating-head">
+            <h2><Star size={17} />{t('publicProfile.rateUser')}</h2>
+            <div>
+              <strong>{ratingStatus?.averageRating != null ? Number(ratingStatus.averageRating).toFixed(1) : '—'} / 5</strong>
+              <span>{ratingStatus?.ratingsCount || 0} {t('publicProfile.ratings')}</span>
+            </div>
+          </div>
+
+          {ratingLoading && <p>{t('common.loading')}</p>}
+          {!ratingLoading && ratingStatus && (
+            <>
+              <RatingStars value={Number(ratingStatus.averageRating || 0)} label={t('publicProfile.averageRating')} />
+              {ratingStatus.canRate ? (
+                <div className="public-profile__rating-editor">
+                  {ratingStatus.eligibleEvents.length > 1 && (
+                    <label><span>{t('publicProfile.chooseEvent')}</span>
+                      <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
+                        {ratingStatus.eligibleEvents.map((event) => (
+                          <option key={event.eventId} value={event.eventId}>{event.title} — {formatRatingEventDate(event.dateTime)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {selectedRatingEvent && ratingStatus.eligibleEvents.length === 1 && (
+                    <p className="public-profile__rating-event">{t('publicProfile.basedOn')} <strong>{selectedRatingEvent.title}</strong></p>
+                  )}
+                  <span className="public-profile__rating-label">{t('publicProfile.yourRating')}</span>
+                  <div className="public-profile__rating-input">
+                    <RatingStars value={Number(selectedRatingEvent?.myRating ?? ratingStatus.myRating ?? 0)} interactive
+                      disabled={ratingSaving} label={t('publicProfile.yourRating')} onChange={saveRating} />
+                    <button type="button" disabled={ratingSaving} onClick={() => saveRating(0)}>0</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="public-profile__rating-hint">{ratingStatus.reason || t('publicProfile.ratingHint')}</p>
+              )}
+            </>
+          )}
+          {ratingError && <p className="public-profile__rating-error">{ratingError}</p>}
+          {ratingSuccess && <p className="public-profile__rating-success">{ratingSuccess}</p>}
         </article>
 
         <article className="public-profile__card">
@@ -192,6 +337,39 @@ function PublicProfile() {
       </section>
     </main>
   );
+}
+
+function RatingStars({ value, interactive = false, disabled = false, onChange, label }) {
+  const [preview, setPreview] = useState(null);
+  const displayed = preview ?? value;
+
+  return (
+    <div className={`public-profile__stars${interactive ? ' public-profile__stars--interactive' : ''}`}
+      aria-label={`${label}: ${displayed} / 5`} onMouseLeave={() => setPreview(null)}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fill = Math.max(0, Math.min(1, displayed - (star - 1))) * 100;
+        return (
+          <span className="public-profile__star" key={star}>
+            <span className="public-profile__star-base">★</span>
+            <span className="public-profile__star-fill" style={{ width: `${fill}%` }}>★</span>
+            {interactive && <>
+              <button type="button" disabled={disabled} aria-label={`${star - 0.5} / 5`}
+                onMouseEnter={() => setPreview(star - 0.5)} onFocus={() => setPreview(star - 0.5)}
+                onClick={() => onChange?.(star - 0.5)} />
+              <button type="button" disabled={disabled} aria-label={`${star} / 5`}
+                onMouseEnter={() => setPreview(star)} onFocus={() => setPreview(star)}
+                onClick={() => onChange?.(star)} />
+            </>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function formatRatingEventDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
 }
 
 function getInitials(value) {

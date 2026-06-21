@@ -101,6 +101,35 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [Authorize]
+        [HttpPost("{id:int}/invites")]
+        public async Task<IActionResult> Invite(int id, CreateEventInviteDto dto,
+            [FromServices] IEventInviteService invites)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                return Ok(await invites.CreateAsync(id, userId, dto.InviteeUserId));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/invite-candidates")]
+        public async Task<IActionResult> InviteCandidates(int id, [FromQuery] string? query,
+            [FromServices] IEventInviteService invites)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                return Ok(await invites.SearchCandidatesAsync(id, userId, query));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+        }
+
+        [Authorize]
         [HttpGet("{id:int}/discussion")]
         public async Task<IActionResult> GetDiscussion(int id)
         {

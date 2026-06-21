@@ -1,7 +1,8 @@
-import { MapPin, Clock } from 'lucide-react';
+import { MapPin, Clock, UserPlus } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
+import UserAvatar from './UserAvatar';
 
-function EventCard({ event, style, mini = false, onJoin, onOpen }) {
+function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
   const { t } = useTranslation();
   const {
     title,
@@ -70,28 +71,43 @@ function EventCard({ event, style, mini = false, onJoin, onOpen }) {
       </p>
       <div className="event-card__footer">
         <div className="event-card__attendees">
-          {attendees.map((initial, i) => (
-            <span
-              key={initial + i}
+          {attendees.map((attendee, i) => {
+            const avatar = typeof attendee === 'string'
+              ? { initials: attendee }
+              : attendee;
+
+            return (
+            <UserAvatar
+              key={avatar.userId || `${avatar.initials}-${i}`}
               className="event-card__attendee"
               style={{ zIndex: attendees.length - i }}
-            >
-              {initial}
-            </span>
-          ))}
+              profilePicture={avatar.profilePicture}
+              initials={avatar.initials}
+              alt={avatar.username || ''}
+            />
+            );
+          })}
           {extra > 0 && <span className="event-card__more">{t('events.more', { count: extra })}</span>}
         </div>
-        <button
-          type="button"
-          className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
-          onClick={(clickEvent) => {
-            clickEvent.stopPropagation();
-            onJoin?.();
-          }}
-          disabled={isJoinedByCurrentUser}
-        >
-          {isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
-        </button>
+        <div className="event-card__actions">
+          {isJoinedByCurrentUser && onInvite && (
+            <button type="button" className="event-card__invite" onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onInvite();
+            }}><UserPlus size={14} />{t('notifications.invite').toUpperCase()}</button>
+          )}
+          <button
+            type="button"
+            className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onJoin?.();
+            }}
+            disabled={isJoinedByCurrentUser}
+          >
+            {isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
+          </button>
+        </div>
       </div>
     </article>
   );

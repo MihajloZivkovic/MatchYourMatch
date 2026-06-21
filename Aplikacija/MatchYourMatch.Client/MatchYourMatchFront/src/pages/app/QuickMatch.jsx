@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import './QuickMatch.css';
 import { useTranslation } from '../../hooks/useTranslation';
+import UserAvatar from '../../components/UserAvatar';
 
 const initialForm = {
   startTime: '',
@@ -70,6 +71,7 @@ const mapMatchToProfile = (match, t) => {
     id: match.id,
     name: match.username,
     initials: getInitials(match.username),
+    profilePicture: match.profilePicture,
     location: match.location || t('quick.unknownLocation'),
     timeRange: `${match.startTime} - ${match.endTime}`,
     message: match.description,
@@ -94,6 +96,7 @@ function QuickMatch() {
   const [stack, setStack] = useState([]);
   const [animating, setAnimating] = useState(null);
   const [selectedQuickTime, setSelectedQuickTime] = useState('');
+  const [matchError, setMatchError] = useState('');
 
   const top = stack[0];
   const remaining = stack.length;
@@ -261,8 +264,23 @@ function QuickMatch() {
     setAnimating(null);
   };
 
-  const handleAction = (action) => {
+  const handleAction = async (action) => {
     if (!top || animating) return;
+    setMatchError('');
+
+    if (action === 'match') {
+      try {
+        const response = await fetch(`/api/QuickMatch/${top.id}/connect`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        if (!response.ok) throw new Error(await response.text() || 'Quick Match could not be created.');
+      } catch (error) {
+        setMatchError(error.message || 'Quick Match could not be created.');
+        return;
+      }
+    }
+
     setAnimating(action);
     setTimeout(() => {
       setStack((prev) => prev.slice(1));
@@ -416,6 +434,7 @@ function QuickMatch() {
       </div>
 
       <p className="quick-match__status">{t('quick.remaining', { count: remaining })}</p>
+      {matchError && <p className="quick-match__error">{matchError}</p>}
 
       <div className="quick-match__stack">
         {stack
@@ -436,7 +455,8 @@ function QuickMatch() {
                   <span className="quick-match__compat-val">{profile.compatibility}%</span>
                   <span className="quick-match__compat-label">{t('quick.match')}</span>
                 </span>
-                <div className="quick-match__avatar">{profile.initials}</div>
+                <UserAvatar className="quick-match__avatar" profilePicture={profile.profilePicture}
+                  initials={profile.initials} alt="" />
                 <h2 className="quick-match__name">{profile.name}</h2>
                 <p className="quick-match__meta">
                   {profile.location} - {profile.timeRange}

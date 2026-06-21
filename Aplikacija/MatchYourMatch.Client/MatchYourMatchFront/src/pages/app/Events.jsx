@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarX } from 'lucide-react';
 import EventCard from '../../components/EventCard';
+import EventInviteModal from '../../components/events/EventInviteModal';
 import './Events.css';
 import { useTranslation } from '../../hooks/useTranslation';
 
@@ -12,6 +13,7 @@ function Events() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [inviteEvent, setInviteEvent] = useState(null);
   const { t } = useTranslation();
   const filterLabels = { ALL: t('events.all'), NEARBY: t('events.nearby'), 'THIS WEEK': t('events.thisWeek'), STUDY: t('events.study'), GAMING: t('events.gaming'), COFFEE: t('events.coffee'), SOCIAL: t('events.social'), SPORT: t('events.sport') };
 
@@ -41,7 +43,8 @@ function Events() {
   };
 
   useEffect(() => {
-    loadEvents();
+    const initial = window.setTimeout(loadEvents, 0);
+    return () => window.clearTimeout(initial);
   }, []);
 
   const filtered = useMemo(() => {
@@ -146,10 +149,12 @@ function Events() {
               event={event}
               style={{ '--i': i }}
               onJoin={() => handleJoin(event.id)}
+              onInvite={() => setInviteEvent(event)}
             />
           ))}
         </div>
       )}
+      {inviteEvent && <EventInviteModal event={inviteEvent} onClose={() => setInviteEvent(null)} />}
     </div>
   );
 }
@@ -165,7 +170,9 @@ function mapApiEvent(event) {
     rawTime: event.time,
     location: event.location || 'Community meetup',
     description: event.description || 'Community event created by a MYM user.',
-    attendees: event.participantInitials || [],
+    attendees: event.participantAvatars?.length
+      ? event.participantAvatars
+      : event.participantInitials || [],
     attendeeCount: event.participantsCount || 0,
     maxAttendees: event.maxAttendees || 0,
     isJoinedByCurrentUser: Boolean(event.isJoinedByCurrentUser),

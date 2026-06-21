@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
+import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
 import { useTranslation } from "../hooks/useTranslation";
 import "./AppNavbar.css";
 
@@ -65,6 +66,8 @@ function AppNavbar(props) {
             + {t('nav.createEvent').toUpperCase()}
           </Link>
 
+          <NotificationsDropdown />
+
           <div className="app-navbar__profile-wrap" ref={dropdownRef}>
             <button
               type="button"
@@ -107,6 +110,8 @@ function AppNavbar(props) {
         <div className="app-navbar__drawer-search">
           <GlobalSearch onNavigate={() => setMenuOpen(false)} />
         </div>
+
+        <NotificationsDropdown mobile onNavigate={() => setMenuOpen(false)} />
 
         <NavLink
           to="/app/quick-match"

@@ -76,6 +76,7 @@ namespace MatchYourMatch.WebAPI.Controllers
                     Id = x.User.Id,
                     Username = x.User.Username,
                     DisplayName = x.User.Username,
+                    ProfilePicture = x.User.Profile?.ProfilePicture,
                     Role = x.User.Role,
                     LocationDisplayName = GetPublicLocation(x.User.Profile),
                     Tags = x.User.UserInterests

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Loader2, User, CalendarDays, Sparkles, Hash } from "lucide-react";
 import "./GlobalSearch.css";
 import { useTranslation } from "../hooks/useTranslation";
+import UserAvatar from './UserAvatar';
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
@@ -191,10 +192,12 @@ function GlobalSearch({ onNavigate }) {
             renderSection(t('search.people'), results.people, <User size={14} />, (person) => (
               <button
                 type="button"
-                className="global-search__item"
+                className="global-search__item global-search__item--person"
                 key={`person-${person.id}`}
                 onClick={() => handleNavigate(`/app/users/${person.id}`)}
               >
+                <UserAvatar className="global-search__avatar" profilePicture={person.profilePicture}
+                  initials={(person.displayName || person.username).slice(0, 2).toUpperCase()} alt="" />
                 <span className="global-search__item-main">{person.displayName || person.username}</span>
                 <span className="global-search__item-meta">
                   @{person.username}

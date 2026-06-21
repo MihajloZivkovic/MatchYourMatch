@@ -45,7 +45,8 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
-                var profile = await _service.GetPublicProfileAsync(id);
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var profile = await _service.GetPublicProfileAsync(id, currentUserId);
                 return Ok(profile);
             }
             catch (Exception ex)

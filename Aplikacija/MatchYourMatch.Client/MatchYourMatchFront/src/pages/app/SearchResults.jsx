@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { CalendarDays, Hash, Search, Sparkles, User } from "lucide-react";
 import "./SearchResults.css";
 import { useTranslation } from '../../hooks/useTranslation';
+import UserAvatar from '../../components/UserAvatar';
 
 const emptyResults = {
   people: [],
@@ -144,7 +145,8 @@ function SearchResults() {
                 key={`person-${person.id}`}
                 onClick={() => navigate(`/app/users/${person.id}`)}
               >
-                <span className="search-results__avatar">{getInitials(person.displayName || person.username)}</span>
+                <UserAvatar className="search-results__avatar" profilePicture={person.profilePicture}
+                  initials={getInitials(person.displayName || person.username)} alt="" />
                 <span className="search-results__content">
                   <strong>{person.displayName || person.username}</strong>
                   <small>
