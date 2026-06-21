@@ -20,7 +20,7 @@
 }
 
 .create-event__check {
-  color: #22c55e;
+  color: var(--color-status-success);
   margin-bottom: 1rem;
 }
 

@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
+import ThemeMenu from "../components/ThemeMenu";
 import { useTranslation } from "../hooks/useTranslation";
 import "./AppNavbar.css";
 
@@ -62,6 +63,8 @@ function AppNavbar(props) {
         </div>
 
         <div className="app-navbar__right">
+          <ThemeMenu variant="app" />
+
           <Link to="/app/events/create" className="app-navbar__create">
             + {t('nav.createEvent').toUpperCase()}
           </Link>
@@ -162,6 +165,7 @@ function AppNavbar(props) {
         >
           {t('nav.settings')}
         </Link>
+        <ThemeMenu variant="app" layout="drawer" />
         <button
           type="button"
           className="app-navbar__drawer-logout"
