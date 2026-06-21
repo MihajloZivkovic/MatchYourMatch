@@ -68,6 +68,10 @@ builder.Services.AddScoped<IEventInviteService, EventInviteService>();
 builder.Services.AddScoped<IUserRatingService, UserRatingService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<GoogleTokenValidator>();
+builder.Services.AddScoped<FacebookTokenValidator>();
+builder.Services.AddScoped<MicrosoftTokenValidator>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
@@ -171,6 +175,17 @@ using (var scope = app.Services.CreateScope())
             CONSTRAINT `FK_Follows_Users_FollowingId` FOREIGN KEY (`FollowingId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
             UNIQUE INDEX `IX_Follows_FollowerId_FollowingId` (`FollowerId`, `FollowingId`),
             INDEX `IX_Follows_FollowingId` (`FollowingId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `ExternalLogins` (
+            `Id` int NOT NULL AUTO_INCREMENT, `UserId` int NOT NULL,
+            `Provider` varchar(30) NOT NULL, `ProviderUserId` varchar(200) NOT NULL,
+            `ProviderEmail` longtext NULL, `CreatedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_ExternalLogins` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_ExternalLogins_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            UNIQUE INDEX `IX_ExternalLogins_Provider_ProviderUserId` (`Provider`,`ProviderUserId`),
+            INDEX `IX_ExternalLogins_UserId` (`UserId`)
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""

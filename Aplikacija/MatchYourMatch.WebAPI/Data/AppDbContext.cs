@@ -30,6 +30,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ChatMessageUserDeletion> ChatMessageUserDeletions { get; set; }
         public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
+        public DbSet<ExternalLogin> ExternalLogins { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
         }
@@ -42,6 +43,9 @@ namespace MatchYourMatch.WebAPI.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username).IsUnique();
             modelBuilder.Entity<User>().Property(u => u.EmailVerificationCodeHash).HasMaxLength(64);
+            modelBuilder.Entity<ExternalLogin>().HasIndex(x => new { x.Provider, x.ProviderUserId }).IsUnique();
+            modelBuilder.Entity<ExternalLogin>().Property(x => x.Provider).HasMaxLength(30);
+            modelBuilder.Entity<ExternalLogin>().Property(x => x.ProviderUserId).HasMaxLength(200);
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Profile).WithOne(p => p.User).HasForeignKey<UserProfile>(u => u.UserId);
             modelBuilder.Entity<User>()

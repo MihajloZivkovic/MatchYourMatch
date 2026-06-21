@@ -446,6 +446,43 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.ToTable("EventParticipants");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ExternalLogin", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("ProviderEmail")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProviderUserId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Provider", "ProviderUserId")
+                        .IsUnique();
+
+                    b.ToTable("ExternalLogins");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Follow", b =>
                 {
                     b.Property<int>("Id")
@@ -1204,6 +1241,17 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MatchYourMatch.WebAPI.Models.ExternalLogin", b =>
+                {
+                    b.HasOne("MatchYourMatch.WebAPI.Models.User", "User")
+                        .WithMany("ExternalLogins")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MatchYourMatch.WebAPI.Models.Follow", b =>
                 {
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", "Follower")
@@ -1431,6 +1479,8 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.Navigation("EventParticipations");
 
                     b.Navigation("Events");
+
+                    b.Navigation("ExternalLogins");
 
                     b.Navigation("Followers");
 

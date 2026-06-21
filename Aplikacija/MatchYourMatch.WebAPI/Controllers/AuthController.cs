@@ -69,6 +69,42 @@ namespace MatchYourMatch.WebAPI.Controllers
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
+        [HttpPost("external-login/google")]
+        public async Task<IActionResult> GoogleLogin(ExternalLoginDto dto)
+        {
+            try { return Ok(await _authService.GoogleLoginAsync(dto)); }
+            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("external-login/facebook")]
+        public async Task<IActionResult> FacebookLogin(ExternalLoginDto dto)
+        {
+            try { return Ok(await _authService.FacebookLoginAsync(dto)); }
+            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("external-login/microsoft")]
+        public async Task<IActionResult> MicrosoftLogin(ExternalLoginDto dto)
+        {
+            try { return Ok(await _authService.MicrosoftLoginAsync(dto)); }
+            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpPut("complete-social-profile")]
+        public async Task<IActionResult> CompleteSocialProfile(CompleteSocialProfileDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                return Ok(await _authService.CompleteSocialProfileAsync(userId, dto));
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
         {

@@ -16,17 +16,25 @@ namespace MatchYourMatch.WebAPI.Services
         private readonly IConfiguration _config;
         private readonly AppDbContext _context;
         private readonly EmailService _emailService;
+        private readonly GoogleTokenValidator _googleTokenValidator;
+        private readonly FacebookTokenValidator _facebookTokenValidator;
+        private readonly MicrosoftTokenValidator _microsoftTokenValidator;
 
         private readonly string _issuer;
         private readonly string _audience;
         private readonly string _secret;
         private readonly int _expires;
 
-        public AuthService(IConfiguration config, AppDbContext context, EmailService service)
+        public AuthService(IConfiguration config, AppDbContext context, EmailService service,
+            GoogleTokenValidator googleTokenValidator, FacebookTokenValidator facebookTokenValidator,
+            MicrosoftTokenValidator microsoftTokenValidator)
         {
             _config = config;
             _context = context;
             _emailService = service;
+            _googleTokenValidator = googleTokenValidator;
+            _facebookTokenValidator = facebookTokenValidator;
+            _microsoftTokenValidator = microsoftTokenValidator;
 
             _issuer = _config["JwtSettings:Issuer"]!;
             _audience = _config["JwtSettings:Audience"]!;
@@ -85,7 +93,7 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task<AuthInfoDto> LoginAsync(LoginDto dto)
         {
             var email = dto.Email.Trim().ToLowerInvariant();
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null)
                 throw new Exception("Pogresan email.");
@@ -136,11 +144,14 @@ namespace MatchYourMatch.WebAPI.Services
         private AuthInfoDto GenerateResponse(User user)
         {
             var expiry = DateTime.UtcNow.AddMinutes(_expires);
+            var requiresCompletion = user.Profile?.DateOfBirth == null;
 
             return new AuthInfoDto
             {
                 AccessToken = GenerateToken(user, expiry),
                 AccessTokenExpiry = expiry,
+                RequiresProfileCompletion = requiresCompletion,
+                MissingFields = requiresCompletion ? new List<string> { "dateOfBirth" } : new List<string>(),
                 UserInfo = new UserInfoDto
                 {
                     Username = user.Username,
@@ -152,11 +163,13 @@ namespace MatchYourMatch.WebAPI.Services
 
         private string GenerateToken(User user, DateTime expiry)
         {
+            var profileComplete = user.Profile?.DateOfBirth != null;
             var _claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim("profileComplete", profileComplete ? "true" : "false")
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
@@ -215,6 +228,86 @@ namespace MatchYourMatch.WebAPI.Services
 
             user.Email = dto.NewEmail;
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<AuthInfoDto> GoogleLoginAsync(ExternalLoginDto dto)
+        {
+            var identity = await _googleTokenValidator.ValidateAsync(dto.IdToken);
+            return await SignInExternalAsync(identity);
+        }
+
+        public async Task<AuthInfoDto> FacebookLoginAsync(ExternalLoginDto dto)
+        {
+            var identity = await _facebookTokenValidator.ValidateAsync(dto.AccessToken);
+            return await SignInExternalAsync(identity);
+        }
+
+        public async Task<AuthInfoDto> MicrosoftLoginAsync(ExternalLoginDto dto)
+        {
+            var identity = await _microsoftTokenValidator.ValidateAsync(dto.IdToken);
+            return await SignInExternalAsync(identity);
+        }
+
+        private async Task<AuthInfoDto> SignInExternalAsync(ExternalIdentity identity)
+        {
+            if (!identity.EmailVerified) throw new Exception($"{identity.Provider} email must be verified.");
+            var external = await _context.ExternalLogins.Include(x => x.User).ThenInclude(u => u.Profile)
+                .FirstOrDefaultAsync(x => x.Provider == identity.Provider && x.ProviderUserId == identity.Subject);
+            User? user;
+            if (external != null) user = external.User;
+            else
+            {
+                user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Email == identity.Email);
+                if (user != null && !user.EmailConfirmed)
+                    throw new Exception($"This email cannot be linked to {identity.Provider} login.");
+                if (user == null)
+                {
+                    var username = await CreateUniqueUsernameAsync(identity.Email.Split('@')[0]);
+                    user = new User
+                    {
+                        Username = username, Email = identity.Email,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(Convert.ToHexString(RandomNumberGenerator.GetBytes(32))),
+                        EmailConfirmed = identity.EmailVerified,
+                        EmailConfirmedAt = identity.EmailVerified ? DateTime.UtcNow : null,
+                        Profile = new UserProfile { FullName = identity.Name, ProfilePicture = identity.Picture, ShowFullName = false, ShowAge = false }
+                    };
+                    _context.Users.Add(user);
+                }
+                _context.ExternalLogins.Add(new ExternalLogin { User = user, Provider = identity.Provider, ProviderUserId = identity.Subject, ProviderEmail = identity.Email });
+                await _context.SaveChangesAsync();
+            }
+            if (!user.IsActive) throw new Exception("Nalog je deaktiviran.");
+            if (!user.EmailConfirmed) throw new Exception("Please verify your email before logging in.");
+            return GenerateResponse(user);
+        }
+
+        public async Task<AuthInfoDto> CompleteSocialProfileAsync(int userId, CompleteSocialProfileDto dto)
+        {
+            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) throw new Exception("User does not exist.");
+            if (!dto.DateOfBirth.HasValue || dto.DateOfBirth > DateOnly.FromDateTime(DateTime.Today).AddYears(-16))
+                throw new Exception("You must be at least 16 years old.");
+            if (!string.IsNullOrWhiteSpace(dto.Username) && !string.Equals(dto.Username.Trim(), user.Username, StringComparison.OrdinalIgnoreCase))
+            {
+                var username = dto.Username.Trim();
+                if (await _context.Users.AnyAsync(x => x.Id != userId && x.Username == username)) throw new Exception("Username is already in use.");
+                user.Username = username;
+            }
+            user.Profile ??= new UserProfile { UserId = userId };
+            user.Profile.DateOfBirth = dto.DateOfBirth;
+            if (!string.IsNullOrWhiteSpace(dto.FullName)) user.Profile.FullName = dto.FullName.Trim();
+            await _context.SaveChangesAsync();
+            return GenerateResponse(user);
+        }
+
+        private async Task<string> CreateUniqueUsernameAsync(string source)
+        {
+            var baseName = new string(source.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(baseName)) baseName = "mymuser";
+            baseName = baseName[..Math.Min(baseName.Length, 90)];
+            var candidate = baseName; var suffix = 1;
+            while (await _context.Users.AnyAsync(x => x.Username == candidate)) candidate = $"{baseName}{suffix++}";
+            return candidate;
         }
 
         private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");

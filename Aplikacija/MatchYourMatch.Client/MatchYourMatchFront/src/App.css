@@ -858,6 +858,18 @@
 .auth__resend { color:var(--color-accent); font-size:.78rem; font-weight:600; text-align:center; }
 .auth__resend:disabled { color:var(--color-text-subtle); cursor:not-allowed; }
 
+.social-auth { display:grid; gap:.65rem; }
+.social-auth__separator { display:flex; align-items:center; gap:.75rem; color:var(--color-text-subtle); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
+.social-auth__separator::before, .social-auth__separator::after { content:""; height:1px; flex:1; background:var(--color-border); }
+.social-auth__google { min-height:40px; display:flex; justify-content:center; transition:opacity var(--transition-smooth); }
+.social-auth__google.is-loading { opacity:.55; pointer-events:none; }
+.social-auth__button { width:100%; min-height:42px; border:1px solid var(--color-border); border-radius:.65rem; background:var(--color-input); color:var(--color-text-muted); font:inherit; }
+.social-auth__button { cursor:pointer; transition:border-color var(--transition-smooth), opacity var(--transition-smooth); }
+.social-auth__button:hover:not(:disabled) { border-color:var(--color-accent); }
+.social-auth__button:disabled { cursor:wait; opacity:.58; }
+.social-auth__button--facebook { color:#8ab4ff; }
+.social-auth__button--microsoft { color:var(--color-text); }
+
 .auth__submit {
   width: 100%;
   margin-top: 0.5rem;

@@ -1,6 +1,7 @@
 import { useActionState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "../hooks/useTranslation";
+import SocialAuthButtons from "../components/SocialAuthButtons";
 
 const emptyValues = { fullName: "", username: "", email: "", password: "", confirmPassword: "", dateOfBirth: "" };
 
@@ -68,6 +69,8 @@ function Register() {
           <form className="auth__card" action={formAction}>
             <h1 className="auth__title">{t("nav.register").toUpperCase()}</h1>
             {state.error && <p className="auth__error" role="alert">{state.error}</p>}
+
+            <SocialAuthButtons register />
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-full-name">{t("auth.fullName")}</label>

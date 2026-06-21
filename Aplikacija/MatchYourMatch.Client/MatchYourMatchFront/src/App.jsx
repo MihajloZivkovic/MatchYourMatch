@@ -14,6 +14,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import VerifyEmail from "./pages/VerifyEmail";
+import CompleteProfile from "./pages/CompleteProfile";
 import About from "./pages/About";
 import Dashboard from "./pages/app/Dashboard";
 import QuickMatch from "./pages/app/QuickMatch";
@@ -300,6 +301,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
         <Route path="/about" element={<About />} />
       </Routes>
     </div>

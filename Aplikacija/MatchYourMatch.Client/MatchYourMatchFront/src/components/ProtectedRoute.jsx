@@ -23,6 +23,10 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (!hasCompletedProfile(localStorage.getItem('token'))) {
+    return <Navigate to="/complete-profile" replace />;
+  }
+
   return children;
 }
 
@@ -43,6 +47,17 @@ function isUsableJwt(token) {
     if (!decoded.exp) return true;
 
     return decoded.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function hasCompletedProfile(token) {
+  try {
+    const [, payload] = token.split('.');
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized));
+    return decoded.profileComplete !== 'false' && decoded.profileComplete !== false;
   } catch {
     return false;
   }

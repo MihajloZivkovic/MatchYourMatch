@@ -42,5 +42,6 @@
         public List<ChatMessage> ReceivedChatMessages { get; set; } = new();
         public List<ChatMessageUserDeletion> DeletedChatMessages { get; set; } = new();
         public List<ChatMessageReaction> ChatMessageReactions { get; set; } = new();
+        public List<ExternalLogin> ExternalLogins { get; set; } = new();
     }
 }

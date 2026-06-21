@@ -1,6 +1,7 @@
 import { useActionState, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
+import SocialAuthButtons from '../components/SocialAuthButtons';
 
 function Login() {
   const navigate = useNavigate();
@@ -65,6 +66,8 @@ function Login() {
               </p>
             )}
             {vrstaGreske === 'verify' && <p className="auth__switch"><Link to="/verify-email" state={{email:state.values.email}} className="auth__switch-link">{t('emailVerification.resend')}</Link></p>}
+
+            <SocialAuthButtons />
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="login-email">
