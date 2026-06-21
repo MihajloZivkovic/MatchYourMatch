@@ -280,7 +280,7 @@
   height: 10px;
   border-radius: 50%;
   border: 2px solid #111;
-  background: #22c55e;
+  background: var(--color-status-online);
 }
 
 .chat-list__copy {

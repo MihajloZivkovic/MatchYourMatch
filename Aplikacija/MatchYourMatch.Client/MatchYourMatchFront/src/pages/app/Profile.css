@@ -1314,7 +1314,7 @@
 .profile__match-online {
   display: block;
   font-size: 0.65rem;
-  color: #22c55e;
+  color: var(--color-status-online);
   margin-bottom: 0.75rem;
   min-height: 0.9rem;
 }
@@ -1763,7 +1763,7 @@
 }
 
 .saveAnimation{
-  background-color: green;
+  background-color: var(--color-status-success);
   transition: var(--transition);
 }
 .profile__api-error {
@@ -2026,9 +2026,9 @@
 }
 
 :root[data-theme="light"] .profile__block .saveAnimation {
-  background: #22c55e;
+  background: var(--color-status-success);
   color: #06220f;
-  box-shadow: 0 12px 28px rgba(34, 197, 94, 0.22);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-status-success) 22%, transparent);
 }
 
 :root[data-theme="light"] .profile__little-grid {
@@ -2156,7 +2156,7 @@
 :root[data-theme="light"] .profile__pref-field select,
 :root[data-theme="light"] .profile__pref-field input,
 :root[data-theme="light"] .profile__day-add input {
-  background: #ffffff;
+  background: var(--color-input);
   color: var(--color-text);
   border: 1px solid rgba(42, 30, 12, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);

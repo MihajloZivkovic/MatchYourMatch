@@ -52,6 +52,9 @@
   --color-hero-line: rgba(255, 255, 255, 0.85);
   --color-danger-soft: rgba(255, 92, 92, 0.1);
   --color-danger-text: #ff8a8a;
+  --color-status-online: #f4a300;
+  --color-status-success: #f4a300;
+  --color-online-pulse: rgba(244, 163, 0, 0.35);
   --public-page-background:
     radial-gradient(ellipse 80% 50% at 50% 35%, rgba(244, 163, 0, 0.06) 0%, transparent 65%),
     radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
@@ -62,11 +65,11 @@
 :root[data-theme="light"] {
   --color-bg: #f7f3ec;
   --color-bg-soft: #fbf6ee;
-  --color-bg-elevated: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-soft: rgba(255, 255, 255, 0.72);
+  --color-bg-elevated: #f0ebe3;
+  --color-surface: #faf7f1;
+  --color-surface-soft: rgba(255, 252, 246, 0.82);
   --color-surface-elevated: #fffaf2;
-  --color-input: #ffffff;
+  --color-input: #faf7f1;
   --color-text: #171717;
   --color-heading: #0f0f0f;
   --color-text-muted: #5f5f5f;
@@ -81,11 +84,27 @@
   --color-hero-line: rgba(44, 35, 24, 0.45);
   --color-danger-soft: rgba(190, 38, 38, 0.08);
   --color-danger-text: #a51f1f;
+  --color-status-online: #c97d08;
+  --color-status-success: #c97d08;
+  --color-online-pulse: rgba(201, 125, 8, 0.35);
   --public-page-background:
     radial-gradient(ellipse 80% 55% at 50% 30%, rgba(244, 163, 0, 0.13) 0%, transparent 64%),
     radial-gradient(ellipse 55% 38% at 85% 82%, rgba(255, 190, 67, 0.09) 0%, transparent 55%),
     linear-gradient(180deg, var(--color-bg-soft) 0%, var(--color-bg) 48%, var(--color-bg-elevated) 100%);
   --public-noise-opacity: 0.018;
+}
+
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    fill 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    stroke 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 
 *,
