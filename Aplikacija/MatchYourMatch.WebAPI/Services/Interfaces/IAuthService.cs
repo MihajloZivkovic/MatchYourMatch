@@ -8,5 +8,6 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<AuthInfoDto> LoginAsync(LoginDto dto);
         Task ForgotPasswordAsync(ForgotPasswordDto dto);
         Task ResetPasswordAsync(ResetPasswordDto dto);
+        Task ChangeEmailAsync(int userId, ChangeEmailDto dto);
     }
 }

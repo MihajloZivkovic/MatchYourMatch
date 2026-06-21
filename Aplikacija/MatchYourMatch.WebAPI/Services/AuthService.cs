@@ -134,5 +134,21 @@ namespace MatchYourMatch.WebAPI.Services
             user.ResetTokenExpiry = null;
             await _context.SaveChangesAsync();
         }
+
+        public async Task ChangeEmailAsync(int userId, ChangeEmailDto dto)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new Exception("User ne postoji");
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+                throw new Exception("Netacna lozinka!");
+
+            if (await _context.Users.AnyAsync(u => u.Email == dto.NewEmail))
+                throw new Exception("Email je vec u upotrebi!");
+
+            user.Email = dto.NewEmail;
+            await _context.SaveChangesAsync();
+        }
     }
 }
