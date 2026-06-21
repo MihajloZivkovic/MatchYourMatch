@@ -1,5 +1,7 @@
-﻿using MatchYourMatch.WebAPI.DTOs.Auth;
+﻿using System.Security.Claims;
+using MatchYourMatch.WebAPI.DTOs.Auth;
 using MatchYourMatch.WebAPI.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MatchYourMatch.WebAPI.Controllers
@@ -53,7 +55,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
             catch (Exception ex)
             {
-                return Unauthorized(ex.Message);
+                return BadRequest(ex.Message);
             }
         }
 
@@ -67,7 +69,23 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
             catch (Exception ex)
             {
-                return Unauthorized(ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("change-email")]
+        public async Task<IActionResult> ChangeEmail(ChangeEmailDto dto)
+        {
+            try
+            {
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                await _authService.ChangeEmailAsync(userId, dto);
+                return Ok("Email uspesno promenjen.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
     }
