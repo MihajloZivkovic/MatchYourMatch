@@ -31,4 +31,6 @@ packages/
 .vs/
 App_Data/
 **/DataProtectionKeys/
+**/.data-protection-keys/
+Aplikacija/MatchYourMatch.WebAPI/.data-protection-keys/
 .agents/

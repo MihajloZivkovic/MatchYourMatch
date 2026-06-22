@@ -8,6 +8,10 @@
         public required string PasswordHash { get; set; }
         public string Role { get; set; } = "User";
         public bool IsActive { get; set; } = true;
+        public bool IsDeactivated { get; set; }
+        public DateTime? DeactivatedAt { get; set; }
+        public int TokenVersion { get; set; }
+        public bool HasPassword { get; set; } = true;
         public bool EmailConfirmed { get; set; }
         public DateTime? EmailConfirmedAt { get; set; }
         public string? EmailVerificationCodeHash { get; set; }
@@ -20,8 +24,11 @@
         public List<UserInterest> UserInterests { get; set; } = new();
         public List<Event> Events { get; set; } = new();
         public List<EventParticipant> EventParticipations { get; set; } = new();
+        public List<EventJoinRequest> EventJoinRequests { get; set; } = new();
+        public List<SavedEvent> SavedEvents { get; set; } = new();
         public List<EventDiscussionMessage> EventDiscussionMessages { get; set; } = new();
         public List<QuickMatchPost> QuickMatchPosts {get; set;} = new();
+        public List<QuickMatchRequest> QuickMatchRequests { get; set; } = new();
         public List<Follow> Followers { get; set; } = new();
         public List<Follow> Following { get; set; } = new();
         public List<Notification> Notifications { get; set; } = new();

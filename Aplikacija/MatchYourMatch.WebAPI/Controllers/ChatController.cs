@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using MatchYourMatch.WebAPI.DTOs.Chat;
 using MatchYourMatch.WebAPI.Services.Interfaces;
+using MatchYourMatch.WebAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -236,6 +237,41 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpPost("conversations/{conversationId:int}/attachments")]
+        [RequestSizeLimit(MessageAttachmentStorage.MaxFileSize + 64 * 1024)]
+        public async Task<ActionResult<ChatMessageDto>> SendAttachment(int conversationId, [FromForm] IFormFile file, [FromForm] string? body, CancellationToken cancellationToken)
+        {
+            try { return Ok(await _chatService.SendAttachmentAsync(GetCurrentUserId(), conversationId, body, file, cancellationToken)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize(Roles = "User")]
+        [HttpPost("conversations/{conversationId:int}/gifs")]
+        public async Task<ActionResult<ChatMessageDto>> SendGif(int conversationId, SendGifMessageDto request)
+        {
+            try { return Ok(await _chatService.SendGifAsync(GetCurrentUserId(), conversationId, request)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpGet("attachments/{attachmentId:int}")]
+        public async Task<IActionResult> DownloadAttachment(int attachmentId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _chatService.DownloadAttachmentAsync(GetCurrentUserId(), attachmentId, cancellationToken);
+                Response.Headers.ContentSecurityPolicy = "default-src 'none'; sandbox";
+                Response.Headers.XContentTypeOptions = "nosniff";
+                return File(result.Stream, result.ContentType, result.FileName, enableRangeProcessing: true);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
         }
 
         [HttpPut("conversations/{conversationId:int}/read")]

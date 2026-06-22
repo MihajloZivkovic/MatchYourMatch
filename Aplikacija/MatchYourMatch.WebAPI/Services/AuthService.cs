@@ -101,13 +101,16 @@ namespace MatchYourMatch.WebAPI.Services
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 throw new Exception("Pogresna lozinka.");
 
+            if (user.IsDeactivated)
+                throw new AccountDeactivatedException();
+
             if (!user.IsActive) 
                 throw new Exception("Nalog je deaktiviran.");
 
             if (!user.EmailConfirmed)
                 throw new Exception("Please verify your email before logging in.");
 
-            return GenerateResponse(user);
+            return CreateAuthResponse(user);
         }
 
         public async Task VerifyEmailAsync(VerifyEmailDto dto)
@@ -141,7 +144,7 @@ namespace MatchYourMatch.WebAPI.Services
             await _emailService.SendEmailVerificationAsync(email, code);
         }
 
-        private AuthInfoDto GenerateResponse(User user)
+        public AuthInfoDto CreateAuthResponse(User user)
         {
             var expiry = DateTime.UtcNow.AddMinutes(_expires);
             var requiresCompletion = user.Profile?.DateOfBirth == null;
@@ -169,6 +172,7 @@ namespace MatchYourMatch.WebAPI.Services
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role),
+                new Claim("tokenVersion", user.TokenVersion.ToString()),
                 new Claim("profileComplete", profileComplete ? "true" : "false")
             };
 
@@ -267,6 +271,7 @@ namespace MatchYourMatch.WebAPI.Services
                     {
                         Username = username, Email = identity.Email,
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword(Convert.ToHexString(RandomNumberGenerator.GetBytes(32))),
+                        HasPassword = false,
                         EmailConfirmed = identity.EmailVerified,
                         EmailConfirmedAt = identity.EmailVerified ? DateTime.UtcNow : null,
                         Profile = new UserProfile { FullName = identity.Name, ProfilePicture = identity.Picture, ShowFullName = false, ShowAge = false }
@@ -276,9 +281,10 @@ namespace MatchYourMatch.WebAPI.Services
                 _context.ExternalLogins.Add(new ExternalLogin { User = user, Provider = identity.Provider, ProviderUserId = identity.Subject, ProviderEmail = identity.Email });
                 await _context.SaveChangesAsync();
             }
+            if (user.IsDeactivated) throw new AccountDeactivatedException();
             if (!user.IsActive) throw new Exception("Nalog je deaktiviran.");
             if (!user.EmailConfirmed) throw new Exception("Please verify your email before logging in.");
-            return GenerateResponse(user);
+            return CreateAuthResponse(user);
         }
 
         public async Task<AuthInfoDto> CompleteSocialProfileAsync(int userId, CompleteSocialProfileDto dto)
@@ -297,7 +303,7 @@ namespace MatchYourMatch.WebAPI.Services
             user.Profile.DateOfBirth = dto.DateOfBirth;
             if (!string.IsNullOrWhiteSpace(dto.FullName)) user.Profile.FullName = dto.FullName.Trim();
             await _context.SaveChangesAsync();
-            return GenerateResponse(user);
+            return CreateAuthResponse(user);
         }
 
         private async Task<string> CreateUniqueUsernameAsync(string source)

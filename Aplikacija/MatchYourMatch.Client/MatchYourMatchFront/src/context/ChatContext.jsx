@@ -25,6 +25,7 @@ export function ChatProvider({ children }) {
   const canSendMessages = auth.role?.toLowerCase() === "user";
   const [conversations, setConversations] = useState([]);
   const [messagesByConversation, setMessagesByConversation] = useState({});
+  const [messageLoadStateByConversation, setMessageLoadStateByConversation] = useState({});
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -39,6 +40,7 @@ export function ChatProvider({ children }) {
     backendUnavailableUntilRef.current = 0;
     setConversations([]);
     setMessagesByConversation({});
+    setMessageLoadStateByConversation({});
     setActiveConversationId(null);
     setLoadingConversations(false);
     setLoadingMessages(false);
@@ -147,16 +149,25 @@ export function ChatProvider({ children }) {
         skipBackendCooldown: retryNow,
       });
       const decrypted = await Promise.all(
-        data.map(async (conversation) => ({
-          ...conversation,
-          lastMessagePreview: conversation.lastMessagePreview
-            ? await decryptChatBody(
-                conversation.lastMessagePreview,
+        data.map(async (conversation) => {
+          let lastMessagePreview = conversation.lastMessagePreview;
+          if (lastMessagePreview) {
+            try {
+              lastMessagePreview = await decryptChatBody(
+                lastMessagePreview,
                 auth.userId,
                 getConversationPeerId(conversation),
-              )
-            : conversation.lastMessagePreview,
-        })),
+              );
+            } catch (decryptError) {
+              console.warn("[Chat privacy] Conversation preview could not be decrypted.", {
+                conversationId: conversation.conversationId,
+                error: decryptError,
+              });
+              lastMessagePreview = "Encrypted message could not be opened.";
+            }
+          }
+          return { ...conversation, lastMessagePreview };
+        }),
       );
 
       conversationsRef.current = decrypted;
@@ -191,6 +202,10 @@ export function ChatProvider({ children }) {
 
       if (!silent) {
         setLoadingMessages(true);
+        setMessageLoadStateByConversation((current) => ({
+          ...current,
+          [conversationId]: { status: "loading", error: "" },
+        }));
       }
 
       try {
@@ -201,28 +216,42 @@ export function ChatProvider({ children }) {
           conversationsRef.current.find(
             (conversation) => conversation.conversationId === conversationId,
           ) || null;
-        const decrypted = await Promise.all(
-          data.map(async (message) =>
-            normalizeChatMessage(
-              {
-                ...message,
-                displayBody: await decryptChatBody(
-                  message.body,
-                  auth.userId,
-                  getConversationPeerId(activeConversation) ||
-                    (String(message.senderId) === String(auth.userId)
-                      ? message.receiverId
-                      : message.senderId),
-                ),
-              },
+        if (!Array.isArray(data)) {
+          throw new Error("Messages response has an invalid format.");
+        }
+
+        const decrypted = await Promise.all(data.map(async (message) => {
+          let displayBody = message.body ?? message.Body ?? "";
+          try {
+            displayBody = await decryptChatBody(
+              displayBody,
               auth.userId,
-            ),
-          ),
-        );
+              getConversationPeerId(activeConversation) ||
+                (String(message.senderId ?? message.SenderId) === String(auth.userId)
+                  ? message.receiverId ?? message.ReceiverId
+                  : message.senderId ?? message.SenderId),
+            );
+          } catch (decryptError) {
+            console.warn("[Chat privacy] A message could not be decrypted.", {
+              conversationId,
+              messageId: message.id ?? message.Id,
+              error: decryptError,
+            });
+            displayBody = "Encrypted message could not be opened.";
+          }
+
+          return normalizeChatMessage({ ...message, displayBody }, auth.userId);
+        }));
+
+        decrypted.sort(compareChatMessages);
 
         setMessagesByConversation((current) => ({
           ...current,
           [conversationId]: decrypted,
+        }));
+        setMessageLoadStateByConversation((current) => ({
+          ...current,
+          [conversationId]: { status: "success", error: "" },
         }));
 
         if (markRead) {
@@ -237,7 +266,11 @@ export function ChatProvider({ children }) {
 
         return decrypted;
       } catch (err) {
-        setError(err.message || "Messages could not be loaded.");
+        const message = err.message || "Messages could not be loaded.";
+        setMessageLoadStateByConversation((current) => ({
+          ...current,
+          [conversationId]: { status: "error", error: message },
+        }));
         return [];
       } finally {
         if (!silent) {
@@ -307,6 +340,34 @@ export function ChatProvider({ children }) {
     },
     [apiFetch, auth.userId, canSendMessages, loadConversations],
   );
+
+  const sendAttachment = useCallback(async (conversationId, file, text = "", onProgress) => {
+    const conversation = conversationsRef.current.find((item) => item.conversationId === conversationId);
+    if (!conversation || !canSendMessages) return null;
+    const body = text.trim() ? await encryptChatBody(text.trim(), auth.userId, getConversationPeerId(conversation)) : "";
+    const form = new FormData(); form.append("file", file); if (body) form.append("body", body);
+    const sent = await new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest(); request.open("POST", `/api/Chat/conversations/${conversationId}/attachments`);
+      request.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("token")}`);
+      request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress?.(Math.round(event.loaded * 100 / event.total)); };
+      request.onload = () => request.status >= 200 && request.status < 300 ? resolve(JSON.parse(request.responseText)) : reject(new Error(request.responseText || "Upload failed."));
+      request.onerror = () => reject(new Error("Upload failed.")); request.send(form);
+    });
+    const display = normalizeChatMessage({ ...sent, displayBody: text.trim(), isMine: true }, auth.userId);
+    setMessagesByConversation((current) => ({ ...current, [conversationId]: [...(current[conversationId] || []), display] }));
+    await loadConversations({ silent: true }); return display;
+  }, [auth.userId, canSendMessages, loadConversations]);
+
+  const sendGif = useCallback(async (conversationId, gif) => {
+    const conversation = conversationsRef.current.find((item) => item.conversationId === conversationId);
+    if (!conversation || !canSendMessages) return null;
+    const plainBody = gif.body?.trim() || "";
+    const body = plainBody ? await encryptChatBody(plainBody, auth.userId, getConversationPeerId(conversation)) : null;
+    const sent = await apiFetch(`/api/Chat/conversations/${conversationId}/gifs`, { method:"POST", body:JSON.stringify({ ...gif, body }) });
+    const display = normalizeChatMessage({ ...sent, displayBody:plainBody, isMine:true }, auth.userId);
+    setMessagesByConversation((current) => ({ ...current, [conversationId]: [...(current[conversationId] || []), display] }));
+    await loadConversations({ silent:true }); return display;
+  }, [apiFetch, auth.userId, canSendMessages, loadConversations]);
 
   const editMessage = useCallback(
     async (message, text) => {
@@ -470,6 +531,7 @@ export function ChatProvider({ children }) {
       canSendMessages,
       conversations,
       messagesByConversation,
+      messageLoadStateByConversation,
       activeConversationId,
       loadingConversations,
       loadingMessages,
@@ -481,6 +543,8 @@ export function ChatProvider({ children }) {
       startConversation,
       createGroupConversation,
       sendMessage,
+      sendAttachment,
+      sendGif,
       editMessage,
       deleteMessageForMe,
       deleteMessageForEveryone,
@@ -507,7 +571,10 @@ export function ChatProvider({ children }) {
       loadingConversations,
       loadingMessages,
       messagesByConversation,
+      messageLoadStateByConversation,
       sendMessage,
+      sendAttachment,
+      sendGif,
       setTyping,
       startConversation,
       createGroupConversation,
@@ -532,6 +599,13 @@ function updateConversationList(conversations, conversationId, patch) {
   return conversations.map((conversation) =>
     conversation.conversationId === conversationId ? { ...conversation, ...patch } : conversation,
   );
+}
+
+function compareChatMessages(first, second) {
+  const firstTime = new Date(first.createdAt ?? first.CreatedAt ?? 0).getTime();
+  const secondTime = new Date(second.createdAt ?? second.CreatedAt ?? 0).getTime();
+  if (firstTime !== secondTime) return firstTime - secondTime;
+  return Number(first.id ?? first.Id ?? 0) - Number(second.id ?? second.Id ?? 0);
 }
 
 function normalizeChatMessage(message, currentUserId) {

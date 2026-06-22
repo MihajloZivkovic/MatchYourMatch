@@ -102,3 +102,5 @@
 .event-card__actions { display: flex; align-items: center; gap: .45rem; }
 .event-card__invite { min-height: 31px; padding: 0 .75rem; display: inline-flex; align-items: center; gap: .35rem; border: 1px solid rgba(244, 163, 0, .38); border-radius: var(--radius-pill); color: var(--accent); font-size: .66rem; font-weight: 700; }
 .event-card__invite:hover { background: rgba(244, 163, 0, .1); }
+.event-card__edit { min-height:31px; padding:0 .7rem; display:inline-flex; align-items:center; gap:.3rem; border:1px solid var(--color-border); border-radius:var(--radius-pill); color:var(--text-muted); font-size:.66rem; font-weight:700; }
+.event-card__edit:hover { border-color:rgba(244,163,0,.38); color:var(--accent); }

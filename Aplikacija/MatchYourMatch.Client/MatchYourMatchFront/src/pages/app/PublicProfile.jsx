@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Check, Compass, Heart, MapPin, MessageCircle, Sparkles, Star, UserPlus } from "lucide-react";
+import { ArrowLeft, Check, Coffee, Compass, Heart, MapPin, MessageCircle, Moon, Music, Pencil, Sparkles, Star, UserPlus } from "lucide-react";
 import "./PublicProfile.css";
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
 import UserActionsMenu from '../../components/UserActionsMenu';
+import ProfileStats from '../../components/profile/ProfileStats';
+import './Profile.css';
 
 function PublicProfile() {
   const { t } = useTranslation();
@@ -32,6 +34,9 @@ function PublicProfile() {
   const [ratingError, setRatingError] = useState("");
   const [ratingSuccess, setRatingSuccess] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
+  const [editingRatingId, setEditingRatingId] = useState(null);
+  const [editingRatingValue, setEditingRatingValue] = useState(0);
+  const [originalRatingValue, setOriginalRatingValue] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -107,12 +112,13 @@ function PublicProfile() {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           signal: controller.signal,
         });
-        if (!response.ok) throw new Error(await response.text() || "Rating could not be loaded.");
+        if (!response.ok) throw new Error('RATING_STATUS_FAILED');
         const data = await response.json();
         setRatingStatus(data);
-        setSelectedEventId(data.eligibleEvents?.[0]?.eventId ? String(data.eligibleEvents[0].eventId) : "");
+        const unratedEvent = data.eligibleEvents?.find(event => event.myRating == null);
+        setSelectedEventId(unratedEvent?.eventId ? String(unratedEvent.eventId) : "");
       } catch (err) {
-        if (err.name !== "AbortError") setRatingError(err.message || t('publicProfile.ratingLoadError'));
+        if (err.name !== "AbortError") setRatingError(t('ratingErrors.load'));
       } finally {
         setRatingLoading(false);
       }
@@ -166,11 +172,54 @@ function PublicProfile() {
           rating: value,
         }),
       });
-      if (!response.ok) throw new Error(await response.text() || t('publicProfile.ratingSaveError'));
-      setRatingStatus(await response.json());
+      if (!response.ok) throw new Error('RATING_SAVE_FAILED');
+      const updatedStatus = await response.json();
+      setRatingStatus(updatedStatus);
+      const nextUnratedEvent = updatedStatus.eligibleEvents?.find(event => event.myRating == null);
+      setSelectedEventId(nextUnratedEvent?.eventId ? String(nextUnratedEvent.eventId) : "");
       setRatingSuccess(t('publicProfile.ratingSaved'));
-    } catch (err) {
-      setRatingError(err.message || t('publicProfile.ratingSaveError'));
+    } catch {
+      setRatingError(t('ratingErrors.save'));
+    } finally {
+      setRatingSaving(false);
+    }
+  };
+
+  const beginRatingEdit = (rating) => {
+    const value = Number(rating.rating);
+    setEditingRatingId(rating.id);
+    setEditingRatingValue(value);
+    setOriginalRatingValue(value);
+    setRatingError("");
+    setRatingSuccess("");
+  };
+
+  const cancelRatingEdit = () => {
+    setEditingRatingId(null);
+    setEditingRatingValue(originalRatingValue);
+    setRatingError("");
+  };
+
+  const updateRating = async () => {
+    if (!editingRatingId || ratingSaving || editingRatingValue === originalRatingValue) return;
+    setRatingSaving(true);
+    setRatingError("");
+    setRatingSuccess("");
+    try {
+      const response = await fetch(`/api/user-ratings/${editingRatingId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ score: editingRatingValue }),
+      });
+      if (!response.ok) throw new Error('RATING_UPDATE_FAILED');
+      setRatingStatus(await response.json());
+      setEditingRatingId(null);
+      setRatingSuccess(t('publicProfile.ratingUpdated'));
+    } catch {
+      setRatingError(t('publicProfile.ratingUpdateError'));
     } finally {
       setRatingSaving(false);
     }
@@ -180,6 +229,7 @@ function PublicProfile() {
   const selectedRatingEvent = ratingStatus?.eligibleEvents?.find(
     (event) => String(event.eventId) === selectedEventId,
   );
+  const unratedEligibleEvents = ratingStatus?.eligibleEvents?.filter((event) => event.myRating == null) || [];
 
   if (loading) {
     return <main className="public-profile"><div className="public-profile__state">{t('publicProfile.loading')}</div></main>;
@@ -237,16 +287,23 @@ function PublicProfile() {
             </div>
           </div>
           <div className="public-profile__actions">
-            <button
-              type="button"
-              className={`public-profile__follow${isFollowing ? " public-profile__follow--active" : ""}`}
-              onClick={handleFollow}
-              disabled={followLoading || isBlocked}
-              title={isFollowing ? t('publicProfile.unfollow') : t('publicProfile.follow')}
-            >
-              {isFollowing ? <Check size={16} /> : <UserPlus size={16} />}
-              {isFollowing ? t('publicProfile.following') : t('publicProfile.follow')}
-            </button>
+            <div className="public-profile__primary-actions">
+              <button
+                type="button"
+                className={`public-profile__follow${isFollowing ? " public-profile__follow--active" : ""}`}
+                onClick={handleFollow}
+                disabled={followLoading || isBlocked}
+                title={isFollowing ? t('publicProfile.unfollow') : t('publicProfile.follow')}
+              >
+                {isFollowing ? <Check size={16} /> : <UserPlus size={16} />}
+                {isFollowing ? t('publicProfile.following') : t('publicProfile.follow')}
+              </button>
+              {!isBlocked && profile.canMessage !== false && <button type="button" className="public-profile__connect"
+                onClick={() => navigate(`/app/chat?userId=${profile.id}&username=${encodeURIComponent(profile.username)}`)}>
+                <MessageCircle size={16} />{t('publicProfile.sayHello')}
+              </button>}
+              {!isBlocked && profile.canMessage === false && <span className="public-profile__connect-hint">{t('publicProfile.messageRestricted')}</span>}
+            </div>
             <UserActionsMenu userId={profile.id} username={profile.username} context="profile"
               onBlocked={() => setIsBlocked(true)} onHidden={() => setIsHidden(true)} />
           </div>
@@ -257,6 +314,10 @@ function PublicProfile() {
       {(isBlocked || isHidden) && <div className="public-profile__state">
         {isBlocked ? "You blocked this user." : "This profile is hidden from your suggestions."}
       </div>}
+
+      <ProfileStats matches={profile.matchesCount} eventsJoined={profile.eventsJoinedCount}
+        profileScore={profile.profileScorePercent} responseRate={profile.responseRatePercent}
+        ratingsCount={profile.ratingsCount || 0} labels={{matches:t('profile.matches'),eventsJoined:t('profile.eventsJoined'),profileScore:t('profile.score'),responseRate:t('profile.responseRate')}}/>
 
       <section className="public-profile__grid">
         <article className="public-profile__card public-profile__card--wide">
@@ -287,18 +348,52 @@ function PublicProfile() {
           {!ratingLoading && ratingStatus && (
             <>
               <RatingStars value={Number(ratingStatus.averageRating || 0)} label={t('publicProfile.averageRating')} />
+              {ratingStatus.myRatings?.length > 0 && (
+                <div className="public-profile__my-ratings">
+                  <strong>{ratingStatus.myRatings.length === 1
+                    ? `${t('publicProfile.yourRating')}: ${Number(ratingStatus.myRatings[0].rating).toFixed(1)} / 5`
+                    : t('publicProfile.yourRatings')}</strong>
+                  {ratingStatus.myRatings.map((rating) => (
+                    <div className="public-profile__my-rating" key={rating.id}>
+                      <div className="public-profile__my-rating-info">
+                        <span>{rating.encounterTitle || rating.encounterType}</span>
+                        <small>{formatRatingEventDate(rating.encounterAt)} · {Number(rating.rating).toFixed(1)} / 5</small>
+                      </div>
+                      {editingRatingId === rating.id ? (
+                        <div className="public-profile__rating-edit-form">
+                          <RatingStars value={editingRatingValue} interactive disabled={ratingSaving}
+                            label={t('publicProfile.yourRating')} onChange={setEditingRatingValue} />
+                          <div>
+                            <button type="button" className="public-profile__rating-save" onClick={updateRating}
+                              disabled={ratingSaving || editingRatingValue === originalRatingValue}>
+                              {t('publicProfile.saveChanges')}
+                            </button>
+                            <button type="button" className="public-profile__rating-cancel" onClick={cancelRatingEdit}
+                              disabled={ratingSaving}>{t('common.cancel')}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" className="public-profile__rating-edit" onClick={() => beginRatingEdit(rating)}
+                          disabled={ratingSaving || editingRatingId != null}>
+                          <Pencil size={13} />{t('publicProfile.editRating')}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {ratingStatus.canRate ? (
                 <div className="public-profile__rating-editor">
-                  {ratingStatus.eligibleEvents.length > 1 && (
+                  {unratedEligibleEvents.length > 1 && (
                     <label><span>{t('publicProfile.chooseEvent')}</span>
                       <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
-                        {ratingStatus.eligibleEvents.map((event) => (
+                        {unratedEligibleEvents.map((event) => (
                           <option key={event.eventId} value={event.eventId}>{event.title} — {formatRatingEventDate(event.dateTime)}</option>
                         ))}
                       </select>
                     </label>
                   )}
-                  {selectedRatingEvent && ratingStatus.eligibleEvents.length === 1 && (
+                  {selectedRatingEvent && unratedEligibleEvents.length === 1 && (
                     <p className="public-profile__rating-event">{t('publicProfile.basedOn')} <strong>{selectedRatingEvent.title}</strong></p>
                   )}
                   <span className="public-profile__rating-label">{t('publicProfile.yourRating')}</span>
@@ -324,20 +419,37 @@ function PublicProfile() {
           </div>
         </article>}
 
-        {profile.favoriteActivities?.length > 0 && <article className="public-profile__card">
-          <h2><Sparkles size={17}/>{t('profile.favoriteActivities')}</h2>
-          <div className="public-profile__pills">{profile.favoriteActivities.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}</div>
-        </article>}
-        {profile.socialEnergy != null && <article className="public-profile__card">
-          <h2>{t('profile.socialEnergy')}</h2><p>{profile.socialEnergy}% · {profile.socialEnergy<=30?t('profileLifestyle.lowKey'):profile.socialEnergy<=70?t('profileLifestyle.balanced'):t('profileLifestyle.verySocial')}</p>
-        </article>}
-        {profile.conversationStyle && <article className="public-profile__card">
-          <h2><MessageCircle size={17}/>{t('profile.conversationStyle')}</h2><p>{formatProfileValue(profile.conversationStyle)}</p>
-        </article>}
-        {profile.lookingFor?.length > 0 && <article className="public-profile__card">
-          <h2><Heart size={17}/>{t('profile.lookingFor')}</h2>
-          <div className="public-profile__pills">{profile.lookingFor.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}</div>
-        </article>}
+        <section className="public-profile__lifestyle public-profile__card--wide" aria-labelledby="public-profile-lifestyle-title">
+          <h2 id="public-profile-lifestyle-title">{t('profileLifestyle.title')}</h2>
+          <div className="public-profile__lifestyle-grid">
+            <article className="public-profile__lifestyle-card">
+              <h3><Music size={14}/>{t('profile.favoriteActivities')}</h3>
+              {profile.favoriteActivities?.length > 0 ? <div className="public-profile__pills">
+                {profile.favoriteActivities.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}
+              </div> : <p>{t('profileLifestyle.noActivities')}</p>}
+            </article>
+            <article className="public-profile__lifestyle-card">
+              <h3>{t('profile.socialEnergy')}</h3>
+              {profile.socialEnergy != null ? <div className="public-profile__energy">
+                <div className="public-profile__energy-ring">
+                  <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" className="public-profile__ring-bg"/><circle cx="18" cy="18" r="15" className="public-profile__ring-fill" style={{strokeDashoffset:94*(1-profile.socialEnergy/100)}}/></svg>
+                  <span>{profile.socialEnergy}%</span>
+                </div>
+                <p>{profile.socialEnergy<=30?t('profileLifestyle.lowKey'):profile.socialEnergy<=70?t('profileLifestyle.balanced'):t('profileLifestyle.verySocial')}</p>
+              </div> : <p>{t('profileLifestyle.notSet')}</p>}
+            </article>
+            <article className="public-profile__lifestyle-card">
+              <h3><Coffee size={14}/>{t('profile.conversationStyle')}</h3>
+              <p>{profile.conversationStyle ? formatProfileValue(profile.conversationStyle) : t('profileLifestyle.notSet')}</p>
+            </article>
+            <article className="public-profile__lifestyle-card">
+              <h3><Moon size={14}/>{t('profile.lookingFor')}</h3>
+              {profile.lookingFor?.length > 0 ? <div className="public-profile__pills">
+                {profile.lookingFor.map(tag => <span key={tag}>{formatProfileValue(tag)}</span>)}
+              </div> : <p>{t('profileLifestyle.notSet')}</p>}
+            </article>
+          </div>
+        </section>
 
         <article className="public-profile__card">
           <h2>
@@ -355,24 +467,6 @@ function PublicProfile() {
           )}
         </article>
 
-        <article className="public-profile__card">
-          <h2>
-            <MessageCircle size={17} />
-            Connect
-          </h2>
-          <p>{t('publicProfile.preview')}</p>
-          <button
-            type="button"
-            className="public-profile__cta"
-            disabled={isBlocked || profile.canMessage === false}
-            onClick={() =>
-              navigate(`/app/chat?userId=${profile.id}&username=${encodeURIComponent(profile.username)}`)
-            }
-          >
-            Say hello
-          </button>
-          {profile.canMessage === false && !isBlocked && <p className="public-profile__rating-hint">This user only accepts messages from matches or allowed contacts.</p>}
-        </article>
       </section>
     </main>
   );

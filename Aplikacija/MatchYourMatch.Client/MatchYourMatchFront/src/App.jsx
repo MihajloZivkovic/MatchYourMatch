@@ -26,6 +26,7 @@ import SearchResults from "./pages/app/SearchResults";
 import PublicProfile from "./pages/app/PublicProfile";
 import Chat from "./pages/app/Chat";
 import Settings from "./pages/app/Settings";
+import SessionExpiredModal from "./components/SessionExpiredModal";
 import "./App.css";
 
 const USER_ID_CLAIMS = [
@@ -257,7 +258,7 @@ function App() {
 
   if (isAppRoute) {
     return (
-      <Routes>
+      <><Routes>
         <Route
           path="/app"
           element={
@@ -273,8 +274,9 @@ function App() {
           />
           <Route path="quick-match" element={<QuickMatch />} />
           <Route path="deep-match" element={<DeepMatch />} />
-          <Route path="events" element={<Events />} />
+          <Route path="events" element={<Events currentUser={currentUser} />} />
           <Route path="events/create" element={<CreateEvent />} />
+          <Route path="events/:id/edit" element={<CreateEvent />} />
           <Route path="search" element={<SearchResults />} />
           <Route path="users/:id" element={<PublicProfile />} />
           <Route path="chat" element={<Chat />} />
@@ -284,7 +286,7 @@ function App() {
             element={<Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>}
           />
         </Route>
-      </Routes>
+      </Routes><SessionExpiredModal /></>
     );
   }
 
@@ -304,6 +306,7 @@ function App() {
         <Route path="/complete-profile" element={<CompleteProfile />} />
         <Route path="/about" element={<About />} />
       </Routes>
+      <SessionExpiredModal />
     </div>
   );
 }

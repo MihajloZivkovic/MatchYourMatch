@@ -1,5 +1,6 @@
 namespace MatchYourMatch.WebAPI.DTOs.Event
 {
+    using MatchYourMatch.WebAPI.DTOs.Chat;
     public class EventDiscussionMessageDto
     {
         public int Id { get; set; }
@@ -13,5 +14,6 @@ namespace MatchYourMatch.WebAPI.DTOs.Event
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public bool IsMine { get; set; }
+        public MessageAttachmentDto? Attachment { get; set; }
     }
 }

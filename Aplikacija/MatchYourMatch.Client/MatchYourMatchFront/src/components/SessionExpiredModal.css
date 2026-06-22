@@ -1,0 +1,91 @@
+.session-expired {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.session-expired__card {
+  width: min(440px, 100%);
+  padding: 1.75rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(244, 163, 0, 0.055), transparent 55%),
+    var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.session-expired__icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 1rem;
+  border: 1px solid rgba(244, 163, 0, 0.38);
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.session-expired__card h2 {
+  margin-bottom: 0.65rem;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  letter-spacing: 0.04em;
+}
+
+.session-expired__card p {
+  margin: 0 auto 1.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.session-expired__card button {
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.35rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1;
+  visibility: visible;
+  opacity: 1;
+  transition: transform var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.session-expired__card button:hover {
+  background: var(--color-accent-bright);
+  box-shadow: 0 8px 24px var(--color-accent-glow);
+  transform: translateY(-1px);
+}
+
+.session-expired__card button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+:root[data-theme="light"] .session-expired {
+  background: rgba(42, 30, 12, 0.42);
+}
+
+@media (max-width: 480px) {
+  .session-expired__card {
+    padding: 1.35rem;
+    border-radius: 20px;
+  }
+}

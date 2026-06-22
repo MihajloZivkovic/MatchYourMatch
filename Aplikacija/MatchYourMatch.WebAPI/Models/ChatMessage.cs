@@ -20,5 +20,6 @@ namespace MatchYourMatch.WebAPI.Models
         public User? Receiver { get; set; }
         public List<ChatMessageUserDeletion> DeletedForUsers { get; set; } = new();
         public List<ChatMessageReaction> Reactions { get; set; } = new();
+        public MessageAttachment? Attachment { get; set; }
     }
 }

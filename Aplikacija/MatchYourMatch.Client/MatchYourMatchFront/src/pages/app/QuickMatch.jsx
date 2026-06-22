@@ -10,9 +10,12 @@ const initialForm = {
   endTime: '',
   activityId: '',
   description: '',
+  ageMin: '',
+  ageMax: '',
 };
 
 const activitiesUrl = '/api/Activities';
+
 
 const fixedQuickTimes = [
   {
@@ -100,6 +103,13 @@ function QuickMatch() {
   const [animating, setAnimating] = useState(null);
   const [selectedQuickTime, setSelectedQuickTime] = useState('');
   const [matchError, setMatchError] = useState('');
+  const [matchMessage, setMatchMessage] = useState('');
+  const [activePost, setActivePost] = useState(null);
+  const [activePostLoading, setActivePostLoading] = useState(true);
+  const [postLoading, setPostLoading] = useState(false);
+  const [postMessage, setPostMessage] = useState('');
+  const [postError, setPostError] = useState('');
+  const [searchAttempted, setSearchAttempted] = useState(false);
 
   const top = stack[0];
   const remaining = stack.length;
@@ -188,11 +198,42 @@ function QuickMatch() {
     loadActivities();
   }, [t]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadActivePost = async () => {
+      try {
+        const response = await fetch('/api/QuickMatch/post/active', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          signal: controller.signal,
+        });
+        if (response.status === 204) return;
+        if (!response.ok) throw new Error(await response.text() || t('quick.activeLoadError'));
+        const post = await response.json();
+        setActivePost(post);
+        setForm({
+          startTime: post.startTime || '',
+          endTime: post.endTime || '',
+          activityId: String(post.activityId || ''),
+          description: post.description || '',
+          ageMin: post.preferredMinAge ?? '',
+          ageMax: post.preferredMaxAge ?? '',
+        });
+      } catch (error) {
+        if (error.name !== 'AbortError') setPostError(error.message || t('quick.activeLoadError'));
+      } finally {
+        setActivePostLoading(false);
+      }
+    };
+    loadActivePost();
+    return () => controller.abort();
+  }, [t]);
+
   const validateForm = () => {
     if (!form.startTime) return t('quick.validationStart');
     if (!form.endTime) return t('quick.validationEnd');
     if (!form.activityId) return t('quick.validationActivity');
-    if (form.startTime >= form.endTime) return t('quick.validationOrder');
+    if (form.startTime === form.endTime) return t('quick.validationOrder');
+    if (form.ageMin && form.ageMax && Number(form.ageMin) > Number(form.ageMax)) return t('quick.invalidAgeRange');
     return '';
   };
 
@@ -203,6 +244,8 @@ function QuickMatch() {
       setSelectedQuickTime('');
     }
     setFormError('');
+    setPostMessage('');
+    setPostError('');
   };
 
   const handleQuickTime = (option) => {
@@ -215,7 +258,33 @@ function QuickMatch() {
     }));
     setSelectedQuickTime(option.id);
     setFormError('');
+    setPostMessage('');
+    setPostError('');
   };
+
+  const getUtcWindow = () => {
+    const [startHour, startMinute] = form.startTime.split(':').map(Number);
+    const [endHour, endMinute] = form.endTime.split(':').map(Number);
+    const startsAt = new Date();
+    startsAt.setHours(startHour, startMinute, 0, 0);
+    const endsAt = new Date(startsAt);
+    endsAt.setHours(endHour, endMinute, 0, 0);
+    if (endsAt <= startsAt) endsAt.setDate(endsAt.getDate() + 1);
+    return { startsAtUtc: startsAt.toISOString(), endsAtUtc: endsAt.toISOString() };
+  };
+
+  const nullableAge = (value) => value === '' ? null : Number(value);
+
+  const getRequestBody = (action) => ({
+    startTime: form.startTime,
+    endTime: form.endTime,
+    activityId: Number(form.activityId),
+    ...(action === 'post' ? { description: form.description.trim() } : {}),
+    ...getUtcWindow(),
+    ...(action === 'find'
+      ? { minAge: nullableAge(form.ageMin), maxAge: nullableAge(form.ageMax) }
+      : { preferredMinAge: nullableAge(form.ageMin), preferredMaxAge: nullableAge(form.ageMax) }),
+  });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -237,12 +306,7 @@ function QuickMatch() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          startTime: form.startTime,
-          endTime: form.endTime,
-          activityId: Number(form.activityId),
-          description: form.description.trim(),
-        }),
+        body: JSON.stringify(getRequestBody('find')),
       });
 
       if (!response.ok) {
@@ -251,13 +315,65 @@ function QuickMatch() {
       }
 
       const data = await response.json();
-      setStack(data.map((match) => mapMatchToProfile(match, t)));
+      const matches = data.map((match) => mapMatchToProfile(match, t));
+      setStack(matches);
       setAnimating(null);
-      setPhase('matching');
+      setSearchAttempted(true);
+      if (matches.length > 0) setPhase('matching');
     } catch (error) {
       setFormError(error.message || 'Matches could not be loaded.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePost = async () => {
+    const error = validateForm();
+    if (error) {
+      setFormError(error);
+      return;
+    }
+    setPostLoading(true);
+    setFormError('');
+    setPostError('');
+    setPostMessage('');
+    try {
+      const editing = Boolean(activePost?.id);
+      const response = await fetch(editing ? `/api/QuickMatch/post/${activePost.id}` : '/api/QuickMatch/post', {
+        method: editing ? 'PUT' : 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(getRequestBody('post')),
+      });
+      if (!response.ok) throw new Error(await response.text() || t('quick.postError'));
+      setActivePost(await response.json());
+      setPostMessage(editing ? t('quick.updated') : t('quick.posted'));
+    } catch (error) {
+      setPostError(error.message || t('quick.postError'));
+    } finally {
+      setPostLoading(false);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!activePost?.id || postLoading) return;
+    setPostLoading(true);
+    setPostError('');
+    setPostMessage('');
+    try {
+      const response = await fetch(`/api/QuickMatch/post/${activePost.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('quick.deleteError'));
+      setActivePost(null);
+      setPostMessage(t('quick.deleted'));
+    } catch (error) {
+      setPostError(error.message || t('quick.deleteError'));
+    } finally {
+      setPostLoading(false);
     }
   };
 
@@ -270,16 +386,18 @@ function QuickMatch() {
   const handleAction = async (action) => {
     if (!top || animating) return;
     setMatchError('');
+    setMatchMessage('');
 
     if (action === 'match') {
       try {
-        const response = await fetch(`/api/QuickMatch/${top.id}/connect`, {
+        const response = await fetch(`/api/QuickMatch/${top.id}/requests`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
-        if (!response.ok) throw new Error(await response.text() || 'Quick Match could not be created.');
+        if (!response.ok) throw new Error(await response.text() || t('quick.unavailable'));
+        setMatchMessage(t('quick.requestSent'));
       } catch (error) {
-        setMatchError(error.message || 'Quick Match could not be created.');
+        setMatchError(error.message || t('quick.unavailable'));
         return;
       }
     }
@@ -376,6 +494,15 @@ function QuickMatch() {
               </select>
             </label>
 
+            <fieldset className="quick-match__field quick-match__age-range">
+              <legend className="quick-match__label">{t('quick.agePreferenceOptional')}</legend>
+              <div className="quick-match__time-grid">
+                <label><span>{t('quick.minimumAge')}</span><input className="quick-match__input" type="number" min="16" max="120" name="ageMin" value={form.ageMin} onChange={handleChange} placeholder={t('quick.anyAge')} /></label>
+                <label><span>{t('quick.maximumAge')}</span><input className="quick-match__input" type="number" min="16" max="120" name="ageMax" value={form.ageMax} onChange={handleChange} placeholder={t('quick.anyAge')} /></label>
+              </div>
+              <small>{t('quick.noPreference')}</small>
+            </fieldset>
+
             <label className="quick-match__field">
               <span className="quick-match__label">{t('quick.message')}</span>
               <textarea
@@ -388,9 +515,10 @@ function QuickMatch() {
               />
             </label>
 
-            {(formError || activitiesError) && (
-              <p className="quick-match__error">{formError || activitiesError}</p>
+            {(formError || postError || activitiesError) && (
+              <p className="quick-match__error">{formError || postError || activitiesError}</p>
             )}
+            {postMessage && <p className="quick-match__success">{postMessage}</p>}
             {!activitiesLoading && !activitiesError && activities.length === 0 && (
               <p className="quick-match__error">
                 No activities available. Activities must exist in the database before this
@@ -405,6 +533,26 @@ function QuickMatch() {
             >
               {loading ? t('quick.finding') : t('quick.find')}
             </button>
+
+            <button type="button" className="quick-match__post-button app-interactive"
+              disabled={postLoading || activePostLoading || activitiesLoading || !!activitiesError || activities.length === 0}
+              onClick={handlePost}>
+              {postLoading ? t('common.working') : activePost ? t('quick.updatePost') : t('quick.post')}
+            </button>
+
+            {activePost && <section className="quick-match__active-post" aria-live="polite">
+              <div><strong>{t('quick.activePost')}</strong><span>{activePost.startTime} - {activePost.endTime}</span></div>
+              <p>{activePost.activityName}{activePost.description ? ` · ${activePost.description}` : ''}</p>
+              <button type="button" onClick={handleDeletePost} disabled={postLoading}>{t('quick.deletePost')}</button>
+            </section>}
+
+            {searchAttempted && stack.length === 0 && <section className="quick-match__no-results">
+              <strong>{t('quick.noMatchesNow')}</strong>
+              <p>{t('quick.postPrompt')}</p>
+              <button type="button" onClick={handlePost} disabled={postLoading || activePostLoading}>
+                {activePost ? t('quick.updatePost') : t('quick.postThesePlans')}
+              </button>
+            </section>}
           </form>
         </section>
       </div>
@@ -438,6 +586,7 @@ function QuickMatch() {
 
       <p className="quick-match__status">{t('quick.remaining', { count: remaining })}</p>
       {matchError && <p className="quick-match__error">{matchError}</p>}
+      {matchMessage && <p className="quick-match__success">{matchMessage}</p>}
 
       <div className="quick-match__stack">
         {stack

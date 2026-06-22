@@ -17,10 +17,12 @@ namespace MatchYourMatch.WebAPI.Services
         private static readonly Dictionary<(int ConversationId, int UserId), DateTime> TypingUntil = new();
         private static readonly object TypingLock = new();
         private readonly AppDbContext _context;
+        private readonly IMessageAttachmentStorage _attachmentStorage;
 
-        public ChatService(AppDbContext context)
+        public ChatService(AppDbContext context, IMessageAttachmentStorage attachmentStorage)
         {
             _context = context;
+            _attachmentStorage = attachmentStorage;
         }
 
         public async Task<List<ChatConversationDto>> GetConversationsAsync(int userId)
@@ -70,6 +72,7 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(u => u!.Profile)
                 .Include(m => m.DeletedForUsers)
                 .Include(m => m.Reactions)
+                .Include(m => m.Attachment)
                 .Where(m => m.ConversationId == conversation.Id)
                 .OrderBy(m => m.CreatedAt)
                 .ThenBy(m => m.Id)
@@ -343,6 +346,77 @@ namespace MatchYourMatch.WebAPI.Services
             return MapMessage(message, userId);
         }
 
+        public async Task<ChatMessageDto> SendAttachmentAsync(int userId, int conversationId, string? body, IFormFile file, CancellationToken cancellationToken = default)
+        {
+            var attachment = await _attachmentStorage.SaveAsync(file, cancellationToken);
+            try
+            {
+                var message = await CreateMediaMessageAsync(userId, conversationId, body, attachment);
+                return MapMessage(message, userId);
+            }
+            catch
+            {
+                await _attachmentStorage.DeleteAsync(attachment);
+                throw;
+            }
+        }
+
+        public async Task<ChatMessageDto> SendGifAsync(int userId, int conversationId, SendGifMessageDto request)
+        {
+            if (!string.Equals(request.Provider, "Giphy", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(request.GifId) || request.GifId.Length > 100 ||
+                !IsSafeGiphyUrl(request.OriginalUrl) || !IsSafeGiphyUrl(request.PreviewUrl))
+                throw new InvalidOperationException("Invalid GIPHY selection.");
+
+            var attachment = new MessageAttachment
+            {
+                Kind = "Gif", Provider = "Giphy", ProviderMediaId = request.GifId.Trim(),
+                OriginalUrl = request.OriginalUrl, PreviewUrl = request.PreviewUrl
+            };
+            var message = await CreateMediaMessageAsync(userId, conversationId, request.Body, attachment);
+            return MapMessage(message, userId);
+        }
+
+        public async Task<(Stream Stream, string ContentType, string FileName)> DownloadAttachmentAsync(int userId, int attachmentId, CancellationToken cancellationToken = default)
+        {
+            var attachment = await _context.MessageAttachments
+                .Include(a => a.ChatMessage!).ThenInclude(m => m.Conversation!).ThenInclude(c => c.Members)
+                .FirstOrDefaultAsync(a => a.Id == attachmentId, cancellationToken)
+                ?? throw new KeyNotFoundException("Attachment does not exist.");
+            if (attachment.ChatMessage?.Conversation == null)
+                throw new KeyNotFoundException("Attachment does not exist.");
+            EnsureUserCanAccessConversation(attachment.ChatMessage.Conversation, userId);
+            return (await _attachmentStorage.OpenReadAsync(attachment, cancellationToken),
+                attachment.ContentType ?? "application/octet-stream", attachment.OriginalFileName ?? "attachment");
+        }
+
+        private async Task<ChatMessage> CreateMediaMessageAsync(int userId, int conversationId, string? rawBody, MessageAttachment attachment)
+        {
+            await EnsureCanUseUserChat(userId);
+            var body = rawBody?.Trim() ?? string.Empty;
+            if (body.Length > MaxMessageLength) throw new InvalidOperationException($"Message cannot be longer than {MaxMessageLength} characters.");
+            var conversation = await GetConversationForUser(conversationId, userId);
+            int? receiverId = null;
+            if (!conversation.IsGroup)
+            {
+                receiverId = conversation.UserAId == userId ? conversation.UserBId : conversation.UserAId;
+                if (!receiverId.HasValue || !await CanContactAsync(userId, receiverId.Value))
+                    throw new UnauthorizedAccessException("This user does not accept messages from you, or one of you blocked the other.");
+            }
+            var message = new ChatMessage { ConversationId = conversation.Id, SenderId = userId, ReceiverId = receiverId, Body = body, CreatedAt = DateTime.UtcNow, Attachment = attachment };
+            conversation.LastMessageAt = message.CreatedAt;
+            if (conversation.IsGroup) foreach (var member in conversation.Members.Where(m => m.LeftAt == null)) member.IsHidden = false;
+            else { SetHiddenForUser(conversation, userId, false); if (receiverId.HasValue) SetHiddenForUser(conversation, receiverId.Value, false); }
+            _context.ChatMessages.Add(message);
+            await _context.SaveChangesAsync();
+            message.Sender = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
+            return message;
+        }
+
+        private static bool IsSafeGiphyUrl(string? value) =>
+            Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps &&
+            (uri.Host.EndsWith("giphy.com", StringComparison.OrdinalIgnoreCase) || uri.Host.EndsWith("giphyusercontent.com", StringComparison.OrdinalIgnoreCase));
+
         private async Task<bool> CanContactAsync(int senderId, int receiverId)
         {
             if (await _context.BlockedUsers.AnyAsync(x =>
@@ -388,6 +462,7 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(u => u!.Profile)
                 .Include(m => m.DeletedForUsers)
                 .Include(m => m.Reactions)
+                .Include(m => m.Attachment)
                 .FirstOrDefaultAsync(m => m.Id == messageId);
             if (message == null)
                 throw new KeyNotFoundException("Message does not exist.");
@@ -445,6 +520,12 @@ namespace MatchYourMatch.WebAPI.Services
 
             message.IsDeletedForEveryone = true;
             message.DeletedAt = DateTime.UtcNow;
+            if (message.Attachment != null)
+            {
+                await _attachmentStorage.DeleteAsync(message.Attachment);
+                _context.MessageAttachments.Remove(message.Attachment);
+                message.Attachment = null;
+            }
             await _context.SaveChangesAsync();
 
             return MapMessage(message, userId);
@@ -829,9 +910,20 @@ namespace MatchYourMatch.WebAPI.Services
                 Reactions = reactions,
                 CurrentUserReaction = message.IsDeletedForEveryone
                     ? null
-                    : message.Reactions.FirstOrDefault(reaction => reaction.UserId == currentUserId)?.Emoji
+                    : message.Reactions.FirstOrDefault(reaction => reaction.UserId == currentUserId)?.Emoji,
+                Attachment = message.IsDeletedForEveryone ? null : MapAttachment(message.Attachment)
             };
         }
+
+        private static MessageAttachmentDto? MapAttachment(MessageAttachment? attachment) => attachment == null ? null : new MessageAttachmentDto
+        {
+            Id = attachment.Id, Kind = attachment.Kind, OriginalFileName = attachment.OriginalFileName,
+            ContentType = attachment.ContentType, Size = attachment.Size,
+            IsImage = attachment.ContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true,
+            DownloadUrl = attachment.Kind == "File" ? $"/api/Chat/attachments/{attachment.Id}" : null,
+            Provider = attachment.Provider, ProviderMediaId = attachment.ProviderMediaId,
+            OriginalUrl = attachment.OriginalUrl, PreviewUrl = attachment.PreviewUrl
+        };
 
         private async Task<ChatConversation> LoadGroupConversationForSettings(int conversationId, int userId)
         {

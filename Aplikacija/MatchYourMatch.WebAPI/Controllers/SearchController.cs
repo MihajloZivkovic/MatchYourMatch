@@ -114,11 +114,22 @@ namespace MatchYourMatch.WebAPI.Controllers
                     Id = x.Event.Id,
                     Title = x.Event.Title,
                     Description = x.Event.Description,
-                    Location = x.Event.Location,
+                    Location = GetPublicEventLocation(x.Event),
                     DateTime = x.Event.Date.ToDateTime(x.Event.Time),
                     CategoryName = x.Event.Interest?.Name
                 })
                 .ToList();
+        }
+
+        private static string GetPublicEventLocation(Models.Event eventItem)
+        {
+            if (eventItem.ShowFullAddress) return eventItem.Location;
+            var parts = new[] { eventItem.LocationCity, eventItem.LocationCountry }
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            var location = string.Join(", ", parts);
+            return string.IsNullOrWhiteSpace(location) ? "Location not shared" : location;
         }
 
         private async Task<List<SearchActivityDto>> SearchActivities(string query)

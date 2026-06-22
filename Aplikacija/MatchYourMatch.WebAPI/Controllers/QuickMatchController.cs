@@ -35,8 +35,40 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
+        [HttpGet("post/active")]
+        public async Task<IActionResult> GetActivePost()
+        {
+            try
+            {
+                var post = await _quickMatchService.GetActivePostAsync(GetCurrentUserId());
+                return post == null ? NoContent() : Ok(post);
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPut("post/{postId:int}")]
+        public async Task<IActionResult> UpdatePost(int postId, [FromBody] CreateQuickMatchRequestDto request)
+        {
+            try { return Ok(await _quickMatchService.UpdatePostAsync(GetCurrentUserId(), postId, request)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpDelete("post/{postId:int}")]
+        public async Task<IActionResult> DeletePost(int postId)
+        {
+            try
+            {
+                await _quickMatchService.DeletePostAsync(GetCurrentUserId(), postId);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+        }
+
         [HttpPost("matches")]
-        public async Task<IActionResult> GetMatches([FromBody] CreateQuickMatchRequestDto request)
+        public async Task<IActionResult> GetMatches([FromBody] QuickMatchSearchRequestDto request)
         {
             try
             {
@@ -69,13 +101,31 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [HttpPost("{postId:int}/connect")]
-        public async Task<IActionResult> Connect(int postId)
+        [HttpPost("{postId:int}/requests")]
+        public async Task<IActionResult> SendRequest(int postId)
         {
-            try { return Ok(await _quickMatchService.ConnectAsync(GetCurrentUserId(), postId)); }
+            try { return Ok(await _quickMatchService.SendRequestAsync(GetCurrentUserId(), postId)); }
             catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
             catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("requests/{requestId:int}/accept")]
+        public async Task<IActionResult> AcceptRequest(int requestId)
+        {
+            try { return Ok(await _quickMatchService.AcceptRequestAsync(GetCurrentUserId(), requestId)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
+        }
+
+        [HttpPost("requests/{requestId:int}/reject")]
+        public async Task<IActionResult> RejectRequest(int requestId)
+        {
+            try { return Ok(await _quickMatchService.RejectRequestAsync(GetCurrentUserId(), requestId)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         }
 
         private int GetCurrentUserId()

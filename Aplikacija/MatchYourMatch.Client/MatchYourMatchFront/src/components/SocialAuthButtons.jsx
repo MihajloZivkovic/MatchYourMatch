@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PublicClientApplication } from '@azure/msal-browser';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { EventType, PublicClientApplication } from '@azure/msal-browser';
+import { FaFacebookF } from 'react-icons/fa';
+import { FcGoogle } from 'react-icons/fc';
 import { useTranslation } from '../hooks/useTranslation';
+import SocialAuthButton from './SocialAuthButton';
 
 const FACEBOOK_SDK = 'https://connect.facebook.net/en_US/sdk.js';
 
@@ -27,10 +30,15 @@ function loadScript(src, ready) {
 function SocialAuthButtons({ register = false }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const googleRef = useRef(null);
+  const location = useLocation();
   const microsoftRef = useRef(null);
+  const microsoftInteractionRef = useRef(false);
+  const microsoftAttemptRef = useRef(0);
+  const microsoftPopupMonitorRef = useRef(null);
   const [activeProvider, setActiveProvider] = useState('');
   const [error, setError] = useState('');
+  const [googleReady, setGoogleReady] = useState(false);
+  const [microsoftReady, setMicrosoftReady] = useState(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const facebookAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
   const microsoftClientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
@@ -45,42 +53,121 @@ function SocialAuthButtons({ register = false }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error((await response.text()) || t('socialAuth.failed'));
-      const data = await response.json();
+      let data;
+      if (response.status === 409) {
+        const conflict = await response.json();
+        if (!conflict.requiresReactivation) throw new Error(conflict.message || t('socialAuth.failed'));
+        const reactivation = await fetch('/api/account/reactivate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, ...payload }),
+        });
+        if (!reactivation.ok) throw new Error((await reactivation.text()) || t('socialAuth.failed'));
+        data = await reactivation.json();
+      } else {
+        if (!response.ok) throw new Error((await response.text()) || t('socialAuth.failed'));
+        data = await response.json();
+      }
       localStorage.setItem('token', data.accessToken);
       localStorage.setItem('mym_authed', 'true');
       window.dispatchEvent(new Event('tokenChanged'));
-      navigate(data.requiresProfileCompletion ? '/complete-profile' : '/app/dashboard', { replace: true });
+      const requestedReturnUrl = new URLSearchParams(location.search).get('returnUrl');
+      const destination = requestedReturnUrl?.startsWith('/app') ? requestedReturnUrl : '/app/dashboard';
+      navigate(data.requiresProfileCompletion ? '/complete-profile' : destination, { replace: true });
     } catch (requestError) {
       setError(requestError.message || t('socialAuth.failed'));
     } finally {
       setActiveProvider('');
     }
-  }, [navigate, t]);
+  }, [location.search, navigate, t]);
 
   useEffect(() => {
     if (!googleClientId) return undefined;
     let cancelled = false;
-    const render = async () => {
+    const initialize = async () => {
       try {
         await loadScript('https://accounts.google.com/gsi/client', () => Boolean(window.google));
-        if (cancelled || !googleRef.current) return;
-        googleRef.current.innerHTML = '';
+        if (cancelled) return;
         window.google.accounts.id.initialize({
           client_id: googleClientId,
           callback: ({ credential }) => finishLogin('google', { idToken: credential }),
         });
-        window.google.accounts.id.renderButton(googleRef.current, {
-          theme: 'outline', size: 'large', width: 320,
-          text: register ? 'signup_with' : 'continue_with',
-        });
+        setGoogleReady(true);
       } catch (sdkError) {
         if (!cancelled) setError(sdkError.message);
       }
     };
-    render();
+    initialize();
     return () => { cancelled = true; };
-  }, [finishLogin, googleClientId, register]);
+  }, [finishLogin, googleClientId]);
+
+  const loginWithGoogle = () => {
+    if (!googleClientId) { setError(t('socialAuth.googleConfigMissing')); return; }
+    if (!googleReady || !window.google) { setError(t('socialAuth.googleInitFailed')); return; }
+    setActiveProvider('google');
+    setError('');
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+        setActiveProvider('');
+        setError(t('socialAuth.googleUnavailable'));
+      } else if (notification.isDismissedMoment?.() && notification.getDismissedReason?.() !== 'credential_returned') {
+        setActiveProvider('');
+        setError(t('socialAuth.cancelled'));
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!microsoftClientId || !microsoftTenantId) return undefined;
+    let disposed = false;
+    const instance = new PublicClientApplication({
+      auth: {
+        clientId: microsoftClientId,
+        authority: `https://login.microsoftonline.com/${microsoftTenantId}`,
+        redirectUri: `${window.location.origin}/`,
+      },
+      cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
+    });
+    microsoftRef.current = instance;
+    const eventCallbackId = instance.addEventCallback((message) => {
+      if (message.eventType === EventType.POPUP_OPENED) {
+        const popupWindow = message.payload?.popupWindow;
+        const attempt = microsoftAttemptRef.current;
+        clearInterval(microsoftPopupMonitorRef.current);
+        microsoftPopupMonitorRef.current = setInterval(() => {
+          if (!popupWindow?.closed) return;
+          clearInterval(microsoftPopupMonitorRef.current);
+          microsoftPopupMonitorRef.current = null;
+          window.setTimeout(() => {
+            if (microsoftInteractionRef.current && microsoftAttemptRef.current === attempt) {
+              microsoftAttemptRef.current += 1;
+              microsoftInteractionRef.current = false;
+              setActiveProvider((current) => current === 'microsoft' ? '' : current);
+              setError(t('socialAuth.cancelled'));
+            }
+          }, 350);
+        }, 250);
+      } else if ([
+        EventType.LOGIN_SUCCESS,
+        EventType.LOGIN_FAILURE,
+        EventType.ACQUIRE_TOKEN_SUCCESS,
+        EventType.ACQUIRE_TOKEN_FAILURE,
+      ].includes(message.eventType)) {
+        clearInterval(microsoftPopupMonitorRef.current);
+        microsoftPopupMonitorRef.current = null;
+      }
+    });
+    instance.initialize()
+      .then(() => { if (!disposed) setMicrosoftReady(true); })
+      .catch(() => { if (!disposed) setError(t('socialAuth.microsoftInitFailed')); });
+
+    return () => {
+      disposed = true;
+      clearInterval(microsoftPopupMonitorRef.current);
+      microsoftPopupMonitorRef.current = null;
+      if (eventCallbackId) instance.removeEventCallback(eventCallbackId);
+      if (microsoftRef.current === instance) microsoftRef.current = null;
+    };
+  }, [microsoftClientId, microsoftTenantId, t]);
 
   const loginWithFacebook = async () => {
     if (!facebookAppId) {
@@ -111,30 +198,32 @@ function SocialAuthButtons({ register = false }) {
       setError(t('socialAuth.microsoftConfigMissing'));
       return;
     }
+    if (!microsoftReady || !microsoftRef.current) {
+      setError(t('socialAuth.microsoftInitFailed'));
+      return;
+    }
+    if (microsoftInteractionRef.current) return;
+    microsoftInteractionRef.current = true;
+    const attempt = ++microsoftAttemptRef.current;
     setActiveProvider('microsoft');
     setError('');
     try {
-      if (!microsoftRef.current) {
-        microsoftRef.current = new PublicClientApplication({
-          auth: {
-            clientId: microsoftClientId,
-            authority: `https://login.microsoftonline.com/${microsoftTenantId}`,
-            redirectUri: `${window.location.origin}/`,
-          },
-          cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
-        });
-        if (typeof microsoftRef.current.initialize === 'function') await microsoftRef.current.initialize();
-      }
       const result = await microsoftRef.current.loginPopup({
         scopes: ['openid', 'profile', 'email'],
         prompt: 'select_account',
+        overrideInteractionInProgress: true,
       });
       if (!result.idToken) throw new Error(t('socialAuth.failed'));
       await finishLogin('microsoft', { idToken: result.idToken });
     } catch (sdkError) {
-      setActiveProvider('');
-      const cancelled = sdkError?.errorCode === 'user_cancelled' || sdkError?.errorCode === 'popup_window_error';
-      setError(cancelled ? t('socialAuth.cancelled') : (sdkError.message || t('socialAuth.failed')));
+      if (microsoftAttemptRef.current === attempt) {
+        setActiveProvider('');
+        if (sdkError?.errorCode === 'user_cancelled') setError(t('socialAuth.cancelled'));
+        else if (sdkError?.errorCode === 'popup_window_error') setError(t('socialAuth.popupBlocked'));
+        else setError(sdkError.message || t('socialAuth.failed'));
+      }
+    } finally {
+      if (microsoftAttemptRef.current === attempt) microsoftInteractionRef.current = false;
     }
   };
 
@@ -145,19 +234,19 @@ function SocialAuthButtons({ register = false }) {
         <span>{t(register ? 'socialAuth.orCreate' : 'socialAuth.orContinue')}</span>
       </div>
 
-      {googleClientId ? (
-        <div className={`social-auth__google${activeProvider === 'google' ? ' is-loading' : ''}`} ref={googleRef} />
-      ) : (
-        <button type="button" className="social-auth__button social-auth__button--google" onClick={() => setError(t('socialAuth.googleConfigMissing'))}>
-          {t('socialAuth.google')}
-        </button>
-      )}
-      <button type="button" className="social-auth__button social-auth__button--facebook" onClick={loginWithFacebook} disabled={busy}>
-        {activeProvider === 'facebook' ? t('socialAuth.connecting') : t('socialAuth.facebook')}
-      </button>
-      <button type="button" className="social-auth__button social-auth__button--microsoft" onClick={loginWithMicrosoft} disabled={busy}>
-        {activeProvider === 'microsoft' ? t('socialAuth.connecting') : t('socialAuth.microsoft')}
-      </button>
+      <SocialAuthButton provider="google" icon={<FcGoogle />} onClick={loginWithGoogle}
+        loading={activeProvider === 'google'} disabled={busy || (Boolean(googleClientId) && !googleReady)}>
+        {t('socialAuth.google')}
+      </SocialAuthButton>
+      <SocialAuthButton provider="facebook" icon={<FaFacebookF />} onClick={loginWithFacebook}
+        loading={activeProvider === 'facebook'} disabled={busy}>
+        {t('socialAuth.facebook')}
+      </SocialAuthButton>
+      <SocialAuthButton provider="microsoft" icon={<span className="social-auth__microsoft-logo"><i /><i /><i /><i /></span>}
+        onClick={loginWithMicrosoft} loading={activeProvider === 'microsoft'}
+        disabled={busy || (Boolean(microsoftClientId) && !microsoftReady)}>
+        {t('socialAuth.microsoft')}
+      </SocialAuthButton>
       {error && <p className="auth__error" role="alert">{error}</p>}
     </div>
   );

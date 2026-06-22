@@ -7,6 +7,7 @@ namespace MatchYourMatch.WebAPI.DTOs.Rating
         public decimal? AverageRating { get; set; }
         public int RatingsCount { get; set; }
         public decimal? MyRating { get; set; }
+        public List<UserRatingItemDto> MyRatings { get; set; } = new();
         public List<EligibleRatingEventDto> EligibleEvents { get; set; } = new();
     }
 }

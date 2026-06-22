@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CalendarX } from 'lucide-react';
 import EventCard from '../../components/EventCard';
 import EventInviteModal from '../../components/events/EventInviteModal';
@@ -8,7 +8,8 @@ import { useTranslation } from '../../hooks/useTranslation';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
 
-function Events() {
+function Events({ currentUser }) {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +89,20 @@ function Events() {
     }
   };
 
+  const handleCancelJoinRequest = async (eventId) => {
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join-request`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('events.cancelRequestError'));
+      const updated = mapApiEvent(await response.json());
+      setEvents((current) => current.map((event) => event.id === eventId ? updated : event));
+    } catch (err) {
+      setError(err.message || t('events.cancelRequestError'));
+    }
+  };
+
   return (
     <div className="page-fade-in events-page">
       <header className="events-page__header">
@@ -149,7 +164,11 @@ function Events() {
               event={event}
               style={{ '--i': i }}
               onJoin={() => handleJoin(event.id)}
+              onCancelJoinRequest={() => handleCancelJoinRequest(event.id)}
+              onSavedChange={(isSaved) => setEvents((current) => current.map((value) =>
+                value.id === event.id ? { ...value, isSaved } : value))}
               onInvite={() => setInviteEvent(event)}
+              onEdit={Number(event.createdByUserId) === Number(currentUser?.id) ? () => navigate(`/app/events/${event.id}/edit`) : undefined}
             />
           ))}
         </div>
@@ -169,15 +188,30 @@ function mapApiEvent(event) {
     time: formatTime(event.time),
     rawTime: event.time,
     location: event.location || 'Community meetup',
-    description: event.description || 'Community event created by a MYM user.',
+    description: event.description || '',
     attendees: event.participantAvatars?.length
       ? event.participantAvatars
       : event.participantInitials || [],
     attendeeCount: event.participantsCount || 0,
     maxAttendees: event.maxAttendees || 0,
+    minAge: event.minAge ?? null,
+    maxAge: event.maxAge ?? null,
+    ageLabel: formatAgeLimit(event.minAge, event.maxAge),
     isJoinedByCurrentUser: Boolean(event.isJoinedByCurrentUser),
+    requiresParticipantApproval: Boolean(event.requiresParticipantApproval),
+    joinRequestStatus: event.joinRequestStatus || null,
+    pendingJoinRequestsCount: event.pendingJoinRequestsCount || 0,
+    isSaved: Boolean(event.isSaved),
     organizerUsername: event.organizerUsername,
+    createdByUserId: event.createdByUserId,
   };
+}
+
+function formatAgeLimit(minAge, maxAge) {
+  if (minAge != null && maxAge != null) return `Ages ${minAge}–${maxAge}`;
+  if (minAge != null) return `${minAge}+`;
+  if (maxAge != null) return `Up to ${maxAge}`;
+  return '';
 }
 
 function normalizeCategory(category) {

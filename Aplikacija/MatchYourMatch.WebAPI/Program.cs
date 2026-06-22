@@ -1,21 +1,31 @@
 using MatchYourMatch.WebAPI.Data;
 using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
+using MatchYourMatch.WebAPI.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
 using System.Text;
 
 DotNetEnv.Env.Load();
+var frontendEnvPath = Path.GetFullPath(Path.Combine(
+    Directory.GetCurrentDirectory(),
+    "..", "MatchYourMatch.Client", "MatchYourMatchFront", ".env"));
+if (File.Exists(frontendEnvPath))
+{
+    DotNetEnv.Env.Load(frontendEnvPath);
+}
+var schemaOnly = string.Equals(Environment.GetEnvironmentVariable("MYM_SCHEMA_ONLY"), "1", StringComparison.Ordinal);
 using var backendInstanceMutex = new Mutex(
     initiallyOwned: true,
     name: "Local\\MatchYourMatch.WebAPI",
     createdNew: out var isFirstBackendInstance);
 
-if (!isFirstBackendInstance)
+if (!isFirstBackendInstance && !schemaOnly)
 {
     Console.Error.WriteLine(
         "MatchYourMatch WebAPI is already running. Use the existing instance instead of starting another one.");
@@ -53,12 +63,45 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]!))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var idValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var versionValue = context.Principal?.FindFirst("tokenVersion")?.Value;
+                if (!int.TryParse(idValue, out var userId) || !int.TryParse(versionValue, out var tokenVersion))
+                {
+                    context.Fail("Session is no longer valid.");
+                    return;
+                }
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var valid = await db.Users.AsNoTracking().AnyAsync(user => user.Id == userId && user.IsActive &&
+                    !user.IsDeactivated && user.TokenVersion == tokenVersion);
+                if (!valid) context.Fail("Session is no longer valid.");
+            },
+            OnChallenge = async context =>
+            {
+                if (context.Response.HasStarted) return;
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new
+                {
+                    code = "SESSION_EXPIRED",
+                    message = "Your session has expired."
+                });
+            }
+        };
     });
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserProfilesService, UserProfilesService>();
 builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddSingleton<IMessageAttachmentStorage, MessageAttachmentStorage>();
 builder.Services.AddScoped<IQuickMatchService, QuickMatchService>();
+builder.Services.AddScoped<IQuickMatchExpirationService, QuickMatchExpirationService>();
+builder.Services.AddHostedService<QuickMatchExpirationWorker>();
 builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient<IGeocodingService, GeocodingService>();
@@ -148,13 +191,18 @@ using (var scope = app.Services.CreateScope())
         DEALLOCATE PREPARE stmt;
         """);
 #pragma warning disable EF1002
+#pragma warning disable EF1002
     foreach (var column in new[]
     {
         (Name: "EmailConfirmed", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailConfirmed` tinyint(1) NOT NULL DEFAULT 1"),
         (Name: "EmailConfirmedAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailConfirmedAt` datetime(6) NULL"),
         (Name: "EmailVerificationCodeHash", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeHash` varchar(64) NULL"),
         (Name: "EmailVerificationCodeExpiresAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeExpiresAt` datetime(6) NULL"),
-        (Name: "EmailVerificationCodeSentAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeSentAt` datetime(6) NULL")
+        (Name: "EmailVerificationCodeSentAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeSentAt` datetime(6) NULL"),
+        (Name: "IsDeactivated", Sql: "ALTER TABLE `Users` ADD COLUMN `IsDeactivated` tinyint(1) NOT NULL DEFAULT 0"),
+        (Name: "DeactivatedAt", Sql: "ALTER TABLE `Users` ADD COLUMN `DeactivatedAt` datetime(6) NULL"),
+        (Name: "TokenVersion", Sql: "ALTER TABLE `Users` ADD COLUMN `TokenVersion` int NOT NULL DEFAULT 0"),
+        (Name: "HasPassword", Sql: "ALTER TABLE `Users` ADD COLUMN `HasPassword` tinyint(1) NOT NULL DEFAULT 1")
     })
     {
         db.Database.ExecuteSqlRaw($"""
@@ -164,6 +212,7 @@ using (var scope = app.Services.CreateScope())
             PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
             """);
     }
+#pragma warning restore EF1002
 #pragma warning restore EF1002
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `Follows` (
@@ -602,6 +651,7 @@ using (var scope = app.Services.CreateScope())
             `Time` time(6) NOT NULL,
             `Location` longtext CHARACTER SET utf8mb4 NOT NULL,
             `MaxAttendees` int NOT NULL,
+            `RequiresParticipantApproval` tinyint(1) NOT NULL DEFAULT 0,
             `Description` longtext CHARACTER SET utf8mb4 NULL,
             `ImageUrl` longtext CHARACTER SET utf8mb4 NULL,
             CONSTRAINT `PK_Events` PRIMARY KEY (`Id`),
@@ -610,12 +660,135 @@ using (var scope = app.Services.CreateScope())
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
+        SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QuickMatchPosts' AND COLUMN_NAME = 'PreferredMinAge');
+        SET @statement := IF(@columnExists = 0,
+            'ALTER TABLE `QuickMatchPosts` ADD COLUMN `PreferredMinAge` int NULL', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+        SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QuickMatchPosts' AND COLUMN_NAME = 'PreferredMaxAge');
+        SET @statement := IF(@columnExists = 0,
+            'ALTER TABLE `QuickMatchPosts` ADD COLUMN `PreferredMaxAge` int NULL', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+        SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QuickMatchPosts' AND COLUMN_NAME = 'StartsAtUtc');
+        SET @statement := IF(@columnExists = 0,
+            'ALTER TABLE `QuickMatchPosts` ADD COLUMN `StartsAtUtc` datetime(6) NULL', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+        SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QuickMatchPosts' AND COLUMN_NAME = 'EndsAtUtc');
+        SET @statement := IF(@columnExists = 0,
+            'ALTER TABLE `QuickMatchPosts` ADD COLUMN `EndsAtUtc` datetime(6) NULL', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+        SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QuickMatchPosts' AND COLUMN_NAME = 'ExpiredAt');
+        SET @statement := IF(@columnExists = 0,
+            'ALTER TABLE `QuickMatchPosts` ADD COLUMN `ExpiredAt` datetime(6) NULL', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+        CREATE TABLE IF NOT EXISTS `QuickMatchRequests` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `QuickMatchPostId` int NOT NULL,
+            `RequesterUserId` int NOT NULL,
+            `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Pending',
+            `CreatedAt` datetime(6) NOT NULL,
+            `RespondedAt` datetime(6) NULL,
+            CONSTRAINT `PK_QuickMatchRequests` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_QuickMatchRequests_QuickMatchPosts_QuickMatchPostId` FOREIGN KEY (`QuickMatchPostId`) REFERENCES `QuickMatchPosts` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_QuickMatchRequests_Users_RequesterUserId` FOREIGN KEY (`RequesterUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            UNIQUE INDEX `IX_QuickMatchRequests_QuickMatchPostId_RequesterUserId` (`QuickMatchPostId`, `RequesterUserId`),
+            INDEX `IX_QuickMatchRequests_QuickMatchPostId_Status` (`QuickMatchPostId`, `Status`),
+            INDEX `IX_QuickMatchRequests_RequesterUserId` (`RequesterUserId`)
+        ) CHARACTER SET=utf8mb4;
+
+        UPDATE `QuickMatchPosts`
+        SET `StartsAtUtc` = DATE_ADD(TIMESTAMP(`Date`, `StartTime`), INTERVAL TIMESTAMPDIFF(MINUTE, NOW(), UTC_TIMESTAMP()) MINUTE),
+            `EndsAtUtc` = DATE_ADD(TIMESTAMP(DATE_ADD(`Date`, INTERVAL (`EndTime` <= `StartTime`) DAY), `EndTime`), INTERVAL TIMESTAMPDIFF(MINUTE, NOW(), UTC_TIMESTAMP()) MINUTE)
+        WHERE `StartsAtUtc` IS NULL OR `EndsAtUtc` IS NULL;
+
+        UPDATE `QuickMatchPosts`
+        SET `IsActive` = 0, `ExpiredAt` = COALESCE(`ExpiredAt`, UTC_TIMESTAMP(6))
+        WHERE `IsActive` = 1 AND `EndsAtUtc` <= UTC_TIMESTAMP(6);
+
+        UPDATE `QuickMatchRequests` request
+        INNER JOIN `QuickMatchPosts` post ON post.`Id` = request.`QuickMatchPostId`
+        SET request.`Status` = 'Expired', request.`RespondedAt` = UTC_TIMESTAMP(6)
+        WHERE request.`Status` = 'Pending' AND post.`EndsAtUtc` <= UTC_TIMESTAMP(6);
+
+        SET @indexExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QuickMatchPosts' AND INDEX_NAME = 'IX_QuickMatchPosts_IsActive_EndsAtUtc');
+        SET @statement := IF(@indexExists = 0,
+            'CREATE INDEX `IX_QuickMatchPosts_IsActive_EndsAtUtc` ON `QuickMatchPosts` (`IsActive`, `EndsAtUtc`)', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+        """);
+    #pragma warning disable EF1002 // Identifiers and DDL come only from this fixed local list.
+    foreach (var column in new[]
+    {
+        (Name: "Latitude", Sql: "ALTER TABLE `Events` ADD COLUMN `Latitude` double NULL"),
+        (Name: "Longitude", Sql: "ALTER TABLE `Events` ADD COLUMN `Longitude` double NULL"),
+        (Name: "LocationCity", Sql: "ALTER TABLE `Events` ADD COLUMN `LocationCity` varchar(100) CHARACTER SET utf8mb4 NULL"),
+        (Name: "LocationCountry", Sql: "ALTER TABLE `Events` ADD COLUMN `LocationCountry` varchar(100) CHARACTER SET utf8mb4 NULL"),
+        (Name: "ShowFullAddress", Sql: "ALTER TABLE `Events` ADD COLUMN `ShowFullAddress` tinyint(1) NOT NULL DEFAULT 0"),
+        (Name: "MinAge", Sql: "ALTER TABLE `Events` ADD COLUMN `MinAge` int NULL"),
+        (Name: "MaxAge", Sql: "ALTER TABLE `Events` ADD COLUMN `MaxAge` int NULL"),
+        (Name: "RequiresParticipantApproval", Sql: "ALTER TABLE `Events` ADD COLUMN `RequiresParticipantApproval` tinyint(1) NOT NULL DEFAULT 0")
+    })
+    {
+        db.Database.ExecuteSqlRaw($"""
+            SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Events' AND COLUMN_NAME = '{column.Name}');
+            SET @statement := IF(@columnExists = 0, '{column.Sql}', 'SELECT 1');
+            PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+            """);
+    }
+    #pragma warning restore EF1002
+    db.Database.ExecuteSqlRaw("""
+        SET @indexExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Events' AND INDEX_NAME = 'IX_Events_MinAge_MaxAge');
+        SET @statement := IF(@indexExists = 0,
+            'CREATE INDEX `IX_Events_MinAge_MaxAge` ON `Events` (`MinAge`, `MaxAge`)', 'SELECT 1');
+        PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        UPDATE `Events`
+        SET `LocationCity` = `Location`
+        WHERE `LocationCity` IS NULL AND `ShowFullAddress` = 0;
+        """);
+    db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `EventParticipants` (
             `EventId` int NOT NULL,
             `UserId` int NOT NULL,
             `JoinedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
             CONSTRAINT `PK_EventParticipants` PRIMARY KEY (`EventId`, `UserId`),
             INDEX `IX_EventParticipants_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
+        CREATE TABLE IF NOT EXISTS `EventJoinRequests` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `EventId` int NOT NULL,
+            `UserId` int NOT NULL,
+            `Status` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Pending',
+            `CreatedAt` datetime(6) NOT NULL,
+            `RespondedAt` datetime(6) NULL,
+            CONSTRAINT `PK_EventJoinRequests` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_EventJoinRequests_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_EventJoinRequests_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            UNIQUE INDEX `IX_EventJoinRequests_EventId_UserId` (`EventId`, `UserId`),
+            INDEX `IX_EventJoinRequests_EventId_Status` (`EventId`, `Status`),
+            INDEX `IX_EventJoinRequests_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
+        CREATE TABLE IF NOT EXISTS `SavedEvents` (
+            `UserId` int NOT NULL,
+            `EventId` int NOT NULL,
+            `SavedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_SavedEvents` PRIMARY KEY (`UserId`, `EventId`),
+            CONSTRAINT `FK_SavedEvents_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_SavedEvents_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            INDEX `IX_SavedEvents_EventId` (`EventId`),
+            INDEX `IX_SavedEvents_UserId_SavedAt` (`UserId`, `SavedAt`)
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
@@ -694,6 +867,35 @@ using (var scope = app.Services.CreateScope())
                 FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
             INDEX `IX_EventDiscussionMessages_EventId_CreatedAt` (`EventId`, `CreatedAt`),
             INDEX `IX_EventDiscussionMessages_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `MessageAttachments` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `ChatMessageId` int NULL,
+            `EventDiscussionMessageId` int NULL,
+            `Kind` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+            `OriginalFileName` varchar(255) CHARACTER SET utf8mb4 NULL,
+            `StoredFileName` varchar(80) CHARACTER SET utf8mb4 NULL,
+            `ContentType` varchar(100) CHARACTER SET utf8mb4 NULL,
+            `Size` bigint NOT NULL DEFAULT 0,
+            `StoragePath` varchar(500) CHARACTER SET utf8mb4 NULL,
+            `Provider` varchar(30) CHARACTER SET utf8mb4 NULL,
+            `ProviderMediaId` varchar(100) CHARACTER SET utf8mb4 NULL,
+            `OriginalUrl` varchar(1000) CHARACTER SET utf8mb4 NULL,
+            `PreviewUrl` varchar(1000) CHARACTER SET utf8mb4 NULL,
+            `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+            CONSTRAINT `PK_MessageAttachments` PRIMARY KEY (`Id`),
+            CONSTRAINT `CK_MessageAttachments_OneOwner` CHECK (
+                (`ChatMessageId` IS NOT NULL AND `EventDiscussionMessageId` IS NULL)
+                OR (`ChatMessageId` IS NULL AND `EventDiscussionMessageId` IS NOT NULL)
+            ),
+            CONSTRAINT `FK_MsgAttachments_ChatMessages`
+                FOREIGN KEY (`ChatMessageId`) REFERENCES `ChatMessages` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_MsgAttachments_EventMessages`
+                FOREIGN KEY (`EventDiscussionMessageId`) REFERENCES `EventDiscussionMessages` (`Id`) ON DELETE CASCADE,
+            UNIQUE INDEX `IX_MessageAttachments_ChatMessageId` (`ChatMessageId`),
+            UNIQUE INDEX `IX_MessageAttachments_EventDiscussionMessageId` (`EventDiscussionMessageId`)
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
@@ -812,6 +1014,58 @@ using (var scope = app.Services.CreateScope())
               'Gym buddy trening'
           );
         """);
+
+    if (schemaOnly)
+    {
+        var chatService = scope.ServiceProvider.GetRequiredService<IChatService>();
+        var privateChat = await db.ChatConversations.AsNoTracking()
+            .Where(conversation => !conversation.IsGroup && conversation.UserAId != null)
+            .OrderBy(conversation => conversation.Id)
+            .Select(conversation => new { conversation.Id, UserId = conversation.UserAId!.Value })
+            .FirstOrDefaultAsync();
+        if (privateChat != null)
+        {
+            var messages = await chatService.GetMessagesAsync(privateChat.UserId, privateChat.Id);
+            Console.WriteLine($"Private chat history query completed successfully ({messages.Count} messages).");
+        }
+
+        var groupChat = await db.ChatConversationMembers.AsNoTracking()
+            .Where(member => member.LeftAt == null)
+            .OrderBy(member => member.ConversationId)
+            .Select(member => new { member.ConversationId, member.UserId })
+            .FirstOrDefaultAsync();
+        if (groupChat != null)
+        {
+            var messages = await chatService.GetMessagesAsync(groupChat.UserId, groupChat.ConversationId);
+            Console.WriteLine($"Group chat history query completed successfully ({messages.Count} messages).");
+        }
+
+        var eventParticipant = await db.EventParticipants.AsNoTracking()
+            .OrderBy(participant => participant.EventId)
+            .Select(participant => new { participant.EventId, participant.UserId })
+            .FirstOrDefaultAsync();
+        if (eventParticipant != null)
+        {
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+            var messages = await eventService.GetDiscussionAsync(eventParticipant.EventId, eventParticipant.UserId);
+            Console.WriteLine($"Event discussion history query completed successfully ({messages.Count} messages).");
+        }
+
+        var verificationUserIds = await db.Users.AsNoTracking().Where(user => user.IsActive)
+            .OrderBy(user => user.Id).Select(user => user.Id).Take(2).ToListAsync();
+        if (verificationUserIds.Count == 2)
+        {
+            var ratingService = scope.ServiceProvider.GetRequiredService<IUserRatingService>();
+            await ratingService.GetStatusAsync(verificationUserIds[0], verificationUserIds[1]);
+            Console.WriteLine("Rating status query completed successfully.");
+        }
+    }
+}
+
+if (schemaOnly)
+{
+    Console.WriteLine("Development schema update completed.");
+    return;
 }
 
 app.UseSwagger();
@@ -819,6 +1073,7 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("AllowAll");
+app.UseMiddleware<ApiExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -15,6 +15,9 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task LeaveGroupAsync(int userId, int conversationId);
         Task DeleteGroupAsync(int userId, int conversationId);
         Task<ChatMessageDto> SendMessageAsync(int userId, SendChatMessageDto request);
+        Task<ChatMessageDto> SendAttachmentAsync(int userId, int conversationId, string? body, IFormFile file, CancellationToken cancellationToken = default);
+        Task<ChatMessageDto> SendGifAsync(int userId, int conversationId, SendGifMessageDto request);
+        Task<(Stream Stream, string ContentType, string FileName)> DownloadAttachmentAsync(int userId, int attachmentId, CancellationToken cancellationToken = default);
         Task<ChatMessageDto> UpdateMessageAsync(int userId, int messageId, UpdateChatMessageDto request);
         Task MarkConversationReadAsync(int userId, int conversationId);
         Task HideConversationAsync(int userId, int conversationId);

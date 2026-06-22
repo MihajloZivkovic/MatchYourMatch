@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using MatchYourMatch.WebAPI.DTOs.Auth;
+using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,6 +40,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var response = await _authService.LoginAsync(dto);
                 return Ok(response);
             }
+            catch (AccountDeactivatedException ex)
+            {
+                return Conflict(new { requiresReactivation = true, message = ex.Message });
+            }
             catch (Exception ex)
             {
                 return ex.Message == "Please verify your email before logging in."
@@ -73,6 +78,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         public async Task<IActionResult> GoogleLogin(ExternalLoginDto dto)
         {
             try { return Ok(await _authService.GoogleLoginAsync(dto)); }
+            catch (AccountDeactivatedException ex) { return Conflict(new { requiresReactivation = true, message = ex.Message }); }
             catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
@@ -81,6 +87,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         public async Task<IActionResult> FacebookLogin(ExternalLoginDto dto)
         {
             try { return Ok(await _authService.FacebookLoginAsync(dto)); }
+            catch (AccountDeactivatedException ex) { return Conflict(new { requiresReactivation = true, message = ex.Message }); }
             catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
@@ -89,6 +96,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         public async Task<IActionResult> MicrosoftLogin(ExternalLoginDto dto)
         {
             try { return Ok(await _authService.MicrosoftLoginAsync(dto)); }
+            catch (AccountDeactivatedException ex) { return Conflict(new { requiresReactivation = true, message = ex.Message }); }
             catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }

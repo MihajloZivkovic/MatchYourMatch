@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Check, CheckCheck, Clock, MessageCircle, Minus, Send, Users, X } from "lucide-react";
+import { Check, CheckCheck, Clock, MessageCircle, Minus, Users, X } from "lucide-react";
 import ConfirmModal from "../ConfirmModal";
 import MessageReactions from "./MessageReactions";
+import ChatComposer from "./ChatComposer";
+import AttachmentView from "./AttachmentView";
 import { useChat } from "../../context/ChatContext";
 import "./FloatingChat.css";
 import { useTranslation } from '../../hooks/useTranslation';
@@ -16,6 +18,7 @@ function FloatingChat() {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [messageMenu, setMessageMenu] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [sending, setSending] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const typingTimeoutRef = useRef(null);
@@ -28,15 +31,17 @@ function FloatingChat() {
     canSendMessages,
     conversations,
     messagesByConversation,
+    messageLoadStateByConversation,
     activeConversationId: activeId,
     loadingConversations,
-    loadingMessages: loading,
     error,
     setError,
     setActiveConversationId,
     loadConversations,
     loadMessages,
     sendMessage,
+    sendAttachment,
+    sendGif,
     editMessage,
     deleteMessageForMe,
     deleteMessageForEveryone,
@@ -48,6 +53,8 @@ function FloatingChat() {
   useEffect(() => {
     if (!open || !activeId) return;
     loadMessages(activeId);
+    const intervalId = window.setInterval(() => loadMessages(activeId, { silent: true }).catch(() => {}), 2500);
+    return () => window.clearInterval(intervalId);
   }, [activeId, loadMessages, open]);
 
   useEffect(() => {
@@ -90,6 +97,9 @@ function FloatingChat() {
     conversations[0] ||
     null;
   const messages = messagesByConversation[activeConversation?.conversationId] || [];
+  const messageLoadState = activeConversation
+    ? messageLoadStateByConversation[activeConversation.conversationId] || { status: "idle", error: "" }
+    : { status: "idle", error: "" };
 
   const scrollMessagesToBottom = useCallback((behavior = "auto") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
@@ -121,30 +131,6 @@ function FloatingChat() {
     (total, conversation) => total + conversation.unreadCount,
     0,
   );
-
-  const handleSend = async (event) => {
-    event.preventDefault();
-    const text = draft.trim();
-
-    if (!text || !activeConversation || !canSendMessages) {
-      return;
-    }
-
-    setError("");
-
-    try {
-      if (editingMessage) {
-        await editMessage(editingMessage, text);
-        setEditingMessage(null);
-      } else {
-        await sendMessage(activeConversation.conversationId, text);
-      }
-      setDraft("");
-      notifyTyping(false);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const notifyTyping = useCallback(
     (isTyping) => {
@@ -247,6 +233,10 @@ function FloatingChat() {
 
   const handleRetry = async () => {
     setError("");
+    if (activeConversation?.conversationId && messageLoadState.status === "error") {
+      await loadMessages(activeConversation.conversationId);
+      return;
+    }
     await loadConversations({ retryNow: true });
   };
 
@@ -358,13 +348,13 @@ function FloatingChat() {
               ref={messagesViewportRef}
               onScroll={handleMessagesScroll}
             >
-              {loading && messages.length === 0 && (
+              {messageLoadState.status === "loading" && messages.length === 0 && (
                 <div className="floating-chat__state">{t('chat.loadingMessages')}</div>
               )}
-              {!loading && !activeConversation && (
+              {!loadingConversations && !activeConversation && (
                 <div className="floating-chat__state">{t('chat.noConversations')}</div>
               )}
-              {!loading &&
+              {messageLoadState.status !== "loading" &&
                 messages.map((message) => {
                   const mine = isMessageMine(message, auth.userId);
 
@@ -381,7 +371,8 @@ function FloatingChat() {
                           {message.senderDisplayName || message.senderUsername || t('chatUi.member')}
                         </span>
                       )}
-                      <p>{message.isDeletedForEveryone ? t('chatUi.deleted') : message.displayBody ?? message.body}</p>
+                      {!message.isDeletedForEveryone && <AttachmentView attachment={message.attachment}/>}
+                      {(message.isDeletedForEveryone || message.displayBody || message.body) && <p>{message.isDeletedForEveryone ? t('chatUi.deleted') : message.displayBody ?? message.body}</p>}
                       <div className="floating-chat__message-meta">
                         <span>{formatTime(message.createdAt)}</span>
                         {message.editedAt && !message.isDeletedForEveryone && <span title={formatTime(message.editedAt)}>{t('chat.edited')}</span>}
@@ -399,8 +390,17 @@ function FloatingChat() {
                     </div>
                   );
                 })}
-              {!loading && otherUserTyping && (
+              {messageLoadState.status !== "loading" && otherUserTyping && (
                 <TypingIndicator className="floating-chat__message floating-chat__message--them" />
+              )}
+              {messageLoadState.status === "success" && messages.length === 0 && activeConversation && (
+                <div className="floating-chat__state">{t('chat.startConversation')}</div>
+              )}
+              {messageLoadState.status === "error" && (
+                <div className="floating-chat__error">
+                  <span>{messageLoadState.error}</span>
+                  <button type="button" onClick={handleRetry}>{t('common.retry')}</button>
+                </div>
               )}
               {error && (
                 <div className="floating-chat__error">
@@ -419,31 +419,12 @@ function FloatingChat() {
           </div>
 
           {canSendMessages && activeConversation ? (
-            <form className="floating-chat__composer" onSubmit={handleSend}>
-              {editingMessage && (
-                <div className="floating-chat__editing">
-                  <span>{t('chat.editing')}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingMessage(null);
-                      setDraft("");
-                    }}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                </div>
-              )}
-              <input
-                value={draft}
-                onChange={handleDraftChange}
-                placeholder={t('chat.messagePlaceholder')}
-                maxLength={2000}
-              />
-              <button type="submit" aria-label={t('chatUi.sendMessage')} disabled={!draft.trim()}>
-                <Send size={16} />
-              </button>
-            </form>
+            <ChatComposer value={draft} onChange={(value)=>handleDraftChange({target:{value}})} sending={sending}
+              placeholder={t('chat.messagePlaceholder')} editing={Boolean(editingMessage)}
+              onCancelEdit={()=>{setEditingMessage(null);setDraft("")}}
+              onSendText={async text=>{setSending(true);try{if(editingMessage){await editMessage(editingMessage,text);setEditingMessage(null)}else await sendMessage(activeConversation.conversationId,text);setDraft("");notifyTyping(false)}finally{setSending(false)}}}
+              onSendAttachment={async(file,text,progress)=>{setSending(true);try{await sendAttachment(activeConversation.conversationId,file,text,progress);setDraft("")}finally{setSending(false)}}}
+              onSendGif={async gif=>{setSending(true);try{await sendGif(activeConversation.conversationId,gif);setDraft("")}finally{setSending(false)}}}/>
           ) : (
             <div className="floating-chat__disabled">
               {canSendMessages ? t('chatUi.openProfile') : t('chatUi.usersOnly')}

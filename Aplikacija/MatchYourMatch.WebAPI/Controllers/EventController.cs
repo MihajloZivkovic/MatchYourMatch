@@ -18,6 +18,8 @@ namespace MatchYourMatch.WebAPI.Controllers
             _service = service;
         }
 
+        private int GetCurrentUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
         [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetEvents(
@@ -53,7 +55,30 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [Authorize]
-        [HttpGet("{id}")]
+        [HttpGet("saved")]
+        public async Task<IActionResult> GetSaved()
+        {
+            return Ok(await _service.GetSavedEventsAsync(CurrentUserId()));
+        }
+
+        [Authorize]
+        [HttpPost("{id:int}/save")]
+        public async Task<IActionResult> SaveEvent(int id)
+        {
+            try { return Ok(await _service.SaveEventAsync(id, CurrentUserId())); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpDelete("{id:int}/save")]
+        public async Task<IActionResult> UnsaveEvent(int id)
+        {
+            try { await _service.UnsaveEventAsync(id, CurrentUserId()); return NoContent(); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -66,6 +91,15 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/edit")]
+        public async Task<IActionResult> GetForEdit(int id)
+        {
+            try { return Ok(await _service.GetForEditAsync(id, int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value))); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
         }
 
         [Authorize]
@@ -94,10 +128,40 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var e = await _service.JoinAsync(id, userId);
                 return Ok(e);
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpDelete("{id:int}/join-request")]
+        public async Task<IActionResult> CancelJoinRequest(int id)
+        {
+            try { return Ok(await _service.CancelJoinRequestAsync(id, CurrentUserId())); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/join-requests")]
+        public async Task<IActionResult> GetJoinRequests(int id)
+        {
+            try { return Ok(await _service.GetJoinRequestsAsync(id, CurrentUserId())); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+        }
+
+        [Authorize]
+        [HttpPost("{id:int}/join-requests/{requestId:int}/accept")]
+        public async Task<IActionResult> AcceptJoinRequest(int id, int requestId)
+        {
+            return await RespondToJoinRequest(id, requestId, true);
+        }
+
+        [Authorize]
+        [HttpPost("{id:int}/join-requests/{requestId:int}/reject")]
+        public async Task<IActionResult> RejectJoinRequest(int id, int requestId)
+        {
+            return await RespondToJoinRequest(id, requestId, false);
         }
 
         [Authorize]
@@ -189,7 +253,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "Organizer")]
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, CreateEventDto dto)
         {
@@ -219,6 +283,56 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [Authorize]
+        [HttpPost("{id:int}/discussion/attachments")]
+        [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
+        public async Task<IActionResult> AddDiscussionAttachment(int id, [FromForm] IFormFile file, [FromForm] string? body, CancellationToken cancellationToken)
+        {
+            try { return Ok(await _service.AddDiscussionAttachmentAsync(id, GetCurrentUserId(), body, file, cancellationToken)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpPost("{id:int}/discussion/gifs")]
+        public async Task<IActionResult> AddDiscussionGif(int id, MatchYourMatch.WebAPI.DTOs.Chat.SendGifMessageDto dto)
+        {
+            try { return Ok(await _service.AddDiscussionGifAsync(id, GetCurrentUserId(), dto)); }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/discussion/attachments/{attachmentId:int}")]
+        public async Task<IActionResult> DownloadDiscussionAttachment(int id, int attachmentId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _service.DownloadDiscussionAttachmentAsync(id, GetCurrentUserId(), attachmentId, cancellationToken);
+                Response.Headers.ContentSecurityPolicy = "default-src 'none'; sandbox";
+                Response.Headers.XContentTypeOptions = "nosniff";
+                return File(result.Stream, result.ContentType, result.FileName, enableRangeProcessing: true);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+        }
+
+        private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        private async Task<IActionResult> RespondToJoinRequest(int eventId, int requestId, bool accept)
+        {
+            try
+            {
+                return Ok(await _service.RespondToJoinRequestAsync(
+                    eventId, requestId, CurrentUserId(), accept));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
     }
 }

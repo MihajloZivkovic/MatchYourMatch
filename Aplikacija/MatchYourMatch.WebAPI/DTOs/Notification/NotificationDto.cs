@@ -16,5 +16,11 @@ namespace MatchYourMatch.WebAPI.DTOs.Notification
         public DateTime CreatedAt { get; set; }
         public int? EventInviteId { get; set; }
         public string? EventInviteStatus { get; set; }
+        public int? QuickMatchRequestId { get; set; }
+        public int? QuickMatchPostId { get; set; }
+        public string? QuickMatchRequestStatus { get; set; }
+        public int? EventJoinRequestId { get; set; }
+        public int? EventJoinRequestEventId { get; set; }
+        public string? EventJoinRequestStatus { get; set; }
     }
 }

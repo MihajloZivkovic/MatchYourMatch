@@ -1,12 +1,16 @@
 import { useActionState, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
+  const requestedReturnUrl = new URLSearchParams(location.search).get('returnUrl');
+  const loginDestination = requestedReturnUrl?.startsWith('/app') ? requestedReturnUrl : '/app/dashboard';
   const [vrstaGreske, setVrstaGreske] = useState("")
+  const [reactivationCredentials, setReactivationCredentials] = useState(null);
   const [state, formAction] = useActionState(handleSubmit, {
     error: null,
     values: { email: "", password: "" }
@@ -27,8 +31,14 @@ function Login() {
     });
 
     if (!response.ok) {
-      const errorMessage = await response.text();
-      if (response.status === 403) {
+      const rawError = await response.text();
+      let errorMessage = rawError;
+      try { errorMessage = JSON.parse(rawError).message || rawError; } catch { /* plain text response */ }
+      if (response.status === 409) {
+        setVrstaGreske("deactivated");
+        setReactivationCredentials({ email, password });
+      }
+      else if (response.status === 403) {
         setVrstaGreske("verify");
         sessionStorage.setItem('pendingVerificationEmail', email.trim());
       }
@@ -45,12 +55,13 @@ function Login() {
       }
     }
     setVrstaGreske("");
+    setReactivationCredentials(null);
     const data = await response.json();
 
     localStorage.setItem("token", data.accessToken);
     localStorage.setItem('mym_authed', 'true');
     window.dispatchEvent(new Event('tokenChanged'));
-    navigate("/app/dashboard");
+    navigate(loginDestination, { replace: true });
   }
 
   return (
@@ -60,12 +71,19 @@ function Login() {
           <form className="auth__card" action={formAction}>
             <h1 className="auth__title">{t('nav.login').toUpperCase()}</h1>
 
+            {location.state?.accountMessage && <p className="auth__verification-success" role="status">{location.state.accountMessage}</p>}
+
             {state.error && (
               <p className="auth__error" role="alert">
-                {vrstaGreske === 'verify' ? t('emailVerification.loginBlocked') : vrstaGreske === 'email' ? t('auth.wrongEmail') : t('auth.wrongPassword')}
+                {vrstaGreske === 'verify' ? t('emailVerification.loginBlocked') : vrstaGreske === 'deactivated' ? 'This account is deactivated.' : vrstaGreske === 'email' ? t('auth.wrongEmail') : t('auth.wrongPassword')}
               </p>
             )}
             {vrstaGreske === 'verify' && <p className="auth__switch"><Link to="/verify-email" state={{email:state.values.email}} className="auth__switch-link">{t('emailVerification.resend')}</Link></p>}
+            {vrstaGreske === 'deactivated' && reactivationCredentials && <button type="button" className="btn btn--primary auth__submit" onClick={async () => {
+              const response = await fetch('/api/account/reactivate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reactivationCredentials) });
+              if (!response.ok) return;
+              const data = await response.json(); localStorage.setItem('token', data.accessToken); localStorage.setItem('mym_authed','true'); window.dispatchEvent(new Event('tokenChanged')); navigate('/app/dashboard', {replace:true});
+            }}>Reactivate account</button>}
 
             <SocialAuthButtons />
 

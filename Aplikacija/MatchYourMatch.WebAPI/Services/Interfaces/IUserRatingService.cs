@@ -6,5 +6,6 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
     {
         Task<UserRatingStatusDto> GetStatusAsync(int raterUserId, int ratedUserId);
         Task<UserRatingStatusDto> SaveAsync(int raterUserId, int ratedUserId, SaveUserRatingDto dto);
+        Task<UserRatingStatusDto> UpdateAsync(int raterUserId, int ratingId, UpdateUserRatingDto dto);
     }
 }

@@ -10,15 +10,21 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
             CreateQuickMatchRequestDto request
         );
 
+        Task<QuickMatchPostDto?> GetActivePostAsync(int userId);
+        Task<QuickMatchPostDto> UpdatePostAsync(int userId, int postId, CreateQuickMatchRequestDto request);
+        Task DeletePostAsync(int userId, int postId);
+
         Task<List<QuickMatchPostDto>> GetMatchesAsync(
             int userId,
-            CreateQuickMatchRequestDto request
+            QuickMatchSearchRequestDto request
         );
 
         Task<List<QuickMatchPostDto>> GetTodayPostsAsync(
             int userId
         );
 
-        Task<ChatConversationDto> ConnectAsync(int userId, int postId);
+        Task<QuickMatchRequestDto> SendRequestAsync(int userId, int postId);
+        Task<QuickMatchRequestDto> AcceptRequestAsync(int userId, int requestId);
+        Task<QuickMatchRequestDto> RejectRequestAsync(int userId, int requestId);
     }
 }

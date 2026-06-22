@@ -416,6 +416,14 @@
   align-items: flex-start;
   margin-bottom: 0.85rem;
 }
+.event-card__top-actions { display: inline-flex; align-items: center; gap: 0.45rem; }
+.event-save { position: relative; display: inline-flex; }
+.event-save__button { width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid var(--glass-border); border-radius: 50%; background: var(--glass-bg); color: var(--text-muted); transition: var(--transition); }
+.event-save__button:hover, .event-save__button:focus-visible, .event-save__button--saved { color: var(--accent); border-color: rgba(244, 163, 0, 0.5); background: rgba(244, 163, 0, 0.1); }
+.event-save__button:disabled { opacity: 0.55; cursor: wait; }
+.event-save__error { position: absolute; z-index: 4; top: calc(100% + 0.35rem); right: 0; width: max-content; max-width: 210px; padding: 0.35rem 0.5rem; border: 1px solid rgba(255, 92, 92, 0.4); border-radius: var(--radius-sm); background: var(--card-bg); color: #ff9b92; font-size: 0.62rem; box-shadow: var(--elev-2); }
+.event-card--mini { position: relative; }
+.event-card--mini .event-card__save { position: absolute; top: 0.65rem; right: 0.65rem; }
 
 .event-card__category {
   font-size: 0.6rem;
@@ -542,6 +550,17 @@
   color: var(--accent);
   border: 1px solid rgba(244, 163, 0, 0.28);
 }
+.event-card__cancel-request {
+  min-height: 34px;
+  padding: 0 .75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.event-card__cancel-request:hover { border-color: var(--accent); color: var(--accent); }
 
 .event-card--mini {
   padding: 1rem;

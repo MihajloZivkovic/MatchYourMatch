@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { clearAuthSession } from '../services/authSession';
+import { isSessionExpired } from '../services/sessionExpiry';
 
 function ProtectedRoute({ children }) {
   const [isAuthed, setIsAuthed] = useState(readAuthState);
@@ -18,6 +19,8 @@ function ProtectedRoute({ children }) {
   useEffect(() => {
     if (!isAuthed && (localStorage.getItem('token') || localStorage.getItem('mym_authed'))) clearAuthSession();
   }, [isAuthed]);
+
+  if (isSessionExpired()) return children;
 
   if (!isAuthed) {
     return <Navigate to="/login" replace />;

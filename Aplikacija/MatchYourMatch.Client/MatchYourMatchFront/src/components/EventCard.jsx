@@ -1,8 +1,9 @@
-import { MapPin, Clock, UserPlus } from 'lucide-react';
+import { MapPin, Clock, Pencil, UserPlus, Users } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import UserAvatar from './UserAvatar';
+import EventSaveButton from './events/EventSaveButton';
 
-function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
+function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
   const { t } = useTranslation();
   const {
     title,
@@ -11,9 +12,11 @@ function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
     time,
     location,
     description,
+    ageLabel,
     attendees = [],
     attendeeCount = 0,
     isJoinedByCurrentUser = false,
+    joinRequestStatus,
   } = event;
   const extra = Math.max(0, attendeeCount - attendees.length);
 
@@ -32,6 +35,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
           }
         }}
       >
+        <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} className="event-card__save" />
         <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <h4 className="event-card__title event-card__title--mini">{title}</h4>
         <p className="event-card__meta-mini">
@@ -57,10 +61,13 @@ function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
     >
       <div className="event-card__top">
         <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
-        <span className="event-card__date-pill">{date}</span>
+        <span className="event-card__top-actions">
+          <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} />
+          <span className="event-card__date-pill">{date}</span>
+        </span>
       </div>
       <h3 className="event-card__title">{title}</h3>
-      <p className="event-card__desc">{description}</p>
+      {description && <p className="event-card__desc">{description}</p>}
       <p className="event-card__meta">
         <MapPin size={14} />
         <span>{location}</span>
@@ -69,6 +76,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
         <Clock size={14} />
         <span>{time}</span>
       </p>
+      {ageLabel && <p className="event-card__meta"><Users size={14} /><span>{ageLabel}</span></p>}
       <div className="event-card__footer">
         <div className="event-card__attendees">
           {attendees.map((attendee, i) => {
@@ -90,6 +98,7 @@ function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
           {extra > 0 && <span className="event-card__more">{t('events.more', { count: extra })}</span>}
         </div>
         <div className="event-card__actions">
+          {onEdit && <button type="button" className="event-card__edit" onClick={clickEvent => { clickEvent.stopPropagation(); onEdit(); }}><Pencil size={13}/>{t('common.edit')}</button>}
           {isJoinedByCurrentUser && onInvite && (
             <button type="button" className="event-card__invite" onClick={(clickEvent) => {
               clickEvent.stopPropagation();
@@ -103,10 +112,20 @@ function EventCard({ event, style, mini = false, onJoin, onOpen, onInvite }) {
               clickEvent.stopPropagation();
               onJoin?.();
             }}
-            disabled={isJoinedByCurrentUser}
+            disabled={isJoinedByCurrentUser || joinRequestStatus === 'Pending'}
           >
-            {isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
+            {isJoinedByCurrentUser
+              ? t('events.joined').toUpperCase()
+              : joinRequestStatus === 'Pending'
+                ? t('events.requestPending').toUpperCase()
+                : t('events.join').toUpperCase()}
           </button>
+          {joinRequestStatus === 'Pending' && onCancelJoinRequest && (
+            <button type="button" className="event-card__cancel-request"
+              onClick={(clickEvent)=>{ clickEvent.stopPropagation(); onCancelJoinRequest(); }}>
+              {t('events.cancelRequest')}
+            </button>
+          )}
         </div>
       </div>
     </article>

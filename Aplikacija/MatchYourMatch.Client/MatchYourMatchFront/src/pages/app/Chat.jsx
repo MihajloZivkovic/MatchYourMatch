@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, Bell, BellOff, Camera, Check, CheckCheck, Clock, Crown, LogOut, MoreHorizontal, Paperclip, Search, Send, ShieldCheck, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Camera, Check, CheckCheck, Clock, Crown, LogOut, MoreHorizontal, Search, ShieldCheck, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
 import ConfirmModal from "../../components/ConfirmModal";
 import UserAvatar from "../../components/UserAvatar";
 import UserActionsMenu from "../../components/UserActionsMenu";
 import MessageReactions from "../../components/chat/MessageReactions";
+import ChatComposer from "../../components/chat/ChatComposer";
+import AttachmentView from "../../components/chat/AttachmentView";
 import { useChat } from "../../context/ChatContext";
 import "./Chat.css";
 import { useTranslation } from '../../hooks/useTranslation';
@@ -111,9 +113,9 @@ function Chat() {
     canSendMessages,
     conversations,
     messagesByConversation,
+    messageLoadStateByConversation,
     activeConversationId,
     loadingConversations,
-    loadingMessages,
     error,
     apiFetch,
     setActiveConversationId,
@@ -122,6 +124,8 @@ function Chat() {
     startConversation,
     createGroupConversation,
     sendMessage,
+    sendAttachment,
+    sendGif,
     editMessage,
     deleteMessageForMe,
     deleteMessageForEveryone,
@@ -349,6 +353,9 @@ function Chat() {
     conversations[0] ||
     null;
   const messages = messagesByConversation[activeConversation?.conversationId] || [];
+  const messageLoadState = activeConversation
+    ? messageLoadStateByConversation[activeConversation.conversationId] || { status: "idle", error: "" }
+    : { status: "idle", error: "" };
   const activeUserBlocked = !isGroupConversation(activeConversation) &&
     blockedUserIds.has(Number(activeConversation?.otherUserId));
   const canSendActive = canSendMessages && !activeUserBlocked;
@@ -391,31 +398,21 @@ function Chat() {
     isNearBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 96;
   };
 
-  const handleSend = async (event) => {
-    event.preventDefault();
-    const text = draft.trim();
-
-    if (!text || !activeConversation || sending || !canSendActive) {
-      return;
-    }
-
-    setSending(true);
-    setError("");
-
-    try {
-      if (editingMessage) {
-        await editMessage(editingMessage, text);
-        setEditingMessage(null);
-      } else {
-        await sendMessage(activeConversation.conversationId, text);
-      }
-      setDraft("");
-      notifyTyping(false);
-    } catch (err) {
-      setError(err.message || "Message could not be sent.");
-    } finally {
-      setSending(false);
-    }
+  const sendComposerText = async (text) => {
+    if (!activeConversation || sending) return;
+    setSending(true); setError("");
+    try { if (editingMessage) { await editMessage(editingMessage, text); setEditingMessage(null); } else await sendMessage(activeConversation.conversationId, text); setDraft(""); notifyTyping(false); }
+    finally { setSending(false); }
+  };
+  const sendComposerAttachment = async (file, text, onProgress) => {
+    if (!activeConversation || sending) return; setSending(true);
+    try { await sendAttachment(activeConversation.conversationId, file, text, onProgress); setDraft(""); notifyTyping(false); }
+    finally { setSending(false); }
+  };
+  const sendComposerGif = async (gif) => {
+    if (!activeConversation || sending) return; setSending(true);
+    try { await sendGif(activeConversation.conversationId, gif); setDraft(""); notifyTyping(false); }
+    finally { setSending(false); }
   };
 
   const notifyTyping = useCallback(
@@ -1036,10 +1033,18 @@ function Chat() {
               ) : (
               <>
               <div className="chat-messages" ref={messagesViewportRef} onScroll={handleMessagesScroll}>
-                {loadingMessages && messages.length === 0 && (
+                {messageLoadState.status === "loading" && messages.length === 0 && (
                   <div className="chat-state">{t('chat.loadingMessages')}</div>
                 )}
-                {!loadingMessages && messages.length === 0 && (
+                {messageLoadState.status === "error" && messages.length === 0 && (
+                  <div className="chat-error">
+                    <span>{messageLoadState.error}</span>
+                    <button type="button" onClick={() => loadMessages(activeConversation.conversationId)}>
+                      {t('chat.retry')}
+                    </button>
+                  </div>
+                )}
+                {messageLoadState.status === "success" && messages.length === 0 && (
                   <div className="chat-message chat-message--system">
                     <span className="chat-safety chat-safety--empty">
                       <ShieldCheck size={16} />
@@ -1063,7 +1068,7 @@ function Chat() {
                     )}
                   </div>
                 )}
-                {!loadingMessages &&
+                {messageLoadState.status !== "loading" &&
                   messages.map((message) => {
                     const mine = isMessageMine(message, auth.userId);
 
@@ -1080,7 +1085,8 @@ function Chat() {
                             {message.senderDisplayName || message.senderUsername || t('chatUi.member')}
                           </span>
                         )}
-                        <p>{message.isDeletedForEveryone ? t('chatUi.deleted') : message.displayBody ?? message.body}</p>
+                        {!message.isDeletedForEveryone && <AttachmentView attachment={message.attachment} />}
+                        {(message.isDeletedForEveryone || message.displayBody || message.body) && <p>{message.isDeletedForEveryone ? t('chatUi.deleted') : message.displayBody ?? message.body}</p>}
                         <div className="chat-message__meta">
                           <span>{formatTime(message.createdAt)}</span>
                           {message.editedAt && !message.isDeletedForEveryone && <span title={formatDateTime(message.editedAt)}>{t('chat.edited')}</span>}
@@ -1097,49 +1103,17 @@ function Chat() {
                       </div>
                     );
                   })}
-                {!loadingMessages && otherUserTyping && (
+                {messageLoadState.status !== "loading" && otherUserTyping && (
                   <TypingIndicator className="chat-message chat-message--them" />
                 )}
                 <div ref={messagesEndRef} aria-hidden="true" />
               </div>
 
               {canSendActive ? (
-                <form className="chat-composer" onSubmit={handleSend}>
-                  {editingMessage && (
-                    <div className="chat-composer__editing">
-                      <span>{t('chat.editing')}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingMessage(null);
-                          setDraft("");
-                        }}
-                      >
-                        {t('common.cancel')}
-                      </button>
-                    </div>
-                  )}
-                  <button type="button" aria-label="Attach file" disabled>
-                    <Paperclip size={18} />
-                  </button>
-                  <input
-                    ref={composerInputRef}
-                    value={draft}
-                    onChange={handleDraftChange}
-                    placeholder={`Message ${
-                      getConversationDisplayName(activeConversation)
-                    }...`}
-                    maxLength={2000}
-                  />
-                  <button
-                    type="submit"
-                    className="chat-composer__send"
-                    aria-label={editingMessage ? t('chatUi.saveMessage') : t('chatUi.sendMessage')}
-                    disabled={sending || !draft.trim()}
-                  >
-                    <Send size={18} />
-                  </button>
-                </form>
+                <ChatComposer value={draft} onChange={(value) => { setDraft(value); handleDraftChange({target:{value}}); }}
+                  inputRef={composerInputRef} sending={sending} placeholder={`Message ${getConversationDisplayName(activeConversation)}...`}
+                  editing={Boolean(editingMessage)} onCancelEdit={() => {setEditingMessage(null);setDraft("");}}
+                  onSendText={sendComposerText} onSendAttachment={sendComposerAttachment} onSendGif={sendComposerGif}/>
               ) : (
                 <div className="chat-composer chat-composer--disabled">
                   Chat sending is available only to ordinary users.

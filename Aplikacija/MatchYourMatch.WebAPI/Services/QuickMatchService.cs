@@ -3,6 +3,7 @@ using MatchYourMatch.WebAPI.DTOs.Match;
 using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace MatchYourMatch.WebAPI.Services
 {
@@ -11,52 +12,106 @@ namespace MatchYourMatch.WebAPI.Services
         private readonly AppDbContext _context;
         private readonly IChatService _chatService;
         private readonly INotificationService _notifications;
+        private readonly IQuickMatchExpirationService _expiration;
 
         private const int PointsPerOverlapMinute = 2;
         private const int ExactActivityBonus = 150;
         private const int SameCategoryActivityBonus = 70;
         private const int SameLocationBonus = 80;
 
-        public QuickMatchService(AppDbContext context, IChatService chatService, INotificationService notifications)
+        public QuickMatchService(AppDbContext context, IChatService chatService, INotificationService notifications,
+            IQuickMatchExpirationService expiration)
         {
             _context = context;
             _chatService = chatService;
             _notifications = notifications;
+            _expiration = expiration;
         }
 
-        public async Task<DTOs.Chat.ChatConversationDto> ConnectAsync(int userId, int postId)
+        public async Task<QuickMatchRequestDto> SendRequestAsync(int userId, int postId)
         {
+            await _expiration.ExpireDuePostsAsync();
             var post = await _context.QuickMatchPosts
                 .Include(p => p.User)
-                .FirstOrDefaultAsync(p => p.Id == postId && p.IsActive)
-                ?? throw new KeyNotFoundException("Quick Match is no longer available.");
+                .FirstOrDefaultAsync(p => p.Id == postId)
+                ?? throw new KeyNotFoundException("This Quick Match post is no longer available.");
+            if (!post.IsActive || post.EndsAtUtc <= DateTime.UtcNow)
+                throw new InvalidOperationException("This Quick Match post is no longer available.");
             if (post.UserId == userId)
                 throw new InvalidOperationException("You cannot match with yourself.");
-            var actorName = await _context.Users.Where(u => u.Id == userId).Select(u => u.Username).FirstAsync();
-            var userAId = Math.Min(userId, post.UserId);
-            var userBId = Math.Max(userId, post.UserId);
-            var match = await _context.UserMatches.FirstOrDefaultAsync(value =>
-                value.UserAId == userAId && value.UserBId == userBId && value.Source == "QuickMatch");
-            if (match == null)
-            {
-                _context.UserMatches.Add(new UserMatch
-                {
-                    UserAId = userAId,
-                    UserBId = userBId,
-                    Source = "QuickMatch",
-                    IsActive = true
-                });
-            }
-            else
-            {
-                match.IsActive = true;
-            }
+            if (!post.User.IsActive || post.User.IsDeactivated || await IsExcludedAsync(userId, post.UserId))
+                throw new InvalidOperationException("This Quick Match post is no longer available.");
+            var requester = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeactivated)
+                ?? throw new UnauthorizedAccessException("Your account cannot use Quick Match.");
+            if (!IsWithinAge(CalculateAge(requester.Profile?.DateOfBirth), post.PreferredMinAge, post.PreferredMaxAge))
+                throw new InvalidOperationException("This Quick Match post is no longer available.");
+            if (await _context.QuickMatchRequests.AnyAsync(r => r.QuickMatchPostId == postId && r.RequesterUserId == userId))
+                throw new InvalidOperationException("A request has already been sent for this Quick Match post.");
+
+            var request = new QuickMatchRequest { QuickMatchPostId = postId, RequesterUserId = userId };
+            _context.QuickMatchRequests.Add(request);
+            try { await _context.SaveChangesAsync(); }
+            catch (DbUpdateException) { throw new InvalidOperationException("A request has already been sent for this Quick Match post."); }
+            await _notifications.CreateNotificationAsync(post.UserId, userId, "QuickMatchRequest",
+                "Quick Match request", $"{requester.Username} wants to match with your Quick Match post.",
+                "QuickMatchRequest", request.Id, true);
+            return MapRequest(request, requester);
+        }
+
+        public async Task<QuickMatchRequestDto> AcceptRequestAsync(int userId, int requestId)
+        {
+            await _expiration.ExpireDuePostsAsync();
+            await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            var request = await _context.QuickMatchRequests.Include(r => r.QuickMatchPost)
+                .Include(r => r.RequesterUser).ThenInclude(u => u.Profile)
+                .FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new KeyNotFoundException("Quick Match request was not found.");
+            if (request.QuickMatchPost.UserId != userId)
+                throw new UnauthorizedAccessException("Only the post owner can accept this request.");
+            if (request.Status != QuickMatchRequestStatuses.Pending)
+                throw new InvalidOperationException($"This request is already {request.Status.ToLowerInvariant()}.");
+            if (!request.QuickMatchPost.IsActive || request.QuickMatchPost.EndsAtUtc <= DateTime.UtcNow)
+                throw new InvalidOperationException("This Quick Match post is no longer available.");
+            if (!request.RequesterUser.IsActive || request.RequesterUser.IsDeactivated || await IsExcludedAsync(userId, request.RequesterUserId))
+                throw new InvalidOperationException("This requester is no longer available.");
+
+            var now = DateTime.UtcNow;
+            request.Status = QuickMatchRequestStatuses.Accepted;
+            request.RespondedAt = now;
+            request.QuickMatchPost.IsActive = false;
+            await _context.QuickMatchRequests
+                .Where(r => r.QuickMatchPostId == request.QuickMatchPostId && r.Id != request.Id && r.Status == QuickMatchRequestStatuses.Pending)
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, QuickMatchRequestStatuses.Expired).SetProperty(r => r.RespondedAt, now));
+
+            var userAId = Math.Min(userId, request.RequesterUserId);
+            var userBId = Math.Max(userId, request.RequesterUserId);
+            var match = await _context.UserMatches.FirstOrDefaultAsync(m => m.UserAId == userAId && m.UserBId == userBId && m.Source == "QuickMatch");
+            if (match == null) _context.UserMatches.Add(new UserMatch { UserAId = userAId, UserBId = userBId, Source = "QuickMatch", IsActive = true });
+            else match.IsActive = true;
             await _context.SaveChangesAsync();
-            var conversation = await _chatService.StartConversationAsync(userId, post.UserId);
-            await _notifications.CreateNotificationAsync(post.UserId, userId, "QuickMatch",
-                "New Quick Match", $"You matched with {actorName}.",
-                "User", userId, true);
-            return conversation;
+            await _chatService.StartConversationAsync(userId, request.RequesterUserId);
+            await _notifications.CreateNotificationAsync(request.RequesterUserId, userId, "QuickMatch",
+                "Quick Match accepted", "Your Quick Match request was accepted.", "User", userId, true);
+            await transaction.CommitAsync();
+            return MapRequest(request, request.RequesterUser);
+        }
+
+        public async Task<QuickMatchRequestDto> RejectRequestAsync(int userId, int requestId)
+        {
+            await _expiration.ExpireDuePostsAsync();
+            var request = await _context.QuickMatchRequests.Include(r => r.QuickMatchPost)
+                .Include(r => r.RequesterUser).ThenInclude(u => u.Profile).FirstOrDefaultAsync(r => r.Id == requestId)
+                ?? throw new KeyNotFoundException("Quick Match request was not found.");
+            if (request.QuickMatchPost.UserId != userId)
+                throw new UnauthorizedAccessException("Only the post owner can decline this request.");
+            if (request.Status != QuickMatchRequestStatuses.Pending)
+                throw new InvalidOperationException($"This request is already {request.Status.ToLowerInvariant()}.");
+            if (!request.QuickMatchPost.IsActive || request.QuickMatchPost.EndsAtUtc <= DateTime.UtcNow)
+                throw new InvalidOperationException("This Quick Match post is no longer available.");
+            request.Status = QuickMatchRequestStatuses.Rejected;
+            request.RespondedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return MapRequest(request, request.RequesterUser);
         }
 
         public async Task<QuickMatchPostDto> CreatePostAsync(
@@ -64,6 +119,7 @@ namespace MatchYourMatch.WebAPI.Services
             CreateQuickMatchRequestDto request)
         {
             ValidateRequest(request);
+            await _expiration.ExpireDuePostsAsync(userId);
 
             var activityExists = await _context.Activities
                 .AnyAsync(a => a.Id == request.ActivityId);
@@ -71,14 +127,21 @@ namespace MatchYourMatch.WebAPI.Services
             if (!activityExists)
                 throw new Exception("Activity does not exist.");
 
+            if (await _context.QuickMatchPosts.AnyAsync(p => p.UserId == userId && p.IsActive && p.EndsAtUtc > DateTime.UtcNow))
+                throw new InvalidOperationException("You already have an active Quick Match post. Update or delete it first.");
+
             var post = new QuickMatchPost
             {
                 UserId = userId,
-                Date = DateOnly.FromDateTime(DateTime.Now),
+                Date = DateOnly.FromDateTime(NormalizeUtc(request.StartsAtUtc)),
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                StartsAtUtc = NormalizeUtc(request.StartsAtUtc),
+                EndsAtUtc = NormalizeUtc(request.EndsAtUtc),
                 ActivityId = request.ActivityId,
                 Description = request.Description,
+                PreferredMinAge = request.PreferredMinAge,
+                PreferredMaxAge = request.PreferredMaxAge,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -99,21 +162,76 @@ namespace MatchYourMatch.WebAPI.Services
             );
         }
 
-        public async Task<List<QuickMatchPostDto>> GetMatchesAsync(
-            int userId,
-            CreateQuickMatchRequestDto request)
+        public async Task<QuickMatchPostDto?> GetActivePostAsync(int userId)
+        {
+            await _expiration.ExpireDuePostsAsync(userId);
+            var post = await PostWithDetails()
+                .Where(p => p.UserId == userId && p.IsActive && p.EndsAtUtc > DateTime.UtcNow)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+            return post == null ? null : MapToDto(post, 0);
+        }
+
+        public async Task<QuickMatchPostDto> UpdatePostAsync(int userId, int postId, CreateQuickMatchRequestDto request)
         {
             ValidateRequest(request);
+            await _expiration.ExpireDuePostsAsync(userId);
+            if (!await _context.Activities.AnyAsync(a => a.Id == request.ActivityId))
+                throw new Exception("Activity does not exist.");
 
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var post = await _context.QuickMatchPosts.FirstOrDefaultAsync(p => p.Id == postId && p.IsActive)
+                ?? throw new KeyNotFoundException("Quick Match post was not found.");
+            if (post.UserId != userId) throw new UnauthorizedAccessException("You can only update your own Quick Match post.");
+
+            post.StartTime = request.StartTime;
+            post.EndTime = request.EndTime;
+            post.StartsAtUtc = NormalizeUtc(request.StartsAtUtc);
+            post.EndsAtUtc = NormalizeUtc(request.EndsAtUtc);
+            post.Date = DateOnly.FromDateTime(post.StartsAtUtc);
+            post.ExpiredAt = null;
+            post.ActivityId = request.ActivityId;
+            post.Description = request.Description?.Trim();
+            post.PreferredMinAge = request.PreferredMinAge;
+            post.PreferredMaxAge = request.PreferredMaxAge;
+            await _context.SaveChangesAsync();
+
+            var savedPost = await PostWithDetails().FirstAsync(p => p.Id == post.Id);
+            return MapToDto(savedPost, 0);
+        }
+
+        public async Task DeletePostAsync(int userId, int postId)
+        {
+            await _expiration.ExpireDuePostsAsync(userId);
+            var post = await _context.QuickMatchPosts.FirstOrDefaultAsync(p => p.Id == postId && p.IsActive)
+                ?? throw new KeyNotFoundException("Quick Match post was not found.");
+            if (post.UserId != userId) throw new UnauthorizedAccessException("You can only delete your own Quick Match post.");
+            post.IsActive = false;
+            await _context.QuickMatchRequests
+                .Where(r => r.QuickMatchPostId == postId && r.Status == QuickMatchRequestStatuses.Pending)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(r => r.Status, QuickMatchRequestStatuses.Expired)
+                    .SetProperty(r => r.RespondedAt, DateTime.UtcNow));
+            await _context.SaveChangesAsync();
+        }
+
+        private IQueryable<QuickMatchPost> PostWithDetails() => _context.QuickMatchPosts
+            .Include(p => p.User).ThenInclude(u => u.Profile)
+            .Include(p => p.Activity).ThenInclude(a => a.ActivityCategory);
+
+        public async Task<List<QuickMatchPostDto>> GetMatchesAsync(
+            int userId,
+            QuickMatchSearchRequestDto request)
+        {
+            ValidateRequest(request);
+            await _expiration.ExpireDuePostsAsync();
 
             var currentUser = await _context.Users
                 .Include(u => u.Profile)
                 .Include(u => u.AppSettings)
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
-            if (currentUser == null)
-                throw new Exception("User does not exist.");
+            if (currentUser == null || !currentUser.IsActive || currentUser.IsDeactivated)
+                throw new UnauthorizedAccessException("Your account cannot use Quick Match.");
 
             var requestedActivity = await _context.Activities
                 .Include(a => a.ActivityCategory)
@@ -131,21 +249,27 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(a => a.ActivityCategory)
                 .Where(p =>
                     p.UserId != userId &&
-                    p.Date == today &&
-                    p.IsActive)
+                    p.User.IsActive && !p.User.IsDeactivated &&
+                    p.IsActive && p.EndsAtUtc > DateTime.UtcNow)
                 .ToListAsync();
 
             var excludedIds = await GetExcludedUserIdsAsync(userId);
-            posts = posts.Where(post => !excludedIds.Contains(post.UserId) && IsEligibleBySettings(currentUser, post.User, true)).ToList();
+            posts = posts.Where(post => !excludedIds.Contains(post.UserId)
+                && IsEligibleBySettings(currentUser, post.User, true)
+                && IsWithinAge(CalculateAge(currentUser.Profile?.DateOfBirth), post.PreferredMinAge, post.PreferredMaxAge)
+                && IsWithinAge(CalculateAge(post.User.Profile?.DateOfBirth), request.MinAge, request.MaxAge)).ToList();
+            var previouslyRequestedPostIds = await _context.QuickMatchRequests
+                .Where(r => r.RequesterUserId == userId).Select(r => r.QuickMatchPostId).ToListAsync();
+            posts = posts.Where(post => !previouslyRequestedPostIds.Contains(post.Id)).ToList();
 
             var matches = posts
                 .Select(post =>
                 {
                     var overlapMinutes = CalculateOverlapMinutes(
-                        request.StartTime,
-                        request.EndTime,
-                        post.StartTime,
-                        post.EndTime
+                        NormalizeUtc(request.StartsAtUtc),
+                        NormalizeUtc(request.EndsAtUtc),
+                        post.StartsAtUtc,
+                        post.EndsAtUtc
                     );
 
                     if (overlapMinutes <= 0)
@@ -182,7 +306,7 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<List<QuickMatchPostDto>> GetTodayPostsAsync(int userId)
         {
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            await _expiration.ExpireDuePostsAsync();
 
             var posts = await _context.QuickMatchPosts
                 .Include(p => p.User)
@@ -193,14 +317,18 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(a => a.ActivityCategory)
                 .Where(p =>
                     p.UserId != userId &&
+                    p.User.IsActive && !p.User.IsDeactivated &&
                     (p.User.AppSettings == null || p.User.AppSettings.ShowMeInQuickMatch) &&
-                    p.Date == today &&
-                    p.IsActive)
+                    p.IsActive && p.EndsAtUtc > DateTime.UtcNow)
                 .OrderBy(p => p.StartTime)
                 .ToListAsync();
 
             var excludedIds = await GetExcludedUserIdsAsync(userId);
-            posts = posts.Where(post => !excludedIds.Contains(post.UserId)).ToList();
+            var viewerAge = await _context.UserProfiles.Where(p => p.UserId == userId).Select(p => p.DateOfBirth).FirstOrDefaultAsync();
+            var requestedPostIds = await _context.QuickMatchRequests.Where(r => r.RequesterUserId == userId)
+                .Select(r => r.QuickMatchPostId).ToListAsync();
+            posts = posts.Where(post => !excludedIds.Contains(post.UserId) && !requestedPostIds.Contains(post.Id)
+                && IsWithinAge(CalculateAge(viewerAge), post.PreferredMinAge, post.PreferredMaxAge)).ToList();
 
             return posts
                 .Select(post => MapToDto(
@@ -212,18 +340,30 @@ namespace MatchYourMatch.WebAPI.Services
 
         private void ValidateRequest(CreateQuickMatchRequestDto request)
         {
-            if (request.StartTime >= request.EndTime)
+            if (NormalizeUtc(request.StartsAtUtc) == default || NormalizeUtc(request.EndsAtUtc) <= NormalizeUtc(request.StartsAtUtc))
                 throw new Exception("The start time must be before the end time.");
+            if (NormalizeUtc(request.EndsAtUtc) <= DateTime.UtcNow)
+                throw new InvalidOperationException("The end time must be in the future.");
 
             if (request.ActivityId <= 0)
                 throw new Exception("Activity is required.");
+            ValidateAgeRange(request.PreferredMinAge, request.PreferredMaxAge);
+        }
+
+        private void ValidateRequest(QuickMatchSearchRequestDto request)
+        {
+            if (NormalizeUtc(request.StartsAtUtc) == default || NormalizeUtc(request.EndsAtUtc) <= NormalizeUtc(request.StartsAtUtc))
+                throw new InvalidOperationException("The start time must be before the end time.");
+            if (request.ActivityId <= 0)
+                throw new InvalidOperationException("Activity is required.");
+            ValidateAgeRange(request.MinAge, request.MaxAge);
         }
 
         private int CalculateOverlapMinutes(
-            TimeOnly requestStart,
-            TimeOnly requestEnd,
-            TimeOnly postStart,
-            TimeOnly postEnd)
+            DateTime requestStart,
+            DateTime requestEnd,
+            DateTime postStart,
+            DateTime postEnd)
         {
             var overlapStart = requestStart > postStart ? requestStart : postStart;
             var overlapEnd = requestEnd < postEnd ? requestEnd : postEnd;
@@ -231,7 +371,7 @@ namespace MatchYourMatch.WebAPI.Services
             if (overlapStart >= overlapEnd)
                 return 0;
 
-            return (int)(overlapEnd.ToTimeSpan() - overlapStart.ToTimeSpan()).TotalMinutes;
+            return (int)(overlapEnd - overlapStart).TotalMinutes;
         }
 
         private int CalculateMatchScore(
@@ -320,8 +460,12 @@ namespace MatchYourMatch.WebAPI.Services
                 Description = post.Description,
                 StartTime = post.StartTime.ToString("HH:mm"),
                 EndTime = post.EndTime.ToString("HH:mm"),
+                StartsAtUtc = post.StartsAtUtc,
+                EndsAtUtc = post.EndsAtUtc,
 
                 OverlapMinutes = overlapMinutes
+                ,PreferredMinAge = post.PreferredMinAge
+                ,PreferredMaxAge = post.PreferredMaxAge
             };
         }
 
@@ -374,6 +518,41 @@ namespace MatchYourMatch.WebAPI.Services
             .Concat(_context.HiddenProfiles.Where(x => x.UserId == userId).Select(x => x.HiddenUserId))
             .Distinct().ToListAsync();
 
+        private async Task<bool> IsExcludedAsync(int firstUserId, int secondUserId) =>
+            await _context.BlockedUsers.AnyAsync(x =>
+                (x.BlockerUserId == firstUserId && x.BlockedUserId == secondUserId) ||
+                (x.BlockerUserId == secondUserId && x.BlockedUserId == firstUserId)) ||
+            await _context.HiddenProfiles.AnyAsync(x =>
+                (x.UserId == firstUserId && x.HiddenUserId == secondUserId) ||
+                (x.UserId == secondUserId && x.HiddenUserId == firstUserId));
+
+        private static void ValidateAgeRange(int? minAge, int? maxAge)
+        {
+            const int minimumAllowedAge = 16;
+            const int maximumAllowedAge = 120;
+            if (minAge is < minimumAllowedAge or > maximumAllowedAge || maxAge is < minimumAllowedAge or > maximumAllowedAge ||
+                (minAge.HasValue && maxAge.HasValue && minAge > maxAge))
+                throw new InvalidOperationException("Invalid age range.");
+        }
+
+        private static bool IsWithinAge(int? age, int? minAge, int? maxAge)
+        {
+            if (!minAge.HasValue && !maxAge.HasValue) return true;
+            return age.HasValue && (!minAge.HasValue || age >= minAge) && (!maxAge.HasValue || age <= maxAge);
+        }
+
+        private static QuickMatchRequestDto MapRequest(QuickMatchRequest request, User requester) => new()
+        {
+            Id = request.Id,
+            QuickMatchPostId = request.QuickMatchPostId,
+            RequesterUserId = request.RequesterUserId,
+            RequesterDisplayName = requester.Profile?.FullName ?? requester.Username,
+            RequesterAvatar = requester.Profile?.ProfilePicture,
+            Status = request.Status,
+            CreatedAt = request.CreatedAt,
+            RespondedAt = request.RespondedAt
+        };
+
         private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
         {
             const double radius = 6371;
@@ -392,5 +571,12 @@ namespace MatchYourMatch.WebAPI.Services
             if (dob.Value > today.AddYears(-age)) age--;
             return age;
         }
+
+        private static DateTime NormalizeUtc(DateTime value) => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
     }
 }

@@ -25,7 +25,11 @@ namespace MatchYourMatch.WebAPI.DTOs.Match
         public string StartTime { get; set; } = "";
 
         public string EndTime { get; set; } = "";
+        public DateTime StartsAtUtc { get; set; }
+        public DateTime EndsAtUtc { get; set; }
 
         public int OverlapMinutes { get; set; }
+        public int? PreferredMinAge { get; set; }
+        public int? PreferredMaxAge { get; set; }
     }
 }

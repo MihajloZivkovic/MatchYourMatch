@@ -1,5 +1,7 @@
 ﻿using MatchYourMatch.WebAPI.DTOs.Auth;
 
+using MatchYourMatch.WebAPI.Models;
+
 namespace MatchYourMatch.WebAPI.Services.Interfaces
 {
     public interface IAuthService
@@ -15,5 +17,6 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<AuthInfoDto> FacebookLoginAsync(ExternalLoginDto dto);
         Task<AuthInfoDto> MicrosoftLoginAsync(ExternalLoginDto dto);
         Task<AuthInfoDto> CompleteSocialProfileAsync(int userId, CompleteSocialProfileDto dto);
+        AuthInfoDto CreateAuthResponse(User user);
     }
 }

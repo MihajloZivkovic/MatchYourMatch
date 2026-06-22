@@ -22,6 +22,10 @@ namespace MatchYourMatch.WebAPI.Controllers
         public async Task<IActionResult> Save(int userId, SaveUserRatingDto dto) => await Execute(() =>
             _service.SaveAsync(CurrentUserId(), userId, dto));
 
+        [HttpPut("/api/user-ratings/{ratingId:int}")]
+        public async Task<IActionResult> Update(int ratingId, UpdateUserRatingDto dto) => await Execute(() =>
+            _service.UpdateAsync(CurrentUserId(), ratingId, dto));
+
         private async Task<IActionResult> Execute(Func<Task<UserRatingStatusDto>> action)
         {
             try { return Ok(await action()); }

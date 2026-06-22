@@ -861,14 +861,24 @@
 .social-auth { display:grid; gap:.65rem; }
 .social-auth__separator { display:flex; align-items:center; gap:.75rem; color:var(--color-text-subtle); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; }
 .social-auth__separator::before, .social-auth__separator::after { content:""; height:1px; flex:1; background:var(--color-border); }
-.social-auth__google { min-height:40px; display:flex; justify-content:center; transition:opacity var(--transition-smooth); }
-.social-auth__google.is-loading { opacity:.55; pointer-events:none; }
-.social-auth__button { width:100%; min-height:42px; border:1px solid var(--color-border); border-radius:.65rem; background:var(--color-input); color:var(--color-text-muted); font:inherit; }
-.social-auth__button { cursor:pointer; transition:border-color var(--transition-smooth), opacity var(--transition-smooth); }
-.social-auth__button:hover:not(:disabled) { border-color:var(--color-accent); }
-.social-auth__button:disabled { cursor:wait; opacity:.58; }
-.social-auth__button--facebook { color:#8ab4ff; }
-.social-auth__button--microsoft { color:var(--color-text); }
+.social-auth-button { position:relative; width:100%; height:48px; min-height:48px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; padding:0 52px; border:1px solid var(--color-border); border-radius:.65rem; background:color-mix(in srgb,var(--color-surface) 78%,transparent); color:var(--color-text); font-family:var(--font-body); font-size:.88rem; font-weight:500; line-height:1; cursor:pointer; transition:background-color var(--transition-smooth),border-color var(--transition-smooth),box-shadow var(--transition-smooth),transform var(--transition-fast),opacity var(--transition-smooth); }
+.social-auth-button:hover:not(:disabled) { border-color:color-mix(in srgb,var(--color-accent) 55%,var(--color-border)); background:color-mix(in srgb,var(--color-surface) 88%,var(--color-accent) 6%); box-shadow:0 8px 22px rgba(0,0,0,.14); transform:translateY(-1px); }
+.social-auth-button:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+.social-auth-button:active:not(:disabled) { transform:translateY(0); }
+.social-auth-button:disabled { cursor:not-allowed; opacity:.58; }
+.social-auth-button__icon { position:absolute; left:16px; width:20px; height:20px; display:grid; place-items:center; font-size:20px; }
+.social-auth-button__icon > svg { width:20px; height:20px; }.social-auth-button--facebook .social-auth-button__icon { color:#1877f2; }
+.social-auth-button__label { width:100%; overflow:hidden; text-align:center; white-space:nowrap; text-overflow:ellipsis; }
+.social-auth-button__spinner { position:absolute; right:16px; width:16px; height:16px; border:2px solid color-mix(in srgb,var(--color-text-muted) 30%,transparent); border-top-color:var(--color-accent); border-radius:50%; animation:socialAuthSpin .7s linear infinite; }
+.social-auth__microsoft-logo { width:20px; height:20px; display:grid; grid-template-columns:repeat(2, 9px); grid-template-rows:repeat(2, 9px); gap:2px; }
+.social-auth__microsoft-logo i:nth-child(1) { background:#f35325; }
+.social-auth__microsoft-logo i:nth-child(2) { background:#81bc06; }
+.social-auth__microsoft-logo i:nth-child(3) { background:#05a6f0; }
+.social-auth__microsoft-logo i:nth-child(4) { background:#ffba08; }
+@keyframes socialAuthSpin { to { transform:rotate(360deg); } }
+:root[data-theme="light"] .social-auth-button { background:rgba(255,255,255,.88); border-color:rgba(42,30,12,.16); box-shadow:0 5px 16px rgba(90,70,35,.06); }
+:root[data-theme="light"] .social-auth-button:hover:not(:disabled) { background:#fffdf8; border-color:rgba(196,126,0,.42); box-shadow:0 9px 22px rgba(90,70,35,.11); }
+@media (max-width:480px) { .social-auth-button { padding-inline:46px; font-size:.82rem; }.social-auth-button__icon { left:14px; } }
 
 .auth__submit {
   width: 100%;

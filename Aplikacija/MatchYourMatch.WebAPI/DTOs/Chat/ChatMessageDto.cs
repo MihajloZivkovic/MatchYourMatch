@@ -18,6 +18,7 @@ namespace MatchYourMatch.WebAPI.DTOs.Chat
         public bool IsMine { get; set; }
         public List<ChatMessageReactionDto> Reactions { get; set; } = new();
         public string? CurrentUserReaction { get; set; }
+        public MessageAttachmentDto? Attachment { get; set; }
     }
 
     public class ChatMessageReactionDto

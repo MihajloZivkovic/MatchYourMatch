@@ -12,8 +12,11 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<UserInterest> UserInterests { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<EventParticipant> EventParticipants { get; set; }
+        public DbSet<EventJoinRequest> EventJoinRequests { get; set; }
+        public DbSet<SavedEvent> SavedEvents { get; set; }
         public DbSet<EventDiscussionMessage> EventDiscussionMessages { get; set; }
         public DbSet<QuickMatchPost> QuickMatchPosts { get; set; }
+        public DbSet<QuickMatchRequest> QuickMatchRequests { get; set; }
         public DbSet<ActivityCategory> ActivityCategories { get; set; }
         public DbSet<Activity> Activities { get; set; }
         public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
@@ -30,6 +33,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<ChatMessageUserDeletion> ChatMessageUserDeletions { get; set; }
         public DbSet<ChatMessageReaction> ChatMessageReactions { get; set; }
+        public DbSet<MessageAttachment> MessageAttachments { get; set; }
         public DbSet<ExternalLogin> ExternalLogins { get; set; }
         public AppDbContext(DbContextOptions options) : base(options)
         {
@@ -94,12 +98,35 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(e => e.Interest).WithMany(i => i.Events).HasForeignKey(e => e.InterestId).OnDelete(DeleteBehavior.SetNull);
             modelBuilder.Entity<Event>()
                 .HasOne(e => e.Organizer).WithMany(u => u.Events).HasForeignKey(e => e.OrganizerId).OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Event>().Property(e => e.Location).HasMaxLength(500);
+            modelBuilder.Entity<Event>().Property(e => e.LocationCity).HasMaxLength(100);
+            modelBuilder.Entity<Event>().Property(e => e.LocationCountry).HasMaxLength(100);
+            modelBuilder.Entity<Event>().HasIndex(e => new { e.MinAge, e.MaxAge });
             modelBuilder.Entity<EventParticipant>()
                 .HasKey(p => new { p.EventId, p.UserId });
             modelBuilder.Entity<EventParticipant>()
                 .HasOne(p => p.Event).WithMany(e => e.Participants).HasForeignKey(p => p.EventId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<EventParticipant>()
                 .HasOne(p => p.User).WithMany(u => u.EventParticipations).HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventJoinRequest>().Property(request => request.Status).HasMaxLength(20).IsRequired();
+            modelBuilder.Entity<EventJoinRequest>()
+                .HasIndex(request => new { request.EventId, request.UserId }).IsUnique();
+            modelBuilder.Entity<EventJoinRequest>()
+                .HasIndex(request => new { request.EventId, request.Status });
+            modelBuilder.Entity<EventJoinRequest>()
+                .HasOne(request => request.Event).WithMany(e => e.JoinRequests)
+                .HasForeignKey(request => request.EventId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventJoinRequest>()
+                .HasOne(request => request.User).WithMany(u => u.EventJoinRequests)
+                .HasForeignKey(request => request.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<SavedEvent>().HasKey(saved => new { saved.UserId, saved.EventId });
+            modelBuilder.Entity<SavedEvent>().HasIndex(saved => new { saved.UserId, saved.SavedAt });
+            modelBuilder.Entity<SavedEvent>()
+                .HasOne(saved => saved.User).WithMany(user => user.SavedEvents)
+                .HasForeignKey(saved => saved.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<SavedEvent>()
+                .HasOne(saved => saved.Event).WithMany(value => value.SavedByUsers)
+                .HasForeignKey(saved => saved.EventId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<EventDiscussionMessage>()
                 .HasOne(m => m.Event).WithMany(e => e.DiscussionMessages).HasForeignKey(m => m.EventId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<EventDiscussionMessage>()
@@ -112,6 +139,18 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasIndex(m => new { m.EventId, m.CreatedAt });
             modelBuilder.Entity<QuickMatchPost>().HasOne(q => q.User).WithMany(u => u.QuickMatchPosts).HasForeignKey(q => q.UserId);
             modelBuilder.Entity<QuickMatchPost>().Property(q => q.Description).HasMaxLength(500);
+            modelBuilder.Entity<QuickMatchPost>().HasIndex(q => new { q.IsActive, q.EndsAtUtc });
+            modelBuilder.Entity<QuickMatchRequest>().Property(r => r.Status).HasMaxLength(20).IsRequired();
+            modelBuilder.Entity<QuickMatchRequest>()
+                .HasIndex(r => new { r.QuickMatchPostId, r.RequesterUserId }).IsUnique();
+            modelBuilder.Entity<QuickMatchRequest>()
+                .HasIndex(r => new { r.QuickMatchPostId, r.Status });
+            modelBuilder.Entity<QuickMatchRequest>()
+                .HasOne(r => r.QuickMatchPost).WithMany(p => p.Requests)
+                .HasForeignKey(r => r.QuickMatchPostId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<QuickMatchRequest>()
+                .HasOne(r => r.RequesterUser).WithMany(u => u.QuickMatchRequests)
+                .HasForeignKey(r => r.RequesterUserId).OnDelete(DeleteBehavior.Restrict);
 
             // Follow
             modelBuilder.Entity<Follow>().ToTable("Follows");
@@ -227,6 +266,25 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(r => r.Message).WithMany(m => m.Reactions).HasForeignKey(r => r.MessageId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<ChatMessageReaction>()
                 .HasOne(r => r.User).WithMany(u => u.ChatMessageReactions).HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.Kind).HasMaxLength(20).IsRequired();
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.OriginalFileName).HasMaxLength(255);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.StoredFileName).HasMaxLength(80);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.ContentType).HasMaxLength(100);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.StoragePath).HasMaxLength(500);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.Provider).HasMaxLength(30);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.ProviderMediaId).HasMaxLength(100);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.OriginalUrl).HasMaxLength(1000);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.PreviewUrl).HasMaxLength(1000);
+            modelBuilder.Entity<MessageAttachment>().HasIndex(a => a.ChatMessageId).IsUnique();
+            modelBuilder.Entity<MessageAttachment>().HasIndex(a => a.EventDiscussionMessageId).IsUnique();
+            modelBuilder.Entity<MessageAttachment>().ToTable(table => table.HasCheckConstraint("CK_MessageAttachments_OneOwner", "(`ChatMessageId` IS NOT NULL AND `EventDiscussionMessageId` IS NULL) OR (`ChatMessageId` IS NULL AND `EventDiscussionMessageId` IS NOT NULL)"));
+            modelBuilder.Entity<MessageAttachment>()
+                .HasOne(a => a.ChatMessage).WithOne(m => m.Attachment)
+                .HasForeignKey<MessageAttachment>(a => a.ChatMessageId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<MessageAttachment>()
+                .HasOne(a => a.EventDiscussionMessage).WithOne(m => m.Attachment)
+                .HasForeignKey<MessageAttachment>(a => a.EventDiscussionMessageId).OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<ActivityCategory>()
                 .HasMany(c => c.Activities)

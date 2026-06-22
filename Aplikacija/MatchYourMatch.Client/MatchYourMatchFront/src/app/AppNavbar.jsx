@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
@@ -6,14 +6,45 @@ import NotificationsDropdown from "../components/notifications/NotificationsDrop
 import ThemeMenu from "../components/ThemeMenu";
 import { useTranslation } from "../hooks/useTranslation";
 import { logoutAndRedirect } from "../services/authSession";
+import { notificationService, NOTIFICATIONS_CHANGED_EVENT } from "../services/notificationService";
 import "./AppNavbar.css";
 
 function AppNavbar(props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notificationUnread, setNotificationUnread] = useState(0);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  const loadUnreadNotifications = useCallback(async () => {
+    if (!localStorage.getItem('token')) {
+      setNotificationUnread(0);
+      return;
+    }
+    try {
+      const data = await notificationService.unreadCount();
+      setNotificationUnread(Math.max(0, Number(data?.count) || 0));
+    } catch { /* global session handling owns 401; polling stays quiet */ }
+  }, []);
+
+  useEffect(() => {
+    loadUnreadNotifications();
+    const interval = window.setInterval(loadUnreadNotifications, 15000);
+    const refresh = () => loadUnreadNotifications();
+    const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('tokenChanged', refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('tokenChanged', refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [loadUnreadNotifications]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -69,7 +100,8 @@ function AppNavbar(props) {
             + {t('nav.createEvent').toUpperCase()}
           </Link>
 
-          <NotificationsDropdown />
+          <NotificationsDropdown unread={notificationUnread} onUnreadChange={setNotificationUnread}
+            onRefreshUnread={loadUnreadNotifications} />
 
           <div className="app-navbar__profile-wrap" ref={dropdownRef}>
             <button
@@ -114,7 +146,8 @@ function AppNavbar(props) {
           <GlobalSearch onNavigate={() => setMenuOpen(false)} />
         </div>
 
-        <NotificationsDropdown mobile onNavigate={() => setMenuOpen(false)} />
+        <NotificationsDropdown mobile unread={notificationUnread} onUnreadChange={setNotificationUnread}
+          onRefreshUnread={loadUnreadNotifications} onNavigate={() => setMenuOpen(false)} />
 
         <NavLink
           to="/app/quick-match"

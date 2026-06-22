@@ -12,5 +12,6 @@ namespace MatchYourMatch.WebAPI.Models
 
         public Event? Event { get; set; }
         public User? User { get; set; }
+        public MessageAttachment? Attachment { get; set; }
     }
 }

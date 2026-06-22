@@ -4,15 +4,11 @@ import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   MapPin,
-  Heart,
   Calendar,
-  Star,
-  MessageCircle,
   Music,
   Coffee,
   Moon,
   RefreshCw,
-  Send,
   Users,
   MoreHorizontal,
   X,
@@ -24,15 +20,25 @@ import {
   ImagePlus,
 } from "lucide-react";
 import EventCard from "../../components/EventCard";
+import EventSaveButton from "../../components/events/EventSaveButton";
 import AvailabilityScheduleEditor from "../../components/profile/AvailabilityScheduleEditor";
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
 import ProfileTagEditor from "../../components/profile/ProfileTagEditor";
+import { locationService } from "../../services/locationService";
 import UserAvatar from "../../components/UserAvatar";
 import UserActionsMenu from "../../components/UserActionsMenu";
+import ChatComposer from "../../components/chat/ChatComposer";
+import AttachmentView from "../../components/chat/AttachmentView";
+import AccountDangerModal from "../../components/profile/AccountDangerModal";
+import ProfileStats from "../../components/profile/ProfileStats";
 import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from '../../hooks/useTranslation';
 import { logoutAndRedirect } from '../../services/authSession';
+import {
+  announceEventJoinRequestChanged,
+  EVENT_JOIN_REQUEST_CHANGED_EVENT,
+} from '../../services/notificationService';
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
 const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
@@ -78,6 +84,7 @@ function Profile(props) {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
+  const [accountDangerOpen, setAccountDangerOpen] = useState(false);
   const [lifestyleEditing, setLifestyleEditing] = useState(false);
   const [lifestyleSaving, setLifestyleSaving] = useState(false);
   const [lifestyleError, setLifestyleError] = useState("");
@@ -162,24 +169,7 @@ function Profile(props) {
       setLocationSuggestionsLoading(true);
 
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `/api/UserProfile/location-suggestions?query=${encodeURIComponent(query)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          },
-        );
-
-        if (!response.ok) {
-          setLocationSuggestions([]);
-          return;
-        }
-
-        const suggestions = await response.json();
-        setLocationSuggestions(Array.isArray(suggestions) ? suggestions : []);
+        setLocationSuggestions(await locationService.search(query, controller.signal));
       } catch (err) {
         if (err.name !== "AbortError") {
           setLocationSuggestions([]);
@@ -613,8 +603,6 @@ function Profile(props) {
 
   const responseRateValue =
     props.currentUser?.responseRatePercent ?? props.userProfile?.responseRatePercent;
-  const responseRateDisplay =
-    typeof responseRateValue === "number" ? `${responseRateValue}%` : "—";
   const matchesValue = props.currentUser?.matchesCount ?? props.userProfile?.matchesCount;
   const eventsJoinedValue =
     props.currentUser?.eventsJoinedCount ?? props.userProfile?.eventsJoinedCount;
@@ -623,13 +611,6 @@ function Profile(props) {
   const followersValue =
     props.currentUser?.followersCount ?? props.userProfile?.followersCount;
   const ratingsCount = props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
-  const matchesDisplay = typeof matchesValue === "number" ? String(matchesValue) : "—";
-  const eventsJoinedDisplay =
-    typeof eventsJoinedValue === "number" ? String(eventsJoinedValue) : "—";
-  const rawProfileScoreDisplay =
-    typeof profileScoreValue === "number" ? `${profileScoreValue}%` : "—";
-
-  const profileScoreDisplay = ratingsCount > 0 ? rawProfileScoreDisplay : "Not rated";
   const followersDisplay = typeof followersValue === "number" ? String(followersValue) : "—";
 
   const savedLocationInput = props.currentUser?.locationRawInput || props.userProfile.location || "";
@@ -641,18 +622,11 @@ function Profile(props) {
     dateOfBirthDraft !== toDateInputValue(props.userProfile.dateOfBirth) ||
     showAgeDraft !== Boolean(props.userProfile.showAge);
 
-  const statCards = [
-    { icon: Heart, label: t('profile.matches'), value: matchesDisplay },
-    { icon: Calendar, label: t('profile.eventsJoined'), value: eventsJoinedDisplay },
-    { icon: Star, label: t('profile.score'), value: profileScoreDisplay },
-    { icon: MessageCircle, label: t('profile.responseRate'), value: responseRateDisplay },
-  ];
-
   const eventLists = profileEvents;
   const eventEmptyCopy = {
     Upcoming: "No upcoming joined events.",
     Past: "No past events yet.",
-    Saved: "No saved events yet.",
+    Saved: t('events.noSaved'),
   };
 
   const handleJoinEvent = async (eventId) => {
@@ -680,6 +654,37 @@ function Profile(props) {
     } catch (error) {
       setEventsError(error.message || "Event could not be joined.");
     }
+  };
+
+  const handleCancelEventJoinRequest = async (eventId) => {
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join-request`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('events.cancelRequestError'));
+      const updated = mapApiEvent(await response.json());
+      setSelectedEvent((current) => current?.id === eventId ? updated : current);
+      await fetchProfileEvents();
+    } catch (error) {
+      setEventsError(error.message || t('events.cancelRequestError'));
+    }
+  };
+
+  const handleSavedEventChange = (eventId, isSaved) => {
+    setProfileEvents((current) => {
+      const source = [...current.Upcoming, ...current.Past, ...current.Saved]
+        .find((event) => event.id === eventId);
+      const updateGroup = (events) => events.map((event) =>
+        event.id === eventId ? { ...event, isSaved } : event);
+      const saved = isSaved
+        ? (current.Saved.some((event) => event.id === eventId) || !source
+          ? updateGroup(current.Saved)
+          : [{ ...source, isSaved: true }, ...current.Saved])
+        : current.Saved.filter((event) => event.id !== eventId);
+      return { Upcoming: updateGroup(current.Upcoming), Past: updateGroup(current.Past), Saved: saved };
+    });
+    setSelectedEvent((current) => current?.id === eventId ? { ...current, isSaved } : current);
   };
 
   return (
@@ -736,15 +741,8 @@ function Profile(props) {
             </div>
           </div>
 
-          <div className="profile__stat-grid">
-            {statCards.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="profile__stat-card app-tilt-hover">
-                <Icon size={18} />
-                <strong>{value}</strong>
-                <span>{label}</span>
-              </div>
-            ))}
-          </div>
+          <ProfileStats matches={matchesValue} eventsJoined={eventsJoinedValue} profileScore={profileScoreValue}
+            responseRate={responseRateValue} ratingsCount={ratingsCount} labels={{matches:t('profile.matches'),eventsJoined:t('profile.eventsJoined'),profileScore:t('profile.score'),responseRate:t('profile.responseRate')}}/>
           {profileLoadError && (
             <div className="profile__api-error">
               <span>{profileLoadError}</span>
@@ -867,7 +865,7 @@ function Profile(props) {
                   <Trash2 size={18} />
                   <div><h3>{t('profileSettings.danger')}</h3><p>{t('profileSettings.dangerText')}</p></div>
                 </div>
-                <button type="button" disabled>{t('profileSettings.deactivate')}<span>{t('profileSettings.comingSoon')}</span></button>
+                <button type="button" onClick={() => setAccountDangerOpen(true)}>{t('profileSettings.deactivate')}<span>{t('common.view')}</span></button>
               </section>
 
               {profileError && <span className="profile__location-error">{profileError}</span>}
@@ -884,6 +882,8 @@ function Profile(props) {
           </section>
         </div>
       ), document.body)}
+
+      {accountDangerOpen && <AccountDangerModal onClose={() => setAccountDangerOpen(false)} />}
 
       <div className="profile__body">
         <div className="profile__tabs" role="tablist">
@@ -1054,6 +1054,12 @@ function Profile(props) {
                   event={selectedEvent}
                   onBack={() => setSelectedEvent(null)}
                   onJoin={() => handleJoinEvent(selectedEvent.id)}
+                  onCancelJoinRequest={() => handleCancelEventJoinRequest(selectedEvent.id)}
+                  onEventUpdated={(updated) => {
+                    setSelectedEvent(updated);
+                    fetchProfileEvents();
+                  }}
+                  onSavedChange={(isSaved) => handleSavedEventChange(selectedEvent.id, isSaved)}
                 />
               ) : (
                 <>
@@ -1108,6 +1114,8 @@ function Profile(props) {
                         style={{ "--i": index }}
                         onOpen={() => setSelectedEvent(event)}
                         onJoin={() => handleJoinEvent(event.id)}
+                        onCancelJoinRequest={() => handleCancelEventJoinRequest(event.id)}
+                        onSavedChange={(isSaved) => handleSavedEventChange(event.id, isSaved)}
                       />
                     ))}
                   </div>
@@ -1131,7 +1139,7 @@ function DisabledSetting({ icon: Icon, label, value, soon }) {
   );
 }
 
-function EventDetails({ event, onBack, onJoin }) {
+function EventDetails({ event, onBack, onJoin, onCancelJoinRequest, onSavedChange, onEventUpdated }) {
   const { t } = useTranslation();
   return (
     <section className="profile__event-detail">
@@ -1142,7 +1150,7 @@ function EventDetails({ event, onBack, onJoin }) {
       <div className="profile__event-detail-head">
         <span className="event-card__category">{event.category}</span>
         <h2>{event.title}</h2>
-        <p>{event.description}</p>
+        {event.description && <p>{event.description}</p>}
         <div className="profile__event-detail-meta">
           <span>
             <Calendar size={15} />
@@ -1156,24 +1164,38 @@ function EventDetails({ event, onBack, onJoin }) {
             <Users size={15} />
             {event.attendeeCount}/{event.maxAttendees || t('profileUi.open')} {t('profileUi.attending')}
           </span>
+          {event.ageLabel && <span><Users size={15} />{event.ageLabel}</span>}
         </div>
         <div className="profile__event-detail-actions">
+          <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} />
           <button
             type="button"
             className={`event-card__join${
               event.isJoinedByCurrentUser ? " event-card__join--joined" : ""
             }`}
             onClick={onJoin}
-            disabled={event.isJoinedByCurrentUser}
+            disabled={event.isJoinedByCurrentUser || event.joinRequestStatus === 'Pending'}
           >
-            {event.isJoinedByCurrentUser ? t('events.joined').toUpperCase() : t('events.join').toUpperCase()}
+            {event.isJoinedByCurrentUser
+              ? t('events.joined').toUpperCase()
+              : event.joinRequestStatus === 'Pending'
+                ? t('events.requestPending').toUpperCase()
+                : t('events.join').toUpperCase()}
           </button>
+          {event.joinRequestStatus === 'Pending' && (
+            <button type="button" className="event-card__cancel-request" onClick={onCancelJoinRequest}>
+              {t('events.cancelRequest')}
+            </button>
+          )}
           {event.organizerUsername && (
             <span>{t('profileUi.hostedBy', { name: event.organizerUsername })}</span>
           )}
         </div>
       </div>
 
+      {event.isOrganizer && (
+        <EventJoinRequests event={event} onEventUpdated={onEventUpdated} />
+      )}
       <EventDiscussion event={event} onJoin={onJoin} />
     </section>
   );
@@ -1184,28 +1206,34 @@ function EventDiscussion({ event, onJoin }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadStatus, setLoadStatus] = useState("idle");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [blockedAuthors, setBlockedAuthors] = useState(() => new Set());
   const messagesRef = useRef(null);
 
-  const loadDiscussion = useCallback(async () => {
+  const loadDiscussion = useCallback(async ({ silent = false } = {}) => {
     const eventId = Number(event.id);
 
     if (!isValidEventId(eventId)) {
       setMessages([]);
+      setLoadStatus("error");
       setError("Event discussion could not be loaded because the event database id is missing.");
       return;
     }
 
     if (!event.isJoinedByCurrentUser) {
       setMessages([]);
+      setLoadStatus("idle");
       setError("");
       return;
     }
 
-    setLoading(true);
-    setError("");
+    if (!silent) {
+      setLoading(true);
+      setLoadStatus("loading");
+      setError("");
+    }
 
     try {
       const response = await fetch(`/api/Events/${eventId}/discussion`, {
@@ -1220,10 +1248,18 @@ function EventDiscussion({ event, onJoin }) {
       }
 
       const data = await response.json();
-      setMessages(Array.isArray(data) ? data : []);
+      const nextMessages = Array.isArray(data) ? [...data] : [];
+      nextMessages.sort((first, second) => {
+        const timeDifference = new Date(first.createdAt ?? first.CreatedAt ?? 0) - new Date(second.createdAt ?? second.CreatedAt ?? 0);
+        return timeDifference || Number(first.id ?? first.Id ?? 0) - Number(second.id ?? second.Id ?? 0);
+      });
+      setMessages(nextMessages);
+      setLoadStatus("success");
+      setError("");
     } catch (loadError) {
       console.error("[Event Discussion] load failed", loadError);
       setError(loadError.message || "Event discussion could not be loaded.");
+      setLoadStatus("error");
     } finally {
       setLoading(false);
     }
@@ -1231,7 +1267,10 @@ function EventDiscussion({ event, onJoin }) {
 
   useEffect(() => {
     loadDiscussion();
-  }, [loadDiscussion]);
+    if (!event.isJoinedByCurrentUser) return undefined;
+    const intervalId = window.setInterval(() => loadDiscussion({ silent: true }), 3000);
+    return () => window.clearInterval(intervalId);
+  }, [event.isJoinedByCurrentUser, loadDiscussion]);
 
   useEffect(() => {
     if (!messagesRef.current) return;
@@ -1241,10 +1280,9 @@ function EventDiscussion({ event, onJoin }) {
     });
   }, [messages]);
 
-  const handleSend = async (submitEvent) => {
-    submitEvent.preventDefault();
+  const handleSend = async (text = draft) => {
     const eventId = Number(event.id);
-    const body = draft.trim();
+    const body = text.trim();
     if (!body || sending) return;
 
     if (!isValidEventId(eventId)) {
@@ -1283,6 +1321,20 @@ function EventDiscussion({ event, onJoin }) {
     }
   };
 
+  const sendAttachment = async (file, text, onProgress) => {
+    const eventId = Number(event.id); setSending(true); setError("");
+    try {
+      const form = new FormData(); form.append("file", file); if (text.trim()) form.append("body", text.trim());
+      const sent = await new Promise((resolve, reject) => { const xhr = new XMLHttpRequest(); xhr.open("POST", `/api/Events/${eventId}/discussion/attachments`); xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("token")}`); xhr.upload.onprogress=e=>e.lengthComputable&&onProgress?.(Math.round(e.loaded*100/e.total)); xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve(JSON.parse(xhr.responseText)):reject(new Error(xhr.responseText||"Upload failed.")); xhr.onerror=()=>reject(new Error("Upload failed.")); xhr.send(form); });
+      setMessages(current=>[...current,sent]); setDraft("");
+    } finally { setSending(false); }
+  };
+  const sendGif = async (gif) => {
+    const eventId = Number(event.id); setSending(true); setError("");
+    try { const response=await fetch(`/api/Events/${eventId}/discussion/gifs`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${localStorage.getItem("token")}`},body:JSON.stringify(gif)}); if(!response.ok)throw new Error(await response.text()); const sent=await response.json(); setMessages(current=>[...current,sent]); setDraft(""); }
+    finally { setSending(false); }
+  };
+
   if (!event.isJoinedByCurrentUser) {
     return (
       <section className="profile__event-thread profile__event-thread--locked">
@@ -1308,10 +1360,16 @@ function EventDiscussion({ event, onJoin }) {
       </div>
 
       {loading && <div className="profile__events-empty">{t('profile.loadingDiscussion')}</div>}
-      {error && <div className="profile__events-error">{error}</div>}
+      {loadStatus === "error" && <div className="profile__events-error">
+        <span>{error}</span>
+        <button type="button" className="profile__quiet-btn" onClick={() => loadDiscussion()}>
+          {t('chat.retry')}
+        </button>
+      </div>}
+      {error && loadStatus !== "error" && <div className="profile__events-error">{error}</div>}
 
       <div className="profile__event-messages" ref={messagesRef}>
-        {!loading && messages.length === 0 && (
+        {loadStatus === "success" && messages.length === 0 && (
           <div className="profile__events-empty">{t('chat.noMessages')}</div>
         )}
         {messages.map((message) => {
@@ -1329,28 +1387,127 @@ function EventDiscussion({ event, onJoin }) {
                 <UserActionsMenu userId={message.userId} username={message.username || message.displayName || 'member'}
                   context="eventDiscussion" allowHide={false}
                   onBlocked={(id) => setBlockedAuthors(current => new Set(current).add(Number(id)))}/></div>}
-              <p>
+              {!authorBlocked && !message.isDeleted && <AttachmentView attachment={message.attachment} />}
+              {(authorBlocked || message.isDeleted || message.body) && <p>
                 {authorBlocked ? "Comment from blocked user hidden" : message.isDeleted ? t('profileUi.deletedMessage') : message.body}
-              </p>
+              </p>}
               <small>{formatChatTime(message.createdAt)}</small>
             </div>
           );
         })}
       </div>
 
-      <form className="profile__event-composer" onSubmit={handleSend}>
-        <input
-          value={draft}
-          onChange={(inputEvent) => setDraft(inputEvent.target.value)}
-          placeholder={t('profileUi.writeDiscussion')}
-          maxLength={2000}
-        />
-        <button type="submit" disabled={sending || !draft.trim()} aria-label="Send">
-          <Send size={17} />
-        </button>
-      </form>
+      <ChatComposer value={draft} onChange={setDraft} sending={sending} placeholder={t('profileUi.writeDiscussion')}
+        onSendText={handleSend} onSendAttachment={sendAttachment} onSendGif={sendGif}/>
     </section>
   );
+}
+
+function EventJoinRequests({ event, onEventUpdated }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [respondingId, setRespondingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/Events/${event.id}/join-requests`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('events.joinRequestsError'));
+      const data = await response.json();
+      setRequests(Array.isArray(data) ? data : []);
+    } catch (requestError) {
+      setError(requestError.message || t('events.joinRequestsError'));
+    } finally {
+      setLoading(false);
+    }
+  }, [event.id, t]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const syncRequest = (changeEvent) => {
+      const detail = changeEvent.detail;
+      if (Number(detail?.eventId) !== Number(event.id)) return;
+      setRequests(current => current.filter(request => request.id !== detail.requestId));
+      if (detail.event) onEventUpdated?.(mapApiEvent(detail.event));
+      else load();
+    };
+    window.addEventListener(EVENT_JOIN_REQUEST_CHANGED_EVENT, syncRequest);
+    return () => window.removeEventListener(EVENT_JOIN_REQUEST_CHANGED_EVENT, syncRequest);
+  }, [event.id, load, onEventUpdated]);
+
+  const respond = async (requestId, action) => {
+    if (respondingId) return;
+    setRespondingId(requestId);
+    setError('');
+    try {
+      const response = await fetch(`/api/Events/${event.id}/join-requests/${requestId}/${action}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('events.joinRequestActionError'));
+      const updated = mapApiEvent(await response.json());
+      setRequests(current => current.filter(request => request.id !== requestId));
+      onEventUpdated?.(updated);
+      announceEventJoinRequestChanged({
+        eventId: event.id,
+        requestId,
+        status: action === 'accept' ? 'Accepted' : 'Rejected',
+        event: updated,
+      });
+    } catch (requestError) {
+      setError(requestError.message || t('events.joinRequestActionError'));
+    } finally {
+      setRespondingId(null);
+    }
+  };
+
+  return (
+    <section className="profile__join-requests">
+      <header>
+        <div><h3>{t('events.joinRequests')}</h3><p>{t('events.joinRequestsHelp')}</p></div>
+        <span>{requests.length}</span>
+      </header>
+      {loading && <div className="profile__events-empty">{t('common.loading')}</div>}
+      {!loading && error && <div className="profile__events-error">{error}</div>}
+      {!loading && !error && requests.length === 0 && (
+        <div className="profile__events-empty">{t('events.noJoinRequests')}</div>
+      )}
+      {!loading && requests.map(request => (
+        <div className="profile__join-request" key={request.id}>
+          <button type="button" className="profile__join-request-avatar"
+            aria-label={t('notifications.openProfile')}
+            onClick={() => navigate(`/app/users/${request.userId}`)}>
+            <UserAvatar className="profile__join-request-avatar-image" profilePicture={request.profilePicture}
+              initials={(request.username || 'MY').slice(0,2).toUpperCase()} alt={request.username}/>
+          </button>
+          <button type="button" className="profile__join-request-user"
+            onClick={() => navigate(`/app/users/${request.userId}`)}>
+            <strong>{request.displayName || request.username}</strong><small>@{request.username}</small>
+          </button>
+          <span>
+            <button type="button" disabled={respondingId === request.id}
+              onClick={()=>respond(request.id, 'accept')}>{t('notifications.accept')}</button>
+            <button type="button" disabled={respondingId === request.id}
+              onClick={()=>respond(request.id, 'reject')}>{t('events.reject')}</button>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function formatAgeLimit(minAge, maxAge) {
+  if (minAge != null && maxAge != null) return `Ages ${minAge}–${maxAge}`;
+  if (minAge != null) return `${minAge}+`;
+  if (maxAge != null) return `Up to ${maxAge}`;
+  return '';
 }
 
 function mapApiEvent(event) {
@@ -1366,7 +1523,7 @@ function mapApiEvent(event) {
     rawTime: event.time ?? event.Time,
     location: event.location ?? event.Location ?? "Community meetup",
     description:
-      event.description ?? event.Description ?? "Community event created by a MYM user.",
+      event.description ?? event.Description ?? "",
     attendees:
       event.participantAvatars ??
       event.ParticipantAvatars ??
@@ -1375,9 +1532,18 @@ function mapApiEvent(event) {
       [],
     attendeeCount: event.participantsCount ?? event.ParticipantsCount ?? 0,
     maxAttendees: event.maxAttendees ?? event.MaxAttendees ?? 0,
+    minAge: event.minAge ?? event.MinAge ?? null,
+    maxAge: event.maxAge ?? event.MaxAge ?? null,
+    ageLabel: formatAgeLimit(event.minAge ?? event.MinAge, event.maxAge ?? event.MaxAge),
     isJoinedByCurrentUser: Boolean(
       event.isJoinedByCurrentUser ?? event.IsJoinedByCurrentUser,
     ),
+    isOrganizer: Boolean(event.isOrganizer ?? event.IsOrganizer),
+    requiresParticipantApproval: Boolean(event.requiresParticipantApproval ?? event.RequiresParticipantApproval),
+    joinRequestStatus: event.joinRequestStatus ?? event.JoinRequestStatus ?? null,
+    pendingJoinRequestsCount: event.pendingJoinRequestsCount ?? event.PendingJoinRequestsCount ?? 0,
+    createdByUserId: event.createdByUserId ?? event.CreatedByUserId,
+    isSaved: Boolean(event.isSaved ?? event.IsSaved),
     organizerUsername: event.organizerUsername ?? event.OrganizerUsername,
   };
 }

@@ -1,0 +1,200 @@
+using MatchYourMatch.WebAPI.Data;
+using MatchYourMatch.WebAPI.DTOs.Account;
+using MatchYourMatch.WebAPI.DTOs.Auth;
+using MatchYourMatch.WebAPI.Models;
+using MatchYourMatch.WebAPI.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace MatchYourMatch.WebAPI.Services;
+
+public class AccountService : IAccountService
+{
+    private readonly AppDbContext _context;
+    private readonly IAuthService _authService;
+    private readonly GoogleTokenValidator _google;
+    private readonly FacebookTokenValidator _facebook;
+    private readonly MicrosoftTokenValidator _microsoft;
+    private readonly ILogger<AccountService> _logger;
+
+    public AccountService(AppDbContext context, IAuthService authService, GoogleTokenValidator google,
+        FacebookTokenValidator facebook, MicrosoftTokenValidator microsoft, ILogger<AccountService> logger)
+    {
+        _context = context;
+        _authService = authService;
+        _google = google;
+        _facebook = facebook;
+        _microsoft = microsoft;
+        _logger = logger;
+    }
+
+    public async Task<AccountStatusDto> GetStatusAsync(int userId)
+    {
+        var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        return new AccountStatusDto
+        {
+            HasPassword = user.HasPassword,
+            HasExternalLogin = await _context.ExternalLogins.AnyAsync(x => x.UserId == userId)
+        };
+    }
+
+    public async Task DeactivateAsync(int userId, DeactivateAccountDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        EnsureAccountConfirmation(user, dto.Password, dto.Confirmation, "DEACTIVATE");
+
+        if (user.IsDeactivated) return;
+        user.IsDeactivated = true;
+        user.IsActive = false;
+        user.DeactivatedAt = DateTime.UtcNow;
+        user.TokenVersion++;
+        await _context.QuickMatchPosts.Where(x => x.UserId == userId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.IsActive, false));
+        await _context.UserMatches.Where(x => x.UserAId == userId || x.UserBId == userId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.IsActive, false));
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Account {UserId} was deactivated.", userId);
+    }
+
+    public async Task<AuthInfoDto> ReactivateAsync(ReactivateAccountDto dto)
+    {
+        User user;
+        if (string.IsNullOrWhiteSpace(dto.Provider))
+        {
+            var email = dto.Email?.Trim().ToLowerInvariant();
+            user = await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Email == email)
+                ?? throw new UnauthorizedAccessException("Email or password is incorrect.");
+            if (!user.HasPassword || string.IsNullOrWhiteSpace(dto.Password) ||
+                !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+                throw new UnauthorizedAccessException("Email or password is incorrect.");
+        }
+        else
+        {
+            var identity = await ValidateExternalIdentityAsync(dto);
+            var external = await _context.ExternalLogins.Include(x => x.User).ThenInclude(x => x.Profile)
+                .FirstOrDefaultAsync(x => x.Provider == identity.Provider && x.ProviderUserId == identity.Subject)
+                ?? throw new UnauthorizedAccessException("This external account is not linked to MYM.");
+            if (!identity.EmailVerified || !string.Equals(external.ProviderEmail ?? external.User.Email, identity.Email, StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("External account verification failed.");
+            user = external.User;
+        }
+
+        if (!user.IsDeactivated) throw new InvalidOperationException("This account is not deactivated.");
+        user.IsDeactivated = false;
+        user.IsActive = true;
+        user.DeactivatedAt = null;
+        user.TokenVersion++;
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Account {UserId} was reactivated.", user.Id);
+        return _authService.CreateAuthResponse(user);
+    }
+
+    public async Task DeleteAsync(int userId, DeleteAccountDto dto)
+    {
+        if (!string.Equals(dto.Confirmation?.Trim(), "DELETE", StringComparison.Ordinal))
+            throw new InvalidOperationException("Type DELETE to permanently delete the account.");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        if (user.Role == "System") throw new UnauthorizedAccessException("System accounts cannot be deleted.");
+        EnsureAccountConfirmation(user, dto.Password, dto.Confirmation, "DELETE");
+
+        var deletedUser = await GetOrCreateDeletedUserAsync();
+        var conversationIdsToDelete = await _context.ChatConversations
+            .Where(c => (!c.IsGroup && (c.UserAId == userId || c.UserBId == userId)) ||
+                (c.IsGroup && c.Members.Any(m => m.UserId == userId) && !c.Members.Any(m => m.UserId != userId)))
+            .Select(c => c.Id).ToListAsync();
+
+        if (conversationIdsToDelete.Count > 0)
+        {
+            var messageIds = _context.ChatMessages.Where(m => conversationIdsToDelete.Contains(m.ConversationId)).Select(m => m.Id);
+            await _context.ChatMessageReactions.Where(x => messageIds.Contains(x.MessageId)).ExecuteDeleteAsync();
+            await _context.ChatMessageUserDeletions.Where(x => messageIds.Contains(x.MessageId)).ExecuteDeleteAsync();
+            await _context.ChatMessages.Where(x => conversationIdsToDelete.Contains(x.ConversationId)).ExecuteDeleteAsync();
+            await _context.ChatConversationMembers.Where(x => conversationIdsToDelete.Contains(x.ConversationId)).ExecuteDeleteAsync();
+            await _context.ChatConversations.Where(x => conversationIdsToDelete.Contains(x.Id)).ExecuteDeleteAsync();
+        }
+
+        await _context.ChatConversations.Where(x => x.IsGroup && x.CreatedByUserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CreatedByUserId, (int?)null));
+        await _context.ChatMessages.Where(x => x.SenderId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.SenderId, deletedUser.Id));
+        await _context.ChatMessages.Where(x => x.ReceiverId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ReceiverId, (int?)null));
+        await _context.EventDiscussionMessages.Where(x => x.UserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UserId, deletedUser.Id));
+        await _context.Events.Where(x => x.OrganizerId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.OrganizerId, (int?)null));
+
+        await _context.ChatMessageReactions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.ChatMessageUserDeletions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.ChatConversationMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.Notifications.Where(x => x.UserId == userId || x.ActorUserId == userId).ExecuteDeleteAsync();
+        await _context.EventInvites.Where(x => x.InviterUserId == userId || x.InviteeUserId == userId).ExecuteDeleteAsync();
+        await _context.UserRatings.Where(x => x.RaterUserId == userId || x.RatedUserId == userId).ExecuteDeleteAsync();
+        await _context.UserMatches.Where(x => x.UserAId == userId || x.UserBId == userId).ExecuteDeleteAsync();
+        await _context.Follows.Where(x => x.FollowerId == userId || x.FollowingId == userId).ExecuteDeleteAsync();
+        await _context.BlockedUsers.Where(x => x.BlockerUserId == userId || x.BlockedUserId == userId).ExecuteDeleteAsync();
+        await _context.HiddenProfiles.Where(x => x.UserId == userId || x.HiddenUserId == userId).ExecuteDeleteAsync();
+        await _context.EventParticipants.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.EventJoinRequests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.QuickMatchPosts.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.FreeTimeSlots.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.UserInterests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.UserDeepMatchPreferences.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.UserAppSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.UserProfiles.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.ExternalLogins.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.Users.Where(x => x.Id == userId).ExecuteDeleteAsync();
+
+        await transaction.CommitAsync();
+        _logger.LogInformation("Account {UserId} was permanently deleted.", userId);
+    }
+
+    private void EnsureAccountConfirmation(User user, string? password, string? confirmation, string requiredConfirmation)
+    {
+        if (user.HasPassword)
+        {
+            if (string.IsNullOrWhiteSpace(password) || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+                throw new UnauthorizedAccessException("Current password is incorrect.");
+        }
+        else if (!string.Equals(confirmation?.Trim(), requiredConfirmation, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Type {requiredConfirmation} to confirm this action.");
+        }
+    }
+
+    private async Task<ExternalIdentity> ValidateExternalIdentityAsync(ReactivateAccountDto dto) =>
+        dto.Provider?.Trim().ToLowerInvariant() switch
+        {
+            "google" => await _google.ValidateAsync(dto.IdToken),
+            "facebook" => await _facebook.ValidateAsync(dto.AccessToken),
+            "microsoft" => await _microsoft.ValidateAsync(dto.IdToken),
+            _ => throw new InvalidOperationException("Unsupported external provider.")
+        };
+
+    private async Task<User> GetOrCreateDeletedUserAsync()
+    {
+        const string email = "deleted-user@mym.invalid";
+        var deleted = await _context.Users.FirstOrDefaultAsync(x => x.Email == email);
+        if (deleted != null) return deleted;
+        deleted = new User
+        {
+            Username = "deleted_user",
+            Email = email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
+            Role = "System",
+            IsActive = false,
+            IsDeactivated = true,
+            DeactivatedAt = DateTime.UtcNow,
+            EmailConfirmed = true,
+            HasPassword = false,
+            TokenVersion = 1
+        };
+        _context.Users.Add(deleted);
+        await _context.SaveChangesAsync();
+        return deleted;
+    }
+}

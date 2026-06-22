@@ -9,14 +9,24 @@ namespace MatchYourMatch.WebAPI.Models
         public DateOnly Date { get; set; }
         public TimeOnly Time { get; set; }
         public required string Location { get; set; }
+        public string? LocationCity { get; set; }
+        public string? LocationCountry { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public bool ShowFullAddress { get; set; } = false;
         public int MaxAttendees { get; set; }
+        public int? MinAge { get; set; }
+        public int? MaxAge { get; set; }
+        public bool RequiresParticipantApproval { get; set; }
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
         public User? Organizer { get; set; }
         public Interest? Interest { get; set; }
         public List<EventParticipant> Participants { get; set; } = new();
+        public List<EventJoinRequest> JoinRequests { get; set; } = new();
         public List<EventDiscussionMessage> DiscussionMessages { get; set; } = new();
         public List<EventInvite> Invites { get; set; } = new();
         public List<UserRating> UserRatings { get; set; } = new();
+        public List<SavedEvent> SavedByUsers { get; set; } = new();
     }
 }
