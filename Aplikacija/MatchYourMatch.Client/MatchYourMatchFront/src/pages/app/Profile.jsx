@@ -94,6 +94,7 @@ function Profile(props) {
   const [locationSearchActive, setLocationSearchActive] = useState(false);
   const [saveButtonText, setSaveButtonText] = useState(() => t('common.save'));
   const [saveButtonAnimating, setSaveButtonAnimating] = useState(false);
+  const [bioSaveButtonAnimating, setBioSaveButtonAnimating] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState("");
   const [profileEvents, setProfileEvents] = useState({
@@ -107,16 +108,29 @@ function Profile(props) {
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [enteredThroughDashboard, setEnteredThroughDashboard] = useState(false);
   const navigate = useNavigate();
 
-  const styleButton = () => {
-    setSaveButtonText(t('common.save'));
-    setSaveButtonAnimating(true);
-
-    window.setTimeout(() => {
+  const styleButton = (btn) => {
+    if(btn === 1)
+    {
       setSaveButtonText(t('common.save'));
-      setSaveButtonAnimating(false);
-    }, 2000);
+      setSaveButtonAnimating(true);
+  
+      window.setTimeout(() => {
+        setSaveButtonText(t('common.save'));
+        setSaveButtonAnimating(false);
+      }, 2000);
+    }
+    if(btn === 2){
+      setSaveButtonText(t('common.save'));
+      setBioSaveButtonAnimating(true);
+  
+      window.setTimeout(() => {
+        setSaveButtonText(t('common.save'));
+        setBioSaveButtonAnimating(false);
+      }, 2000);
+    }
   };
 
   useEffect(() => {
@@ -449,6 +463,13 @@ function Profile(props) {
     setProfileEditing(true);
   };
 
+  function HandleEnteredThroughDashboard(){
+    setEnteredThroughDashboard(true);
+    setTimeout(() => {
+      setEnteredThroughDashboard(false);
+    },5000);
+  }
+
   const handleProfileCancel = () => {
     setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
     setLocationPrivacyDraft(profileLocationPrivacy);
@@ -512,7 +533,7 @@ function Profile(props) {
       }));
       setProfileSuccess(`Location saved as ${savedLocation || "your profile location"}.`);
       setLocationSuggestions([]);
-      styleButton();
+      styleButton(1);
       window.dispatchEvent(new Event("tokenChanged"));
       setProfileEditing(false);
     } catch (err) {
@@ -594,7 +615,7 @@ function Profile(props) {
         ...prev,
         bio: bioText,
       }));
-      styleButton();
+      styleButton(2);
       window.dispatchEvent(new Event("tokenChanged"));
     } catch (error) {
       console.error("Failed to save bio:", error);
@@ -723,7 +744,7 @@ function Profile(props) {
               </p>
               <p className="profile__location">
                 <MapPin size={14} />
-                {profileLocation || "Add location"}
+                {profileLocation ? <p className="pointer" onClick={()=>{handleProfileEdit();HandleEnteredThroughDashboard();}} >{profileLocation}</p> :  <p className="pointer" onClick={()=>{handleProfileEdit();HandleEnteredThroughDashboard();}}>Add location</p>}
                 {props.userProfile.showAge && props.userProfile.age != null ? ` · ${props.userProfile.age}` : ""}
               </p>
               <div className="profile__badges-row">
@@ -811,7 +832,7 @@ function Profile(props) {
                   <label>
                     <span>{t('profile.location')}</span>
                     <input type="text" value={locationDraft} onChange={handleLocationDraftChange}
-                      placeholder={t('profileUi.cityPlaceholder')} autoComplete="off" />
+                      placeholder={t('profileUi.cityPlaceholder')} autoComplete="off" className={enteredThroughDashboard ? "indicationBorder" : ""} />
                     {(locationSuggestionsLoading || locationSuggestions.length > 0) && (
                       <div className="profile__location-suggestions">
                         {locationSuggestionsLoading && <span className="profile__location-suggestion-note">{t('profileSettings.findingPlaces')}</span>}
@@ -915,9 +936,9 @@ function Profile(props) {
                 />
                 <button
                   type="submit"
-                  className={`saveButton${saveButtonAnimating ? " saveAnimation" : ""}`}
+                  className={`saveButton${bioSaveButtonAnimating ? " saveAnimation" : ""}`}
                 >
-                  {saveButtonAnimating ? saveButtonText : t('common.save')}
+                  {!bioSaveButtonAnimating ? saveButtonText : "Saved!"}
                 </button>
               </form>
 
