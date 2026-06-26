@@ -13,41 +13,48 @@ function Hero(props) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   return (
-    <section className={`hero ${props.isExiting ? 'hero--exiting' : ''}`} aria-labelledby="hero-heading">
-      <div className="hero__title-wrap">
-        <h1 id="hero-heading" className="hero__title">
-          <span className="hero__match hero__match--left" aria-hidden="true">
+    <section
+      className={`hero ${props.isExiting ? 'hero--exiting' : ''}`}
+      aria-labelledby='hero-heading'
+    >
+      <div className='hero__title-wrap'>
+        <h1 id='hero-heading' className='hero__title'>
+          <span className='hero__match hero__match--left' aria-hidden='true'>
             MATCH
           </span>
-          <span className="hero__your">YOUR</span>
-          <span className="hero__match hero__match--right" aria-hidden="true">
+          <span className='hero__your'>YOUR</span>
+          <span className='hero__match hero__match--right' aria-hidden='true'>
             MATCH
           </span>
-          <span className="sr-only">Match Your Match</span>
+          <span className='sr-only'>Match Your Match</span>
         </h1>
       </div>
 
-      <p className="hero__subtitle">{t('landing.tagline').toUpperCase()}</p>
+      <p className='hero__subtitle'>{t('landing.tagline').toUpperCase()}</p>
 
-      <div className="hero__cta">
-        <span className="hero__cta-line" aria-hidden="true" />
-        <a href="#match-in" className="btn btn--primary hero__cta-btn" onClick={() => navigate('/register')}>
+      <div className='hero__cta'>
+        <span className='hero__cta-line' aria-hidden='true' />
+        <a
+          href='#match-in'
+          className='btn btn--primary hero__cta-btn'
+          onClick={() => navigate('/register')}
+        >
           {t('landing.matchIn').toUpperCase()}
         </a>
-        <span className="hero__cta-line" aria-hidden="true" />
+        <span className='hero__cta-line' aria-hidden='true' />
       </div>
 
-      <ul className="hero__social" aria-label={t('landing.socialMedia')}>
+      <ul className='hero__social' aria-label={t('landing.socialMedia')}>
         {socialLinks.map(({ href, label, Icon }) => (
           <li key={label}>
             <a
               href={href}
-              className="hero__social-link"
-              target="_blank"
-              rel="noopener noreferrer"
+              className='hero__social-link'
+              target='_blank'
+              rel='noopener noreferrer'
               aria-label={label}
             >
-              <Icon aria-hidden="true" />
+              <Icon aria-hidden='true' />
             </a>
           </li>
         ))}

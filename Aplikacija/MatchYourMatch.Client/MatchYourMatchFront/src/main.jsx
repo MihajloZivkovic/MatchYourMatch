@@ -11,7 +11,11 @@ function hasMicrosoftAuthResponse() {
   const query = new URLSearchParams(window.location.search);
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
   const hasState = query.has('state') || hash.has('state');
-  const hasResult = query.has('code') || hash.has('code') || query.has('error') || hash.has('error');
+  const hasResult =
+    query.has('code') ||
+    hash.has('code') ||
+    query.has('error') ||
+    hash.has('error');
   return window.location.pathname === '/' && hasState && hasResult;
 }
 
@@ -21,11 +25,13 @@ async function bootstrap() {
     document.title = 'Microsoft Authentication';
     root.textContent = 'Completing Microsoft sign-in...';
     try {
-      const { broadcastResponseToMainFrame } = await import('@azure/msal-browser/redirect-bridge');
+      const { broadcastResponseToMainFrame } =
+        await import('@azure/msal-browser/redirect-bridge');
       await broadcastResponseToMainFrame();
     } catch (error) {
       console.error('Microsoft authentication callback failed:', error);
-      root.textContent = 'Microsoft sign-in could not be completed. Close this window and try again.';
+      root.textContent =
+        'Microsoft sign-in could not be completed. Close this window and try again.';
     }
     return;
   }

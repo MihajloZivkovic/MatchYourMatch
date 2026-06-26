@@ -1,13 +1,160 @@
-.account-danger { position:fixed; inset:0; z-index:12000; display:grid; place-items:center; padding:1rem; background:var(--color-overlay); backdrop-filter:blur(12px); }
-.account-danger__dialog { width:min(520px,100%); max-height:calc(100dvh - 2rem); overflow:auto; border:1px solid color-mix(in srgb,#ef6464 35%,var(--color-border)); border-radius:var(--radius-lg); background:var(--color-surface); box-shadow:var(--shadow-card); }
-.account-danger__dialog > header { display:flex; align-items:center; justify-content:space-between; padding:1.1rem 1.2rem; border-bottom:1px solid var(--color-border); }
-.account-danger__dialog header span { color:#ef7777; font-size:.65rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-.account-danger__dialog h2 { margin:.2rem 0 0; font-size:1.25rem; }.account-danger__dialog header button { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; color:var(--color-text-muted); }
-.account-danger__choices,.account-danger__confirm { padding:1.15rem; }.account-danger__choices > p,.account-danger__confirm > p { color:var(--color-text-muted); line-height:1.55; }
-.account-danger__choices > button { width:100%; min-height:76px; display:flex; align-items:center; gap:.8rem; margin-top:.75rem; padding:.8rem; text-align:left; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface-soft); color:var(--color-text); }
-.account-danger__choices > button:hover { border-color:var(--color-accent); }.account-danger__choices > button.is-delete:hover { border-color:#ef6464; }.account-danger__choices svg { color:var(--color-accent); }.account-danger__choices .is-delete svg { color:#ef6464; }
-.account-danger__choices strong,.account-danger__choices small { display:block; }.account-danger__choices small { margin-top:.25rem; color:var(--color-text-muted); line-height:1.4; }
-.account-danger__confirm { text-align:center; }.account-danger__confirm > svg { color:#ef6464; }.account-danger__confirm h3 { margin:.55rem 0; }.account-danger__confirm label { display:block; margin-top:.85rem; text-align:left; }.account-danger__confirm label span { display:block; margin-bottom:.35rem; color:var(--color-text-muted); font-size:.7rem; font-weight:700; text-transform:uppercase; }
-.account-danger__confirm input { width:100%; min-height:42px; padding:0 .75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-input); color:var(--color-text); }.account-danger__confirm input:focus { outline:none; border-color:#ef6464; }
-.account-danger__error { margin:.8rem 1.15rem; padding:.7rem; border:1px solid color-mix(in srgb,#ef6464 55%,transparent); border-radius:var(--radius-sm); background:var(--color-danger-soft); color:var(--color-danger-text); text-align:center; font-size:.78rem; }
-.account-danger__actions,.account-danger__dialog > footer { display:flex; justify-content:flex-end; gap:.65rem; margin-top:1rem; }.account-danger__dialog > footer { padding:.8rem 1.15rem; border-top:1px solid var(--color-border); }.account-danger__actions button,.account-danger__dialog footer button { min-height:40px; padding:0 1rem; border-radius:var(--radius-pill); color:var(--color-text-muted); }.account-danger__actions .is-danger { background:#b52d2d; color:#fff; }.account-danger__actions button:disabled { cursor:not-allowed; opacity:.45; }
+.account-danger {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--color-overlay);
+  backdrop-filter: blur(12px);
+}
+.account-danger__dialog {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, #ef6464 35%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+.account-danger__dialog > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.account-danger__dialog header span {
+  color: #ef7777;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.account-danger__dialog h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.25rem;
+}
+.account-danger__dialog header button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+}
+.account-danger__choices,
+.account-danger__confirm {
+  padding: 1.15rem;
+}
+.account-danger__choices > p,
+.account-danger__confirm > p {
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+.account-danger__choices > button {
+  width: 100%;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.75rem;
+  padding: 0.8rem;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+.account-danger__choices > button:hover {
+  border-color: var(--color-accent);
+}
+.account-danger__choices > button.is-delete:hover {
+  border-color: #ef6464;
+}
+.account-danger__choices svg {
+  color: var(--color-accent);
+}
+.account-danger__choices .is-delete svg {
+  color: #ef6464;
+}
+.account-danger__choices strong,
+.account-danger__choices small {
+  display: block;
+}
+.account-danger__choices small {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+.account-danger__confirm {
+  text-align: center;
+}
+.account-danger__confirm > svg {
+  color: #ef6464;
+}
+.account-danger__confirm h3 {
+  margin: 0.55rem 0;
+}
+.account-danger__confirm label {
+  display: block;
+  margin-top: 0.85rem;
+  text-align: left;
+}
+.account-danger__confirm label span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.account-danger__confirm input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-input);
+  color: var(--color-text);
+}
+.account-danger__confirm input:focus {
+  outline: none;
+  border-color: #ef6464;
+}
+.account-danger__error {
+  margin: 0.8rem 1.15rem;
+  padding: 0.7rem;
+  border: 1px solid color-mix(in srgb, #ef6464 55%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  text-align: center;
+  font-size: 0.78rem;
+}
+.account-danger__actions,
+.account-danger__dialog > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+.account-danger__dialog > footer {
+  padding: 0.8rem 1.15rem;
+  border-top: 1px solid var(--color-border);
+}
+.account-danger__actions button,
+.account-danger__dialog footer button {
+  min-height: 40px;
+  padding: 0 1rem;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+}
+.account-danger__actions .is-danger {
+  background: #b52d2d;
+  color: #fff;
+}
+.account-danger__actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}

@@ -1,13 +1,19 @@
-import { useEffect, useRef, useState } from "react";
-import { Plus, SmilePlus } from "lucide-react";
+import { useEffect, useRef, useState } from 'react';
+import { Plus, SmilePlus } from 'lucide-react';
 import {
   EXTRA_REACTION_EMOJI,
   getReactionPreset,
   saveReactionPreset,
-} from "../../utils/chatReactions";
-import "./MessageReactions.css";
+} from '../../utils/chatReactions';
+import './MessageReactions.css';
 
-function MessageReactions({ message, currentUserId, onReact, align = "start", compact = false }) {
+function MessageReactions({
+  message,
+  currentUserId,
+  onReact,
+  align = 'start',
+  compact = false,
+}) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(0);
@@ -30,18 +36,18 @@ function MessageReactions({ message, currentUserId, onReact, align = "start", co
       }
     };
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setPickerOpen(false);
         setCustomizing(false);
       }
     };
 
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [pickerOpen]);
 
@@ -71,17 +77,22 @@ function MessageReactions({ message, currentUserId, onReact, align = "start", co
     <div
       ref={rootRef}
       className={`message-reactions message-reactions--${align}${
-        compact ? " message-reactions--compact" : ""
+        compact ? ' message-reactions--compact' : ''
       }`}
     >
       {hasReactions && (
-        <div className="message-reactions__chips" aria-label="Message reactions">
+        <div
+          className='message-reactions__chips'
+          aria-label='Message reactions'
+        >
           {reactions.map((reaction) => (
             <button
-              type="button"
+              type='button'
               key={reaction.emoji}
               className={`message-reactions__chip${
-                reaction.reactedByCurrentUser ? " message-reactions__chip--mine" : ""
+                reaction.reactedByCurrentUser
+                  ? ' message-reactions__chip--mine'
+                  : ''
               }`}
               onClick={() => handleReact(reaction.emoji)}
               aria-label={`React with ${reaction.emoji}`}
@@ -94,9 +105,9 @@ function MessageReactions({ message, currentUserId, onReact, align = "start", co
       )}
 
       <button
-        type="button"
-        className="message-reactions__trigger"
-        aria-label="Add reaction"
+        type='button'
+        className='message-reactions__trigger'
+        aria-label='Add reaction'
         aria-expanded={pickerOpen}
         onClick={() => {
           setPickerOpen((open) => !open);
@@ -107,22 +118,28 @@ function MessageReactions({ message, currentUserId, onReact, align = "start", co
       </button>
 
       {pickerOpen && (
-        <div className="message-reactions__picker" role="dialog" aria-label="Choose reaction">
-          <div className="message-reactions__row">
+        <div
+          className='message-reactions__picker'
+          role='dialog'
+          aria-label='Choose reaction'
+        >
+          <div className='message-reactions__row'>
             {preset.map((emoji) => (
               <button
-                type="button"
+                type='button'
                 key={emoji}
-                className={message.currentUserReaction === emoji ? "is-selected" : ""}
+                className={
+                  message.currentUserReaction === emoji ? 'is-selected' : ''
+                }
                 onClick={() => handleReact(emoji)}
               >
                 {emoji}
               </button>
             ))}
             <button
-              type="button"
-              className="message-reactions__plus"
-              aria-label="Customize reactions"
+              type='button'
+              className='message-reactions__plus'
+              aria-label='Customize reactions'
               onClick={() => setCustomizing((value) => !value)}
             >
               <Plus size={compact ? 14 : 16} />
@@ -130,25 +147,33 @@ function MessageReactions({ message, currentUserId, onReact, align = "start", co
           </div>
 
           {customizing && (
-            <div className="message-reactions__custom">
-              <div className="message-reactions__slots" aria-label="Preset reaction slots">
+            <div className='message-reactions__custom'>
+              <div
+                className='message-reactions__slots'
+                aria-label='Preset reaction slots'
+              >
                 {preset.map((emoji, index) => (
                   <button
-                    type="button"
+                    type='button'
                     key={`${emoji}-${index}`}
-                    className={selectedSlot === index ? "is-active" : ""}
+                    className={selectedSlot === index ? 'is-active' : ''}
                     onClick={() => setSelectedSlot(index)}
                   >
                     {emoji}
                   </button>
                 ))}
               </div>
-              <div className="message-reactions__extras" aria-label="Extra reactions">
+              <div
+                className='message-reactions__extras'
+                aria-label='Extra reactions'
+              >
                 {EXTRA_REACTION_EMOJI.map((emoji) => (
                   <button
-                    type="button"
+                    type='button'
                     key={emoji}
-                    disabled={preset.includes(emoji) && preset[selectedSlot] !== emoji}
+                    disabled={
+                      preset.includes(emoji) && preset[selectedSlot] !== emoji
+                    }
                     onClick={() => handleReplacePreset(emoji)}
                   >
                     {emoji}

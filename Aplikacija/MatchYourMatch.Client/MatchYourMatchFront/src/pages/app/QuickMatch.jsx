@@ -16,7 +16,6 @@ const initialForm = {
 
 const activitiesUrl = '/api/Activities';
 
-
 const fixedQuickTimes = [
   {
     id: 'evening',
@@ -148,7 +147,9 @@ function QuickMatch() {
         const token = localStorage.getItem('token');
 
         if (!token) {
-          console.error('QuickMatch activities request skipped: missing JWT token.');
+          console.error(
+            'QuickMatch activities request skipped: missing JWT token.',
+          );
           throw new Error('You must be logged in to load activities.');
         }
 
@@ -182,7 +183,10 @@ function QuickMatch() {
         const data = await response.json();
 
         if (!Array.isArray(data)) {
-          console.error('QuickMatch activities response was not an array:', data);
+          console.error(
+            'QuickMatch activities response was not an array:',
+            data,
+          );
           throw new Error('Activities response was not valid.');
         }
 
@@ -207,7 +211,10 @@ function QuickMatch() {
           signal: controller.signal,
         });
         if (response.status === 204) return;
-        if (!response.ok) throw new Error(await response.text() || t('quick.activeLoadError'));
+        if (!response.ok)
+          throw new Error(
+            (await response.text()) || t('quick.activeLoadError'),
+          );
         const post = await response.json();
         setActivePost(post);
         setForm({
@@ -219,7 +226,8 @@ function QuickMatch() {
           ageMax: post.preferredMaxAge ?? '',
         });
       } catch (error) {
-        if (error.name !== 'AbortError') setPostError(error.message || t('quick.activeLoadError'));
+        if (error.name !== 'AbortError')
+          setPostError(error.message || t('quick.activeLoadError'));
       } finally {
         setActivePostLoading(false);
       }
@@ -233,7 +241,8 @@ function QuickMatch() {
     if (!form.endTime) return t('quick.validationEnd');
     if (!form.activityId) return t('quick.validationActivity');
     if (form.startTime === form.endTime) return t('quick.validationOrder');
-    if (form.ageMin && form.ageMax && Number(form.ageMin) > Number(form.ageMax)) return t('quick.invalidAgeRange');
+    if (form.ageMin && form.ageMax && Number(form.ageMin) > Number(form.ageMax))
+      return t('quick.invalidAgeRange');
     return '';
   };
 
@@ -270,10 +279,13 @@ function QuickMatch() {
     const endsAt = new Date(startsAt);
     endsAt.setHours(endHour, endMinute, 0, 0);
     if (endsAt <= startsAt) endsAt.setDate(endsAt.getDate() + 1);
-    return { startsAtUtc: startsAt.toISOString(), endsAtUtc: endsAt.toISOString() };
+    return {
+      startsAtUtc: startsAt.toISOString(),
+      endsAtUtc: endsAt.toISOString(),
+    };
   };
 
-  const nullableAge = (value) => value === '' ? null : Number(value);
+  const nullableAge = (value) => (value === '' ? null : Number(value));
 
   const getRequestBody = (action) => ({
     startTime: form.startTime,
@@ -283,7 +295,10 @@ function QuickMatch() {
     ...getUtcWindow(),
     ...(action === 'find'
       ? { minAge: nullableAge(form.ageMin), maxAge: nullableAge(form.ageMax) }
-      : { preferredMinAge: nullableAge(form.ageMin), preferredMaxAge: nullableAge(form.ageMax) }),
+      : {
+          preferredMinAge: nullableAge(form.ageMin),
+          preferredMaxAge: nullableAge(form.ageMax),
+        }),
   });
 
   const handleSubmit = async (event) => {
@@ -339,15 +354,21 @@ function QuickMatch() {
     setPostMessage('');
     try {
       const editing = Boolean(activePost?.id);
-      const response = await fetch(editing ? `/api/QuickMatch/post/${activePost.id}` : '/api/QuickMatch/post', {
-        method: editing ? 'PUT' : 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        editing
+          ? `/api/QuickMatch/post/${activePost.id}`
+          : '/api/QuickMatch/post',
+        {
+          method: editing ? 'PUT' : 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(getRequestBody('post')),
         },
-        body: JSON.stringify(getRequestBody('post')),
-      });
-      if (!response.ok) throw new Error(await response.text() || t('quick.postError'));
+      );
+      if (!response.ok)
+        throw new Error((await response.text()) || t('quick.postError'));
       setActivePost(await response.json());
       setPostMessage(editing ? t('quick.updated') : t('quick.posted'));
     } catch (error) {
@@ -367,7 +388,8 @@ function QuickMatch() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
-      if (!response.ok) throw new Error(await response.text() || t('quick.deleteError'));
+      if (!response.ok)
+        throw new Error((await response.text()) || t('quick.deleteError'));
       setActivePost(null);
       setPostMessage(t('quick.deleted'));
     } catch (error) {
@@ -394,7 +416,8 @@ function QuickMatch() {
           method: 'POST',
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
-        if (!response.ok) throw new Error(await response.text() || t('quick.unavailable'));
+        if (!response.ok)
+          throw new Error((await response.text()) || t('quick.unavailable'));
         setMatchMessage(t('quick.requestSent'));
       } catch (error) {
         setMatchError(error.message || t('quick.unavailable'));
@@ -411,26 +434,31 @@ function QuickMatch() {
 
   if (phase === 'setup') {
     return (
-      <div className="page-fade-in quick-match">
-        <div className="quick-match__atmo" aria-hidden="true">
-          <span className="quick-match__glow" />
-          <span className="quick-match__vignette" />
+      <div className='page-fade-in quick-match'>
+        <div className='quick-match__atmo' aria-hidden='true'>
+          <span className='quick-match__glow' />
+          <span className='quick-match__vignette' />
         </div>
 
-        <section className="quick-match__setup">
-          <form className="quick-match__setup-card" onSubmit={handleSubmit}>
-            <h1 className="quick-match__setup-title">{t('quick.title')}</h1>
-            <p className="quick-match__setup-text">{t('quick.subtitle')}</p>
+        <section className='quick-match__setup'>
+          <form className='quick-match__setup-card' onSubmit={handleSubmit}>
+            <h1 className='quick-match__setup-title'>{t('quick.title')}</h1>
+            <p className='quick-match__setup-text'>{t('quick.subtitle')}</p>
 
-            <div className="quick-match__time-section">
-              <span className="quick-match__label">{t('quick.free')}</span>
-              <div className="quick-match__time-options" aria-label={t('quick.windows')}>
+            <div className='quick-match__time-section'>
+              <span className='quick-match__label'>{t('quick.free')}</span>
+              <div
+                className='quick-match__time-options'
+                aria-label={t('quick.windows')}
+              >
                 {quickTimeOptions.map((option) => (
                   <button
                     key={option.id}
-                    type="button"
+                    type='button'
                     className={`quick-match__time-chip${
-                      selectedQuickTime === option.id ? ' quick-match__time-chip--active' : ''
+                      selectedQuickTime === option.id
+                        ? ' quick-match__time-chip--active'
+                        : ''
                     }`}
                     onClick={() => handleQuickTime(option)}
                   >
@@ -440,25 +468,25 @@ function QuickMatch() {
               </div>
             </div>
 
-            <div className="quick-match__time-grid">
-              <label className="quick-match__field">
-                <span className="quick-match__label">{t('quick.start')}</span>
+            <div className='quick-match__time-grid'>
+              <label className='quick-match__field'>
+                <span className='quick-match__label'>{t('quick.start')}</span>
                 <input
-                  className="quick-match__input quick-match__input--time"
-                  type="time"
-                  name="startTime"
+                  className='quick-match__input quick-match__input--time'
+                  type='time'
+                  name='startTime'
                   value={form.startTime}
                   onChange={handleChange}
                   required
                 />
               </label>
 
-              <label className="quick-match__field">
-                <span className="quick-match__label">{t('quick.end')}</span>
+              <label className='quick-match__field'>
+                <span className='quick-match__label'>{t('quick.end')}</span>
                 <input
-                  className="quick-match__input quick-match__input--time"
-                  type="time"
-                  name="endTime"
+                  className='quick-match__input quick-match__input--time'
+                  type='time'
+                  name='endTime'
                   value={form.endTime}
                   onChange={handleChange}
                   required
@@ -466,21 +494,33 @@ function QuickMatch() {
               </label>
             </div>
 
-            <label className="quick-match__field">
-              <span className="quick-match__label">{t('quick.activity')}</span>
+            <label className='quick-match__field'>
+              <span className='quick-match__label'>{t('quick.activity')}</span>
               <select
-                className="quick-match__select"
-                name="activityId"
+                className='quick-match__select'
+                name='activityId'
                 value={form.activityId}
                 onChange={handleChange}
-                disabled={activitiesLoading || !!activitiesError || activities.length === 0}
+                disabled={
+                  activitiesLoading ||
+                  !!activitiesError ||
+                  activities.length === 0
+                }
                 required
               >
-                <option value="">
+                <option value=''>
                   {activitiesLoading && t('quick.loadingActivities')}
-                  {!activitiesLoading && activitiesError && t('quick.unavailableActivities')}
-                  {!activitiesLoading && !activitiesError && activities.length === 0 && t('quick.noActivities')}
-                  {!activitiesLoading && !activitiesError && activities.length > 0 && t('quick.chooseActivity')}
+                  {!activitiesLoading &&
+                    activitiesError &&
+                    t('quick.unavailableActivities')}
+                  {!activitiesLoading &&
+                    !activitiesError &&
+                    activities.length === 0 &&
+                    t('quick.noActivities')}
+                  {!activitiesLoading &&
+                    !activitiesError &&
+                    activities.length > 0 &&
+                    t('quick.chooseActivity')}
                 </option>
                 {Object.entries(groupedActivities).map(([category, items]) => (
                   <optgroup key={category} label={category}>
@@ -494,20 +534,46 @@ function QuickMatch() {
               </select>
             </label>
 
-            <fieldset className="quick-match__field quick-match__age-range">
-              <legend className="quick-match__label">{t('quick.agePreferenceOptional')}</legend>
-              <div className="quick-match__time-grid">
-                <label><span>{t('quick.minimumAge')}</span><input className="quick-match__input" type="number" min="16" max="120" name="ageMin" value={form.ageMin} onChange={handleChange} placeholder={t('quick.anyAge')} /></label>
-                <label><span>{t('quick.maximumAge')}</span><input className="quick-match__input" type="number" min="16" max="120" name="ageMax" value={form.ageMax} onChange={handleChange} placeholder={t('quick.anyAge')} /></label>
+            <fieldset className='quick-match__field quick-match__age-range'>
+              <legend className='quick-match__label'>
+                {t('quick.agePreferenceOptional')}
+              </legend>
+              <div className='quick-match__time-grid'>
+                <label>
+                  <span>{t('quick.minimumAge')}</span>
+                  <input
+                    className='quick-match__input'
+                    type='number'
+                    min='16'
+                    max='120'
+                    name='ageMin'
+                    value={form.ageMin}
+                    onChange={handleChange}
+                    placeholder={t('quick.anyAge')}
+                  />
+                </label>
+                <label>
+                  <span>{t('quick.maximumAge')}</span>
+                  <input
+                    className='quick-match__input'
+                    type='number'
+                    min='16'
+                    max='120'
+                    name='ageMax'
+                    value={form.ageMax}
+                    onChange={handleChange}
+                    placeholder={t('quick.anyAge')}
+                  />
+                </label>
               </div>
               <small>{t('quick.noPreference')}</small>
             </fieldset>
 
-            <label className="quick-match__field">
-              <span className="quick-match__label">{t('quick.message')}</span>
+            <label className='quick-match__field'>
+              <span className='quick-match__label'>{t('quick.message')}</span>
               <textarea
-                className="quick-match__textarea"
-                name="description"
+                className='quick-match__textarea'
+                name='description'
                 value={form.description}
                 onChange={handleChange}
                 placeholder={t('quick.optional')}
@@ -516,43 +582,91 @@ function QuickMatch() {
             </label>
 
             {(formError || postError || activitiesError) && (
-              <p className="quick-match__error">{formError || postError || activitiesError}</p>
-            )}
-            {postMessage && <p className="quick-match__success">{postMessage}</p>}
-            {!activitiesLoading && !activitiesError && activities.length === 0 && (
-              <p className="quick-match__error">
-                No activities available. Activities must exist in the database before this
-                dropdown can be used.
+              <p className='quick-match__error'>
+                {formError || postError || activitiesError}
               </p>
             )}
+            {postMessage && (
+              <p className='quick-match__success'>{postMessage}</p>
+            )}
+            {!activitiesLoading &&
+              !activitiesError &&
+              activities.length === 0 && (
+                <p className='quick-match__error'>
+                  No activities available. Activities must exist in the database
+                  before this dropdown can be used.
+                </p>
+              )}
 
             <button
-              type="submit"
-              className="quick-match__submit app-interactive"
-              disabled={loading || activitiesLoading || !!activitiesError || activities.length === 0}
+              type='submit'
+              className='quick-match__submit app-interactive'
+              disabled={
+                loading ||
+                activitiesLoading ||
+                !!activitiesError ||
+                activities.length === 0
+              }
             >
               {loading ? t('quick.finding') : t('quick.find')}
             </button>
 
-            <button type="button" className="quick-match__post-button app-interactive"
-              disabled={postLoading || activePostLoading || activitiesLoading || !!activitiesError || activities.length === 0}
-              onClick={handlePost}>
-              {postLoading ? t('common.working') : activePost ? t('quick.updatePost') : t('quick.post')}
+            <button
+              type='button'
+              className='quick-match__post-button app-interactive'
+              disabled={
+                postLoading ||
+                activePostLoading ||
+                activitiesLoading ||
+                !!activitiesError ||
+                activities.length === 0
+              }
+              onClick={handlePost}
+            >
+              {postLoading
+                ? t('common.working')
+                : activePost
+                  ? t('quick.updatePost')
+                  : t('quick.post')}
             </button>
 
-            {activePost && <section className="quick-match__active-post" aria-live="polite">
-              <div><strong>{t('quick.activePost')}</strong><span>{activePost.startTime} - {activePost.endTime}</span></div>
-              <p>{activePost.activityName}{activePost.description ? ` · ${activePost.description}` : ''}</p>
-              <button type="button" onClick={handleDeletePost} disabled={postLoading}>{t('quick.deletePost')}</button>
-            </section>}
+            {activePost && (
+              <section className='quick-match__active-post' aria-live='polite'>
+                <div>
+                  <strong>{t('quick.activePost')}</strong>
+                  <span>
+                    {activePost.startTime} - {activePost.endTime}
+                  </span>
+                </div>
+                <p>
+                  {activePost.activityName}
+                  {activePost.description ? ` · ${activePost.description}` : ''}
+                </p>
+                <button
+                  type='button'
+                  onClick={handleDeletePost}
+                  disabled={postLoading}
+                >
+                  {t('quick.deletePost')}
+                </button>
+              </section>
+            )}
 
-            {searchAttempted && stack.length === 0 && <section className="quick-match__no-results">
-              <strong>{t('quick.noMatchesNow')}</strong>
-              <p>{t('quick.postPrompt')}</p>
-              <button type="button" onClick={handlePost} disabled={postLoading || activePostLoading}>
-                {activePost ? t('quick.updatePost') : t('quick.postThesePlans')}
-              </button>
-            </section>}
+            {searchAttempted && stack.length === 0 && (
+              <section className='quick-match__no-results'>
+                <strong>{t('quick.noMatchesNow')}</strong>
+                <p>{t('quick.postPrompt')}</p>
+                <button
+                  type='button'
+                  onClick={handlePost}
+                  disabled={postLoading || activePostLoading}
+                >
+                  {activePost
+                    ? t('quick.updatePost')
+                    : t('quick.postThesePlans')}
+                </button>
+              </section>
+            )}
           </form>
         </section>
       </div>
@@ -561,15 +675,19 @@ function QuickMatch() {
 
   if (!top) {
     return (
-      <div className="page-fade-in quick-match">
-        <div className="quick-match__atmo" aria-hidden="true">
-          <span className="quick-match__glow" />
-          <span className="quick-match__vignette" />
+      <div className='page-fade-in quick-match'>
+        <div className='quick-match__atmo' aria-hidden='true'>
+          <span className='quick-match__glow' />
+          <span className='quick-match__vignette' />
         </div>
-        <div className="app-empty quick-match__empty-wrap">
-          <p className="app-empty__title">{t('quick.caughtUp')}</p>
-          <p className="app-empty__text">{t('quick.noMore')}</p>
-          <button type="button" className="quick-match__back app-interactive" onClick={returnToSetup}>
+        <div className='app-empty quick-match__empty-wrap'>
+          <p className='app-empty__title'>{t('quick.caughtUp')}</p>
+          <p className='app-empty__text'>{t('quick.noMore')}</p>
+          <button
+            type='button'
+            className='quick-match__back app-interactive'
+            onClick={returnToSetup}
+          >
             {t('quick.tryAnother')}
           </button>
         </div>
@@ -578,17 +696,19 @@ function QuickMatch() {
   }
 
   return (
-    <div className="page-fade-in quick-match">
-      <div className="quick-match__atmo" aria-hidden="true">
-        <span className="quick-match__glow" />
-        <span className="quick-match__vignette" />
+    <div className='page-fade-in quick-match'>
+      <div className='quick-match__atmo' aria-hidden='true'>
+        <span className='quick-match__glow' />
+        <span className='quick-match__vignette' />
       </div>
 
-      <p className="quick-match__status">{t('quick.remaining', { count: remaining })}</p>
-      {matchError && <p className="quick-match__error">{matchError}</p>}
-      {matchMessage && <p className="quick-match__success">{matchMessage}</p>}
+      <p className='quick-match__status'>
+        {t('quick.remaining', { count: remaining })}
+      </p>
+      {matchError && <p className='quick-match__error'>{matchError}</p>}
+      {matchMessage && <p className='quick-match__success'>{matchMessage}</p>}
 
-      <div className="quick-match__stack">
+      <div className='quick-match__stack'>
         {stack
           .slice()
           .reverse()
@@ -599,35 +719,61 @@ function QuickMatch() {
               <article
                 key={profile.id}
                 className={`quick-match__card${isTop ? ' quick-match__card--top' : ''}${
-                  isTop && animating === 'skip' ? ' quick-match__card--skip' : ''
+                  isTop && animating === 'skip'
+                    ? ' quick-match__card--skip'
+                    : ''
                 }${isTop && animating === 'match' ? ' quick-match__card--match' : ''}`}
                 style={{ '--depth': depth, zIndex: i + 1 }}
               >
-                {isTop && <UserActionsMenu className="quick-match__user-actions" userId={profile.userId}
-                  username={profile.username} context="matchCard"
-                  onHidden={(id) => setStack(current => current.filter(item => item.userId !== id))}
-                  onBlocked={(id) => setStack(current => current.filter(item => item.userId !== id))}/>} 
-                <span className="quick-match__compat">
-                  <span className="quick-match__compat-val">{profile.compatibility}%</span>
-                  <span className="quick-match__compat-label">{t('quick.match')}</span>
+                {isTop && (
+                  <UserActionsMenu
+                    className='quick-match__user-actions'
+                    userId={profile.userId}
+                    username={profile.username}
+                    context='matchCard'
+                    onHidden={(id) =>
+                      setStack((current) =>
+                        current.filter((item) => item.userId !== id),
+                      )
+                    }
+                    onBlocked={(id) =>
+                      setStack((current) =>
+                        current.filter((item) => item.userId !== id),
+                      )
+                    }
+                  />
+                )}
+                <span className='quick-match__compat'>
+                  <span className='quick-match__compat-val'>
+                    {profile.compatibility}%
+                  </span>
+                  <span className='quick-match__compat-label'>
+                    {t('quick.match')}
+                  </span>
                 </span>
-                <UserAvatar className="quick-match__avatar" profilePicture={profile.profilePicture}
-                  initials={profile.initials} alt="" />
-                <h2 className="quick-match__name">{profile.name}</h2>
-                <p className="quick-match__meta">
+                <UserAvatar
+                  className='quick-match__avatar'
+                  profilePicture={profile.profilePicture}
+                  initials={profile.initials}
+                  alt=''
+                />
+                <h2 className='quick-match__name'>{profile.name}</h2>
+                <p className='quick-match__meta'>
                   {profile.location} - {profile.timeRange}
                 </p>
-                {profile.message && <p className="quick-match__message">{profile.message}</p>}
-                <div className="quick-match__tags">
+                {profile.message && (
+                  <p className='quick-match__message'>{profile.message}</p>
+                )}
+                <div className='quick-match__tags'>
                   {profile.interests.map((tag) => (
-                    <span key={tag} className="quick-match__tag">
+                    <span key={tag} className='quick-match__tag'>
                       {tag}
                     </span>
                   ))}
                 </div>
-                <div className="quick-match__bar-wrap">
+                <div className='quick-match__bar-wrap'>
                   <div
-                    className="quick-match__bar-fill"
+                    className='quick-match__bar-fill'
                     style={{ width: `${profile.compatibility}%` }}
                   />
                 </div>
@@ -636,10 +782,10 @@ function QuickMatch() {
           })}
       </div>
 
-      <div className="quick-match__actions">
+      <div className='quick-match__actions'>
         <button
-          type="button"
-          className="quick-match__btn quick-match__btn--skip app-interactive"
+          type='button'
+          className='quick-match__btn quick-match__btn--skip app-interactive'
           aria-label={t('quick.skip')}
           onClick={() => handleAction('skip')}
           disabled={!!animating}
@@ -647,8 +793,8 @@ function QuickMatch() {
           <X size={22} strokeWidth={1.75} />
         </button>
         <button
-          type="button"
-          className="quick-match__btn quick-match__btn--match app-interactive"
+          type='button'
+          className='quick-match__btn quick-match__btn--match app-interactive'
           aria-label={t('quick.title')}
           onClick={() => handleAction('match')}
           disabled={!!animating}
