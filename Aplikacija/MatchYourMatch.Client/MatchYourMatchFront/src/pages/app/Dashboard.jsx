@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { events } from "../../data/events";
 import "./Dashboard.css";
-import { useTranslation } from '../../hooks/useTranslation';
+import { useTranslation } from "../../hooks/useTranslation";
 
 const INTEREST_PILLS = [
   "Late Night Drives",
@@ -47,7 +47,10 @@ function getMatchName(match) {
 
 function getInitials(value) {
   const source = value || "MY";
-  const parts = source.trim().split(/[\s._-]+/).filter(Boolean);
+  const parts = source
+    .trim()
+    .split(/[\s._-]+/)
+    .filter(Boolean);
 
   if (parts.length >= 2) {
     return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
@@ -115,8 +118,14 @@ function Dashboard(props) {
         };
 
         const [preferencesResponse, availabilityResponse] = await Promise.all([
-          fetch("/api/UserProfile/me/deep-preferences", { headers, signal:controller.signal }),
-          fetch("/api/UserProfile/me/availability", { headers, signal:controller.signal }),
+          fetch("/api/UserProfile/me/deep-preferences", {
+            headers,
+            signal: controller.signal,
+          }),
+          fetch("/api/UserProfile/me/availability", {
+            headers,
+            signal: controller.signal,
+          }),
         ]);
 
         if (
@@ -149,7 +158,10 @@ function Dashboard(props) {
         const query = new URLSearchParams();
         if (interests.length) query.set("interests", interests.join(","));
         if (vibe) query.set("vibes", vibe);
-        const matchesResponse = await fetch(`/api/DeepMatch/matches${query.size ? `?${query}` : ""}`, { headers, signal:controller.signal });
+        const matchesResponse = await fetch(
+          `/api/DeepMatch/matches${query.size ? `?${query}` : ""}`,
+          { headers, signal: controller.signal },
+        );
 
         if (matchesResponse.status === 401 || matchesResponse.status === 403) {
           throw new Error("Please log in again.");
@@ -180,7 +192,9 @@ function Dashboard(props) {
         if (mounted) {
           setSuggestedConnections([]);
           setSuggestedStatus("error");
-          setSuggestedMessage(err.message || "Suggested connections could not be loaded.");
+          setSuggestedMessage(
+            err.message || "Suggested connections could not be loaded.",
+          );
         }
       }
     };
@@ -203,33 +217,35 @@ function Dashboard(props) {
           <span className="dashboard__vignette" />
         </div>
         <div className="dashboard__hero-content">
-          <p className="dashboard__welcome">{t('dashboard.welcome').toUpperCase()}</p>
-          <h1 className="dashboard__name">{props.currentUser.username}</h1>
-          <p className="dashboard__subtext">
-            {t('dashboard.subtitle')}
+          <p className="dashboard__welcome">
+            {t("dashboard.welcome").toUpperCase()}
           </p>
-          <span className="glass-pill glass-pill--online">{t('dashboard.online').toUpperCase()}</span>
+          <h1 className="dashboard__name">{props.currentUser.username}</h1>
+          <p className="dashboard__subtext">{t("dashboard.subtitle")}</p>
+          <span className="glass-pill glass-pill--online">
+            {t("dashboard.online").toUpperCase()}
+          </span>
           <div className="dashboard__quick-actions">
             <Link
               to="/app/quick-match"
               className="dashboard__action app-interactive app-tilt-hover"
             >
               <Zap size={18} />
-              <span>{t('nav.quickMatch').toUpperCase()}</span>
+              <span>{t("nav.quickMatch").toUpperCase()}</span>
             </Link>
             <Link
               to="/app/deep-match"
               className="dashboard__action app-interactive app-tilt-hover"
             >
               <Brain size={18} />
-              <span>{t('nav.deepMatch').toUpperCase()}</span>
+              <span>{t("nav.deepMatch").toUpperCase()}</span>
             </Link>
             <Link
               to="/app/events"
               className="dashboard__action app-interactive app-tilt-hover"
             >
               <Calendar size={18} />
-              <span>{t('dashboard.exploreEvents').toUpperCase()}</span>
+              <span>{t("dashboard.exploreEvents").toUpperCase()}</span>
             </Link>
           </div>
         </div>
@@ -237,10 +253,10 @@ function Dashboard(props) {
 
       {/* Section 2 — How Matching Works */}
       <section className="dashboard__section">
-        <h2 className="app-section-title">{t('dashboard.howWorks').toUpperCase()}</h2>
-        <p className="dashboard__section-desc">
-          {t('dashboard.howWorksText')}
-        </p>
+        <h2 className="app-section-title">
+          {t("dashboard.howWorks").toUpperCase()}
+        </h2>
+        <p className="dashboard__section-desc">{t("dashboard.howWorksText")}</p>
         <div className="dashboard__match-types">
           <Link
             to="/app/quick-match"
@@ -249,12 +265,12 @@ function Dashboard(props) {
             <div className="dashboard__type-icon">
               <Zap size={28} />
             </div>
-            <h3>{t('nav.quickMatch').toUpperCase()}</h3>
-            <p>{t('dashboard.quickText')}</p>
+            <h3>{t("nav.quickMatch").toUpperCase()}</h3>
+            <p>{t("dashboard.quickText")}</p>
             <div className="dashboard__type-tags">
-              <span>{t('dashboard.fast').toUpperCase()}</span>
-              <span>{t('dashboard.casual').toUpperCase()}</span>
-              <span>{t('dashboard.instant').toUpperCase()}</span>
+              <span>{t("dashboard.fast").toUpperCase()}</span>
+              <span>{t("dashboard.casual").toUpperCase()}</span>
+              <span>{t("dashboard.instant").toUpperCase()}</span>
             </div>
             <div className="dashboard__swipe-mock" aria-hidden="true">
               <span className="dashboard__swipe-card dashboard__swipe-card--back" />
@@ -271,12 +287,12 @@ function Dashboard(props) {
             <div className="dashboard__type-icon dashboard__type-icon--deep">
               <Brain size={28} />
             </div>
-            <h3>{t('nav.deepMatch').toUpperCase()}</h3>
-            <p>{t('dashboard.deepText')}</p>
+            <h3>{t("nav.deepMatch").toUpperCase()}</h3>
+            <p>{t("dashboard.deepText")}</p>
             <div className="dashboard__type-tags">
-              <span>{t('dashboard.personality').toUpperCase()}</span>
-              <span>{t('dashboard.values').toUpperCase()}</span>
-              <span>{t('dashboard.longTerm').toUpperCase()}</span>
+              <span>{t("dashboard.personality").toUpperCase()}</span>
+              <span>{t("dashboard.values").toUpperCase()}</span>
+              <span>{t("dashboard.longTerm").toUpperCase()}</span>
             </div>
             <div className="dashboard__graph-mock">
               {[88, 72, 95, 64].map((v, i) => (
@@ -292,10 +308,14 @@ function Dashboard(props) {
 
       {/* Section 3 — Preferences */}
       <section className="dashboard__section dashboard__prefs">
-        <h2 className="app-section-title">{t('dashboard.preferences').toUpperCase()}</h2>
-        <p className="dashboard__section-desc">{t('dashboard.preferencesText')}</p>
+        <h2 className="app-section-title">
+          {t("dashboard.preferences").toUpperCase()}
+        </h2>
+        <p className="dashboard__section-desc">
+          {t("dashboard.preferencesText")}
+        </p>
         <div className="dashboard__prefs-card">
-          <h4>{t('dashboard.into')}</h4>
+          <h4>{t("dashboard.into")}</h4>
           <div className="dashboard__pref-grid">
             {INTEREST_PILLS.map((pill) => (
               <button
@@ -309,14 +329,16 @@ function Dashboard(props) {
             ))}
           </div>
 
-          <h4>{t('dashboard.vibe')}</h4>
+          <h4>{t("dashboard.vibe")}</h4>
           <div className="dashboard__vibe-row">
             {VIBE_OPTIONS.map((option) => (
               <button
                 key={option}
                 type="button"
                 className={`dashboard__vibe-pill app-pill-select${vibe === option ? " dashboard__vibe-pill--on" : ""}`}
-                onClick={() => setVibe(current => current === option ? "" : option)}
+                onClick={() =>
+                  setVibe((current) => (current === option ? "" : option))
+                }
               >
                 {t(`dashboardOptions.${option}`)}
               </button>
@@ -327,22 +349,27 @@ function Dashboard(props) {
 
       {/* Section 4 — Suggested Connections */}
       <section className="dashboard__section">
-        <h2 className="app-section-title">{t('dashboard.suggested').toUpperCase()}</h2>
+        <h2 className="app-section-title">
+          {t("dashboard.suggested").toUpperCase()}
+        </h2>
         <p className="dashboard__section-desc">
-          {t('dashboard.suggestedText')}
+          {t("dashboard.suggestedText")}
         </p>
         <div className="dashboard__feed">
           {suggestedStatus === "loading" && (
             <div className="dashboard__connections-state">
-              {t('dashboard.loadingSuggested')}
+              {t("dashboard.loadingSuggested")}
             </div>
           )}
 
           {suggestedStatus === "incomplete" && (
             <div className="dashboard__connections-state">
               <p>{suggestedMessage}</p>
-              <Link to="/app/profile" className="dashboard__state-link app-interactive">
-                {t('dashboard.editProfile')}
+              <Link
+                to="/app/profile"
+                className="dashboard__state-link app-interactive"
+              >
+                {t("dashboard.editProfile")}
               </Link>
             </div>
           )}
@@ -359,62 +386,66 @@ function Dashboard(props) {
             </div>
           )}
 
-          {suggestedStatus === "ready" && suggestedConnections.map((person, i) => (
-            <article
-              key={person.id}
-              className="dashboard__connection app-tilt-hover"
-              style={{ "--i": i }}
-            >
-              <div className="dashboard__conn-avatar">
-                {person.initials}
-              </div>
-              <div className="dashboard__conn-body">
-                <div className="dashboard__conn-head">
-                  <Link to={`/app/users/${person.id}`} className="dashboard__conn-name">
-                    {person.name}
+          {suggestedStatus === "ready" &&
+            suggestedConnections.map((person, i) => (
+              <article
+                key={person.id}
+                className="dashboard__connection app-tilt-hover"
+                style={{ "--i": i }}
+              >
+                <div className="dashboard__conn-avatar">{person.initials}</div>
+                <div className="dashboard__conn-body">
+                  <div className="dashboard__conn-head">
+                    <Link
+                      to={`/app/users/${person.id}`}
+                      className="dashboard__conn-name"
+                    >
+                      {person.name}
+                    </Link>
+                    <span className="dashboard__conn-compat">
+                      {person.compatibility}%
+                    </span>
+                  </div>
+                  <p className="dashboard__conn-bio">{person.bio}</p>
+                  <div className="dashboard__conn-mutual">
+                    {person.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="dashboard__conn-actions">
+                  <Link
+                    to={`/app/chat?userId=${person.id}&username=${encodeURIComponent(person.username)}`}
+                    className="dashboard__conn-btn app-interactive"
+                    aria-label="Message"
+                  >
+                    <MessageCircle size={16} />
                   </Link>
-                  <span className="dashboard__conn-compat">
-                    {person.compatibility}%
-                  </span>
+                  <button
+                    type="button"
+                    className="dashboard__conn-btn dashboard__conn-btn--match app-interactive"
+                    aria-label="Like unavailable"
+                    disabled
+                  >
+                    <Heart size={16} />
+                  </button>
                 </div>
-                <p className="dashboard__conn-bio">{person.bio}</p>
-                <div className="dashboard__conn-mutual">
-                  {person.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="dashboard__conn-actions">
-                <Link
-                  to={`/app/chat?userId=${person.id}&username=${encodeURIComponent(person.username)}`}
-                  className="dashboard__conn-btn app-interactive"
-                  aria-label="Message"
-                >
-                  <MessageCircle size={16} />
-                </Link>
-                <button
-                  type="button"
-                  className="dashboard__conn-btn dashboard__conn-btn--match app-interactive"
-                  aria-label="Like unavailable"
-                  disabled
-                >
-                  <Heart size={16} />
-                </button>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
         </div>
       </section>
 
       {/* Section 5 — Event Recommendations */}
       <section className="dashboard__section dashboard__events-section">
         <div className="dashboard__events-head">
-          <h2 className="app-section-title">{t('dashboard.eventsForYou').toUpperCase()}</h2>
+          <h2 className="app-section-title">
+            {t("dashboard.eventsForYou").toUpperCase()}
+          </h2>
           <Link
             to="/app/events"
             className="dashboard__view-all app-interactive"
           >
-            {t('dashboard.viewAll').toUpperCase()}
+            {t("dashboard.viewAll").toUpperCase()}
             <ChevronRight size={16} />
           </Link>
         </div>
@@ -429,7 +460,7 @@ function Dashboard(props) {
               <h4>{event.title}</h4>
               <p className="dashboard__event-meta">
                 <Users size={12} />
-                {t('dashboard.attending', { count: event.attendeeCount })}
+                {t("dashboard.attending", { count: event.attendeeCount })}
               </p>
               <span className="dashboard__event-date">{event.date}</span>
             </article>

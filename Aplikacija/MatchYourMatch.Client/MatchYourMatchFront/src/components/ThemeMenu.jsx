@@ -44,8 +44,10 @@ function ThemeMenu({ variant = 'public', layout = 'dropdown' }) {
           {THEME_OPTIONS.map(({ value }) => (
             <button
               key={value}
-              type="button"
-              className={theme === value ? `${prefix}__drawer-theme-active` : ''}
+              type='button'
+              className={
+                theme === value ? `${prefix}__drawer-theme-active` : ''
+              }
               onClick={() => selectTheme(value)}
             >
               {t(`theme.${value}`)}
@@ -59,32 +61,34 @@ function ThemeMenu({ variant = 'public', layout = 'dropdown' }) {
   return (
     <div className={`${prefix}__theme`} ref={menuRef}>
       <button
-        type="button"
+        type='button'
         className={`${prefix}__theme-btn`}
         aria-label={`${t('theme.label')}: ${theme}`}
         aria-expanded={menuOpen}
-        aria-haspopup="menu"
+        aria-haspopup='menu'
         onClick={() => setMenuOpen((open) => !open)}
       >
-        <ThemeIcon size={17} aria-hidden="true" />
+        <ThemeIcon size={17} aria-hidden='true' />
       </button>
 
       {menuOpen && (
         <div
           className={`${prefix}__theme-menu`}
-          role="menu"
+          role='menu'
           aria-label={t('theme.choose')}
         >
           {THEME_OPTIONS.map(({ value, Icon }) => (
             <button
               key={value}
-              type="button"
-              role="menuitemradio"
+              type='button'
+              role='menuitemradio'
               aria-checked={theme === value}
-              className={theme === value ? `${prefix}__theme-option--active` : ''}
+              className={
+                theme === value ? `${prefix}__theme-option--active` : ''
+              }
               onClick={() => selectTheme(value)}
             >
-              <Icon size={15} aria-hidden="true" />
+              <Icon size={15} aria-hidden='true' />
               {t(`theme.${value}`)}
             </button>
           ))}

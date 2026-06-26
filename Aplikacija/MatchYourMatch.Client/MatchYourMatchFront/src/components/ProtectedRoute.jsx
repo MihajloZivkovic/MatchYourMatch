@@ -17,24 +17,31 @@ function ProtectedRoute({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!isAuthed && (localStorage.getItem('token') || localStorage.getItem('mym_authed'))) clearAuthSession();
+    if (
+      !isAuthed &&
+      (localStorage.getItem('token') || localStorage.getItem('mym_authed'))
+    )
+      clearAuthSession();
   }, [isAuthed]);
 
   if (isSessionExpired()) return children;
 
   if (!isAuthed) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to='/login' replace />;
   }
 
   if (!hasCompletedProfile(localStorage.getItem('token'))) {
-    return <Navigate to="/complete-profile" replace />;
+    return <Navigate to='/complete-profile' replace />;
   }
 
   return children;
 }
 
 function readAuthState() {
-  return localStorage.getItem('mym_authed') === 'true' && isUsableJwt(localStorage.getItem('token'));
+  return (
+    localStorage.getItem('mym_authed') === 'true' &&
+    isUsableJwt(localStorage.getItem('token'))
+  );
 }
 
 function isUsableJwt(token) {
@@ -60,7 +67,9 @@ function hasCompletedProfile(token) {
     const [, payload] = token.split('.');
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
     const decoded = JSON.parse(atob(normalized));
-    return decoded.profileComplete !== 'false' && decoded.profileComplete !== false;
+    return (
+      decoded.profileComplete !== 'false' && decoded.profileComplete !== false
+    );
   } catch {
     return false;
   }

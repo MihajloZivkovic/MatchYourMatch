@@ -26,7 +26,10 @@ const normalizeSlots = (slots) =>
       startTime: formatTime(slot.startTime),
       endTime: formatTime(slot.endTime),
     }))
-    .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+    .sort(
+      (a, b) =>
+        a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime),
+    );
 
 function AvailabilityScheduleEditor() {
   const { t } = useTranslation();
@@ -66,7 +69,9 @@ function AvailabilityScheduleEditor() {
   const slotsByDay = useMemo(
     () =>
       days.reduce((acc, day) => {
-        acc[day.value] = draftSlots.filter((slot) => Number(slot.dayOfWeek) === day.value);
+        acc[day.value] = draftSlots.filter(
+          (slot) => Number(slot.dayOfWeek) === day.value,
+        );
         return acc;
       }, {}),
     [draftSlots],
@@ -75,7 +80,9 @@ function AvailabilityScheduleEditor() {
   const savedSlotsByDay = useMemo(
     () =>
       days.reduce((acc, day) => {
-        acc[day.value] = slots.filter((slot) => Number(slot.dayOfWeek) === day.value);
+        acc[day.value] = slots.filter(
+          (slot) => Number(slot.dayOfWeek) === day.value,
+        );
         return acc;
       }, {}),
     [slots],
@@ -145,7 +152,10 @@ function AvailabilityScheduleEditor() {
   };
 
   const saveSlots = async () => {
-    const invalid = draftSlots.some((slot) => !slot.startTime || !slot.endTime || slot.startTime >= slot.endTime);
+    const invalid = draftSlots.some(
+      (slot) =>
+        !slot.startTime || !slot.endTime || slot.startTime >= slot.endTime,
+    );
 
     if (invalid) {
       setError('Each availability interval needs a valid start and end time.');
@@ -190,50 +200,69 @@ function AvailabilityScheduleEditor() {
 
   if (loading) {
     return (
-      <section className="profile__block profile__deep-card">
+      <section className='profile__block profile__deep-card'>
         <h3>{t('profile.schedule')}</h3>
-        <p className="profile__section-note">{t('profile.loadingAvailability')}</p>
+        <p className='profile__section-note'>
+          {t('profile.loadingAvailability')}
+        </p>
       </section>
     );
   }
 
   return (
-    <section className="profile__block profile__deep-card">
-      <div className="profile__section-head">
+    <section className='profile__block profile__deep-card'>
+      <div className='profile__section-head'>
         <div>
           <h3>{t('profile.schedule')}</h3>
-          <p className="profile__section-note">{t('profile.scheduleNote')}</p>
+          <p className='profile__section-note'>{t('profile.scheduleNote')}</p>
         </div>
         {!editing && (
-          <button type="button" className="app-btn-pill app-btn-pill--outline" onClick={startEditing}>
+          <button
+            type='button'
+            className='app-btn-pill app-btn-pill--outline'
+            onClick={startEditing}
+          >
             {t('profileFields.edit')}
           </button>
         )}
       </div>
 
-      <div className="profile__week-planner">
+      <div className='profile__week-planner'>
         {days.map((day) => {
-          const daySlots = editing ? slotsByDay[day.value] : savedSlotsByDay[day.value];
+          const daySlots = editing
+            ? slotsByDay[day.value]
+            : savedSlotsByDay[day.value];
           const draft = dayDrafts[day.value];
 
           return (
-            <article key={day.value} className="profile__day-card">
-              <div className="profile__day-head">
+            <article key={day.value} className='profile__day-card'>
+              <div className='profile__day-head'>
                 <h4>{t(`profileFields.${day.label}`)}</h4>
-                <span>{t('profileUi.slotsSet', { count: daySlots.length })}</span>
+                <span>
+                  {t('profileUi.slotsSet', { count: daySlots.length })}
+                </span>
               </div>
 
-              <div className="profile__day-slots">
+              <div className='profile__day-slots'>
                 {daySlots.length === 0 ? (
-                  <span className="profile__day-empty">{t('profile.noAvailability')}</span>
+                  <span className='profile__day-empty'>
+                    {t('profile.noAvailability')}
+                  </span>
                 ) : (
                   daySlots.map((slot, index) => (
-                    <span key={`${day.value}-${slot.startTime}-${slot.endTime}-${index}`} className="profile__time-pill">
+                    <span
+                      key={`${day.value}-${slot.startTime}-${slot.endTime}-${index}`}
+                      className='profile__time-pill'
+                    >
                       {slot.startTime} - {slot.endTime}
                       {editing && (
                         <button
-                          type="button"
-                          aria-label={t('profileUi.removeSlot', { day: t(`profileFields.${day.label}`), start: slot.startTime, end: slot.endTime })}
+                          type='button'
+                          aria-label={t('profileUi.removeSlot', {
+                            day: t(`profileFields.${day.label}`),
+                            start: slot.startTime,
+                            end: slot.endTime,
+                          })}
                           onClick={() => removeSlot(day.value, index)}
                         >
                           x
@@ -245,18 +274,25 @@ function AvailabilityScheduleEditor() {
               </div>
 
               {editing && (
-                <div className="profile__day-add">
+                <div className='profile__day-add'>
                   <input
-                    type="time"
+                    type='time'
                     value={draft.startTime}
-                    onChange={(event) => updateDayDraft(day.value, 'startTime', event.target.value)}
+                    onChange={(event) =>
+                      updateDayDraft(day.value, 'startTime', event.target.value)
+                    }
                   />
                   <input
-                    type="time"
+                    type='time'
                     value={draft.endTime}
-                    onChange={(event) => updateDayDraft(day.value, 'endTime', event.target.value)}
+                    onChange={(event) =>
+                      updateDayDraft(day.value, 'endTime', event.target.value)
+                    }
                   />
-                  <button type="button" onClick={() => addSlotForDay(day.value)}>
+                  <button
+                    type='button'
+                    onClick={() => addSlotForDay(day.value)}
+                  >
                     +
                   </button>
                 </div>
@@ -266,14 +302,23 @@ function AvailabilityScheduleEditor() {
         })}
       </div>
 
-      {error && <p className="profile__form-error">{error}</p>}
+      {error && <p className='profile__form-error'>{error}</p>}
 
       {editing && (
-        <div className="profile__edit-actions">
-          <button type="button" className="app-btn-pill" onClick={saveSlots} disabled={saving}>
+        <div className='profile__edit-actions'>
+          <button
+            type='button'
+            className='app-btn-pill'
+            onClick={saveSlots}
+            disabled={saving}
+          >
             {saving ? t('common.loading') : t('common.save')}
           </button>
-          <button type="button" className="profile__quiet-btn" onClick={cancelEditing}>
+          <button
+            type='button'
+            className='profile__quiet-btn'
+            onClick={cancelEditing}
+          >
             {t('common.cancel')}
           </button>
         </div>

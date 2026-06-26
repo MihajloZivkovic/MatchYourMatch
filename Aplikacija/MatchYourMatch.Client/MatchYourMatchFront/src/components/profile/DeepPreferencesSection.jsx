@@ -5,17 +5,32 @@ const preferenceFields = [
   {
     name: 'relationshipValue',
     label: 'Relationship value',
-    options: ['Trust & honesty', 'Adventure & spontaneity', 'Deep conversations', 'Shared goals'],
+    options: [
+      'Trust & honesty',
+      'Adventure & spontaneity',
+      'Deep conversations',
+      'Shared goals',
+    ],
   },
   {
     name: 'communicationStyle',
     label: 'Communication style',
-    options: ['Direct and honest', 'Thoughtful and calm', 'Playful and light', 'Deep and reflective'],
+    options: [
+      'Direct and honest',
+      'Thoughtful and calm',
+      'Playful and light',
+      'Deep and reflective',
+    ],
   },
   {
     name: 'freeTimePreference',
     label: 'Ideal free time',
-    options: ['Quiet night in', 'Social outing', 'Creative hobby', 'Outdoor activity'],
+    options: [
+      'Quiet night in',
+      'Social outing',
+      'Creative hobby',
+      'Outdoor activity',
+    ],
   },
   {
     name: 'socialEnergy',
@@ -25,7 +40,12 @@ const preferenceFields = [
   {
     name: 'relationshipPace',
     label: 'Relationship pace',
-    options: ['Slow and intentional', 'Natural and flexible', 'Clear and committed', 'Adventurous and spontaneous'],
+    options: [
+      'Slow and intentional',
+      'Natural and flexible',
+      'Clear and committed',
+      'Adventurous and spontaneous',
+    ],
   },
 ];
 
@@ -124,34 +144,46 @@ function DeepPreferencesSection() {
 
   if (loading) {
     return (
-      <section className="profile__block profile__deep-card">
+      <section className='profile__block profile__deep-card'>
         <h3>{t('profile.deepPreferences')}</h3>
-        <p className="profile__section-note">{t('profile.loadingPreferences')}</p>
+        <p className='profile__section-note'>
+          {t('profile.loadingPreferences')}
+        </p>
       </section>
     );
   }
 
   return (
-    <section className="profile__block profile__deep-card">
-      <div className="profile__section-head">
+    <section className='profile__block profile__deep-card'>
+      <div className='profile__section-head'>
         <div>
           <h3>{t('profile.deepPreferences')}</h3>
-          <p className="profile__section-note">{t('profile.preferencesNote')}</p>
+          <p className='profile__section-note'>
+            {t('profile.preferencesNote')}
+          </p>
         </div>
         {!editing && (
-          <button type="button" className="app-btn-pill app-btn-pill--outline" onClick={startEditing}>
+          <button
+            type='button'
+            className='app-btn-pill app-btn-pill--outline'
+            onClick={startEditing}
+          >
             {t('profileFields.edit')}
           </button>
         )}
       </div>
 
       {editing ? (
-        <div className="profile__preference-form">
+        <div className='profile__preference-form'>
           {preferenceFields.map((field) => (
-            <label key={field.name} className="profile__pref-field">
+            <label key={field.name} className='profile__pref-field'>
               <span>{t(`profileFields.${field.name}`)}</span>
-              <select name={field.name} value={draft[field.name] || ''} onChange={handleChange}>
-                <option value="">{t('profile.chooseOption')}</option>
+              <select
+                name={field.name}
+                value={draft[field.name] || ''}
+                onChange={handleChange}
+              >
+                <option value=''>{t('profile.chooseOption')}</option>
                 {field.options.map((option) => (
                   <option key={option} value={option}>
                     {t(`profileFields.${option}`)}
@@ -161,62 +193,77 @@ function DeepPreferencesSection() {
             </label>
           ))}
 
-          <label className="profile__pref-field profile__pref-field--wide">
+          <label className='profile__pref-field profile__pref-field--wide'>
             <span>{t('profile.importantValues')}</span>
             <input
-              name="importantValues"
+              name='importantValues'
               value={draft.importantValues || ''}
               onChange={handleChange}
               placeholder={t('profileUi.valuesPlaceholder')}
             />
           </label>
 
-          <label className="profile__pref-field profile__pref-field--wide">
+          <label className='profile__pref-field profile__pref-field--wide'>
             <span>{t('profile.lifestyle')}</span>
             <input
-              name="lifestylePreferences"
+              name='lifestylePreferences'
               value={draft.lifestylePreferences || ''}
               onChange={handleChange}
               placeholder={t('profileUi.lifestylePlaceholder')}
             />
           </label>
 
-          {error && <p className="profile__form-error">{error}</p>}
+          {error && <p className='profile__form-error'>{error}</p>}
 
-          <div className="profile__edit-actions">
-            <button type="button" className="app-btn-pill" onClick={savePreferences} disabled={saving}>
+          <div className='profile__edit-actions'>
+            <button
+              type='button'
+              className='app-btn-pill'
+              onClick={savePreferences}
+              disabled={saving}
+            >
               {saving ? t('common.loading') : t('common.save')}
             </button>
-            <button type="button" className="profile__quiet-btn" onClick={cancelEditing}>
+            <button
+              type='button'
+              className='profile__quiet-btn'
+              onClick={cancelEditing}
+            >
               {t('common.cancel')}
             </button>
           </div>
         </div>
       ) : (
         <>
-          <div className="profile__pref-grid">
+          <div className='profile__pref-grid'>
             {preferenceFields.map((field) => (
-              <div key={field.name} className="profile__pref-tile">
+              <div key={field.name} className='profile__pref-tile'>
                 <span>{t(`profileFields.${field.name}`)}</span>
-                <strong>{preferences[field.name] ? t(`profileFields.${preferences[field.name]}`) : t('profileUi.notSet')}</strong>
+                <strong>
+                  {preferences[field.name]
+                    ? t(`profileFields.${preferences[field.name]}`)
+                    : t('profileUi.notSet')}
+                </strong>
               </div>
             ))}
           </div>
-          <div className="profile__pills profile__pref-pills">
+          <div className='profile__pills profile__pref-pills'>
             {(preferences.importantValues || t('profileUi.importantNotSet'))
               .split(',')
               .map((item) => item.trim())
               .filter(Boolean)
               .map((item) => (
-                <span key={item} className="profile__pill">
+                <span key={item} className='profile__pill'>
                   {item}
                 </span>
               ))}
             {preferences.lifestylePreferences && (
-              <span className="profile__pill">{preferences.lifestylePreferences}</span>
+              <span className='profile__pill'>
+                {preferences.lifestylePreferences}
+              </span>
             )}
           </div>
-          {error && <p className="profile__form-error">{error}</p>}
+          {error && <p className='profile__form-error'>{error}</p>}
         </>
       )}
     </section>
