@@ -31,6 +31,7 @@ import ChatComposer from "../../components/chat/ChatComposer";
 import AttachmentView from "../../components/chat/AttachmentView";
 import AccountDangerModal from "../../components/profile/AccountDangerModal";
 import ProfileStats from "../../components/profile/ProfileStats";
+import FollowListModal from "../../components/profile/FollowListModal";
 import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from "../../hooks/useTranslation";
@@ -155,6 +156,7 @@ function Profile(props) {
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
   const [accountDangerOpen, setAccountDangerOpen] = useState(false);
+  const [followListType, setFollowListType] = useState(null);
   const [lifestyleEditing, setLifestyleEditing] = useState(false);
   const [lifestyleSaving, setLifestyleSaving] = useState(false);
   const [lifestyleError, setLifestyleError] = useState("");
@@ -774,6 +776,8 @@ function Profile(props) {
   const followersDisplay =
     typeof followersValue === "number" ? String(followersValue) : "—";
 
+  const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
+
   const savedLocationInput =
     props.currentUser?.locationRawInput || props.userProfile.location || "";
   const profileHasChanges =
@@ -910,11 +914,16 @@ function Profile(props) {
                   : props.currentUser.username}
               </h1>
               <p className="profile__username">@{props.currentUser.username}</p>
-              <p className="profile__followers">
+              <button
+                type="button"
+                className="profile__followers profile__followers--clickable"
+                onClick={() => setFollowListType("followers")}
+                disabled={!profileUserId}
+              >
                 <Users size={14} />
                 <strong>{followersDisplay}</strong>{" "}
                 {t("publicProfile.followers")}
-              </p>
+              </button>
               <p className="profile__location">
                 <MapPin size={14} />
                 {profileLocation ? (
@@ -1688,6 +1697,14 @@ function Profile(props) {
           )}
         </div>
       </div>
+      {followListType && profileUserId && (
+        <FollowListModal
+          userId={profileUserId}
+          currentUserId={profileUserId}
+          type={followListType}
+          onClose={() => setFollowListType(null)}
+        />
+      )}
     </div>
   );
 }
