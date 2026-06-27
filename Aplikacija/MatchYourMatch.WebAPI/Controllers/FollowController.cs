@@ -18,11 +18,12 @@ namespace MatchYourMatch.WebAPI.Controllers
 
         [Authorize]
         [HttpGet("{userId}/followers")]
-        public async Task<IActionResult> GetFollowers(int userId)
+        public async Task<IActionResult> GetFollowers(int userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             try
             {
-                var followers = await _service.GetFollowersAsync(userId);
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var followers = await _service.GetFollowersAsync(userId, currentUserId, page, pageSize);
                 return Ok(followers);
             }
             catch(Exception ex)
@@ -33,11 +34,12 @@ namespace MatchYourMatch.WebAPI.Controllers
 
         [Authorize]
         [HttpGet("{userId}/following")]
-        public async Task<IActionResult> GetFollowing(int userId)
+        public async Task<IActionResult> GetFollowing(int userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             try
             {
-                var following = await _service.GetFollowingAsync(userId);
+                var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                var following = await _service.GetFollowingAsync(userId, currentUserId, page, pageSize);
                 return Ok(following);
             }
             catch(Exception ex)

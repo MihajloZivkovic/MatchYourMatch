@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { clearAuthSession } from '../services/authSession';
+import { isGuestSession } from '../services/guestSession';
 import { isSessionExpired } from '../services/sessionExpiry';
 
 function ProtectedRoute({ children }) {
   const [isAuthed, setIsAuthed] = useState(readAuthState);
+  const location = useLocation();
 
   useEffect(() => {
     const refresh = () => setIsAuthed(readAuthState());
@@ -24,6 +26,14 @@ function ProtectedRoute({ children }) {
 
   if (!isAuthed) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (isGuestSession()) {
+    const allowedGuestPaths = ['/app', '/app/events'];
+    if (!allowedGuestPaths.includes(location.pathname)) {
+      return <Navigate to="/app/events" replace state={{ guestBlocked: true }} />;
+    }
+    return children;
   }
 
   if (!hasCompletedProfile(localStorage.getItem('token'))) {

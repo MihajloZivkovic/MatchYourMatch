@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { CalendarX } from 'lucide-react';
 import EventCard from '../../components/EventCard';
 import EventInviteModal from '../../components/events/EventInviteModal';
+import GuestCityModal from '../../components/GuestCityModal';
 import './Events.css';
 import { useTranslation } from '../../hooks/useTranslation';
+import { getGuestCity, isGuestSession } from '../../services/guestSession';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
 
@@ -15,7 +17,12 @@ function Events({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [inviteEvent, setInviteEvent] = useState(null);
+  const [guestCityModalOpen, setGuestCityModalOpen] = useState(false);
+  const [blockedMessage, setBlockedMessage] = useState('');
+  const [notice, setNotice] = useState('');
   const { t } = useTranslation();
+  const isGuest = isGuestSession();
+  const guestCity = getGuestCity();
   const filterLabels = { ALL: t('events.all'), NEARBY: t('events.nearby'), 'THIS WEEK': t('events.thisWeek'), STUDY: t('events.study'), GAMING: t('events.gaming'), COFFEE: t('events.coffee'), SOCIAL: t('events.social'), SPORT: t('events.sport') };
 
   const loadEvents = async () => {
@@ -48,6 +55,14 @@ function Events({ currentUser }) {
     return () => window.clearTimeout(initial);
   }, []);
 
+  useEffect(() => {
+    const state = window.history.state?.usr;
+    if (state?.guestBlocked) {
+      setBlockedMessage(t('guest.accountRequired'));
+      window.history.replaceState({ ...window.history.state, usr: {} }, '');
+    }
+  }, [t]);
+
   const filtered = useMemo(() => {
     if (activeFilter === 'ALL') return events;
 
@@ -69,6 +84,7 @@ function Events({ currentUser }) {
   }, [activeFilter, events]);
 
   const handleJoin = async (eventId) => {
+    setNotice('');
     try {
       const response = await fetch(`/api/Events/${eventId}/join`, {
         method: 'POST',
@@ -86,6 +102,30 @@ function Events({ currentUser }) {
       setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
     } catch (err) {
       setError(err.message || 'Event could not be joined.');
+    }
+  };
+
+  const handleLeave = async (eventId) => {
+    setNotice('');
+    setError('');
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || t('events.leaveError'));
+      }
+
+      const updated = mapApiEvent(await response.json());
+      setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
+      setNotice(t('events.left'));
+    } catch (err) {
+      setError(err.message || t('events.leaveError'));
     }
   };
 
@@ -108,12 +148,34 @@ function Events({ currentUser }) {
       <header className="events-page__header">
         <div>
           <h1>{t('events.title').toUpperCase()}</h1>
-          <p>{t('events.subtitle')}</p>
+          <p>{isGuest ? t('guest.browsingCity', { city: guestCity }) : t('events.subtitle')}</p>
         </div>
-        <Link to="/app/events/create" className="app-btn-pill events-page__create">
+        {isGuest ? (
+          <button type="button" className="app-btn-pill events-page__create" onClick={() => setGuestCityModalOpen(true)}>
+            {t('guest.changeCity')}
+          </button>
+        ) : <Link to="/app/events/create" className="app-btn-pill events-page__create">
           + {t('nav.createEvent').toUpperCase()}
-        </Link>
+        </Link>}
       </header>
+
+      {isGuest && (
+        <div className="events-page__guest">
+          <span>{t('guest.access')}</span>
+          <p>{t('guest.onlyPublicOrganizerEvents')}</p>
+        </div>
+      )}
+
+      {blockedMessage && (
+        <div className="events-page__notice" role="status">
+          {blockedMessage}
+        </div>
+      )}
+      {notice && (
+        <div className="events-page__notice" role="status">
+          {notice}
+        </div>
+      )}
 
       <div className="events-page__filters">
         {FILTERS.map((f) => (
@@ -143,16 +205,20 @@ function Events({ currentUser }) {
         <div className="app-empty events-page__empty">
           <CalendarX size={44} strokeWidth={1} className="app-empty__icon" />
           <p className="app-empty__title">
-            {events.length === 0 ? t('events.noUpcoming') : t('events.noFound')}
+            {isGuest && events.length === 0 ? t('guest.noOrganizerEvents') : events.length === 0 ? t('events.noUpcoming') : t('events.noFound')}
           </p>
           <p className="app-empty__text">
-            {events.length === 0
+            {isGuest
+              ? t('guest.onlyPublicOrganizerEvents')
+              : events.length === 0
               ? t('events.createInvite')
               : t('events.tryFilter')}
           </p>
-          <Link to="/app/events/create" className="app-btn-pill">
+          {isGuest ? <button type="button" className="app-btn-pill" onClick={() => setGuestCityModalOpen(true)}>
+            {t('guest.changeCity')}
+          </button> : <Link to="/app/events/create" className="app-btn-pill">
             {t('events.createOne')}
-          </Link>
+          </Link>}
         </div>
       ) : null}
 
@@ -163,7 +229,9 @@ function Events({ currentUser }) {
               key={event.id}
               event={event}
               style={{ '--i': i }}
+              guestMode={isGuest}
               onJoin={() => handleJoin(event.id)}
+              onLeave={() => handleLeave(event.id)}
               onCancelJoinRequest={() => handleCancelJoinRequest(event.id)}
               onSavedChange={(isSaved) => setEvents((current) => current.map((value) =>
                 value.id === event.id ? { ...value, isSaved } : value))}
@@ -174,6 +242,10 @@ function Events({ currentUser }) {
         </div>
       )}
       {inviteEvent && <EventInviteModal event={inviteEvent} onClose={() => setInviteEvent(null)} />}
+      {guestCityModalOpen && <GuestCityModal onClose={() => {
+        setGuestCityModalOpen(false);
+        loadEvents();
+      }} />}
     </div>
   );
 }
@@ -204,6 +276,8 @@ function mapApiEvent(event) {
     isSaved: Boolean(event.isSaved),
     organizerUsername: event.organizerUsername,
     createdByUserId: event.createdByUserId,
+    isOrganizer: Boolean(event.isOrganizer),
+    isCreator: Boolean(event.isCreator ?? event.isOrganizer),
   };
 }
 

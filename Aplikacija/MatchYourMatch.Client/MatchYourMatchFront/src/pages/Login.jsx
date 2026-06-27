@@ -2,6 +2,7 @@ import { useActionState, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButtons from '../components/SocialAuthButtons';
+import GuestEntryButton from '../components/GuestEntryButton';
 
 function Login() {
   const navigate = useNavigate();
@@ -119,6 +120,8 @@ function Login() {
             <button type="submit" className="btn btn--primary auth__submit">
               {t('auth.signIn').toUpperCase()}
             </button>
+
+            <GuestEntryButton className="btn btn--outline auth__guest" labelKey="guest.continue" />
 
             <p className="auth__switch">
               {t('auth.noAccount')}{' '}

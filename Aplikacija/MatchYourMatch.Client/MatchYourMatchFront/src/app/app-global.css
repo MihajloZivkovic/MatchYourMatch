@@ -528,6 +528,49 @@
   margin-left: 0.5rem;
 }
 
+.event-card__actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.event-card__invite {
+  min-height: 34px;
+  padding: 0 .75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border: 1px solid rgba(244, 163, 0, .38);
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-size: .66rem;
+  font-weight: 700;
+}
+
+.event-card__invite:hover {
+  background: rgba(244, 163, 0, .1);
+}
+
+.event-card__edit {
+  min-height: 34px;
+  padding: 0 .7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: .66rem;
+  font-weight: 700;
+}
+
+.event-card__edit:hover {
+  border-color: rgba(244, 163, 0, .38);
+  color: var(--accent);
+}
+
 .event-card__join {
   padding: 0.45rem 1rem;
   border-radius: var(--radius-pill);
@@ -561,6 +604,47 @@
   letter-spacing: .04em;
 }
 .event-card__cancel-request:hover { border-color: var(--accent); color: var(--accent); }
+
+.event-card__leave {
+  min-height: 34px;
+  padding: 0 .78rem;
+  border: 1px solid rgba(255, 120, 110, .42);
+  border-radius: var(--radius-pill);
+  color: #ff9b92;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.event-card__leave:hover {
+  background: rgba(255, 96, 80, .08);
+  border-color: rgba(255, 120, 110, .7);
+}
+
+.event-card__leave-confirm {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: .66rem;
+}
+
+.event-card__leave-confirm button {
+  min-height: 28px;
+  padding: 0 .62rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: .64rem;
+  font-weight: 800;
+}
+
+.event-card__leave-confirm .event-card__leave-confirm-action {
+  border-color: rgba(255, 120, 110, .42);
+  color: #ff9b92;
+}
 
 .event-card--mini {
   padding: 1rem;

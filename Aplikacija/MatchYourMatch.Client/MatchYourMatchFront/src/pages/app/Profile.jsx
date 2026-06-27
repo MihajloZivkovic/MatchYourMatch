@@ -31,10 +31,12 @@ import ChatComposer from "../../components/chat/ChatComposer";
 import AttachmentView from "../../components/chat/AttachmentView";
 import AccountDangerModal from "../../components/profile/AccountDangerModal";
 import ProfileStats from "../../components/profile/ProfileStats";
+import FollowListModal from "../../components/profile/FollowListModal";
 import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from '../../hooks/useTranslation';
 import { logoutAndRedirect } from '../../services/authSession';
+import { readJwtPayload } from '../../services/guestSession';
 import {
   announceEventJoinRequestChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
@@ -109,6 +111,8 @@ function Profile(props) {
   const [matchesError, setMatchesError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [enteredThroughDashboard, setEnteredThroughDashboard] = useState(false);
+  const [followListType, setFollowListType] = useState(null);
+  const currentProfileUserId = props.currentUser?.id ?? props.userProfile?.id ?? getCurrentUserIdFromToken();
   const navigate = useNavigate();
 
   const styleButton = (btn) => {
@@ -692,6 +696,21 @@ function Profile(props) {
     }
   };
 
+  const handleLeaveEvent = async (eventId) => {
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || t('events.leaveError'));
+      const updated = mapApiEvent(await response.json());
+      setSelectedEvent(updated.isSaved ? updated : null);
+      await fetchProfileEvents();
+    } catch (error) {
+      setEventsError(error.message || t('events.leaveError'));
+    }
+  };
+
   const handleSavedEventChange = (eventId, isSaved) => {
     setProfileEvents((current) => {
       const source = [...current.Upcoming, ...current.Past, ...current.Saved]
@@ -738,10 +757,12 @@ function Profile(props) {
               <h1>{props.userProfile.showFullName && props.userProfile.fullName
                 ? props.userProfile.fullName : props.currentUser.username}</h1>
               <p className="profile__username">@{props.currentUser.username}</p>
-              <p className="profile__followers">
+              <button type="button" className="profile__followers profile__followers--clickable"
+                disabled={!currentProfileUserId}
+                onClick={() => currentProfileUserId && setFollowListType('followers')}>
                 <Users size={14} />
                 <strong>{followersDisplay}</strong> {t('publicProfile.followers')}
-              </p>
+              </button>
               <p className="profile__location">
                 <MapPin size={14} />
                 {profileLocation ? <p className="pointer" onClick={()=>{handleProfileEdit();HandleEnteredThroughDashboard();}} >{profileLocation}</p> :  <p className="pointer" onClick={()=>{handleProfileEdit();HandleEnteredThroughDashboard();}}>Add location</p>}
@@ -1075,6 +1096,7 @@ function Profile(props) {
                   event={selectedEvent}
                   onBack={() => setSelectedEvent(null)}
                   onJoin={() => handleJoinEvent(selectedEvent.id)}
+                  onLeave={() => handleLeaveEvent(selectedEvent.id)}
                   onCancelJoinRequest={() => handleCancelEventJoinRequest(selectedEvent.id)}
                   onEventUpdated={(updated) => {
                     setSelectedEvent(updated);
@@ -1135,6 +1157,7 @@ function Profile(props) {
                         style={{ "--i": index }}
                         onOpen={() => setSelectedEvent(event)}
                         onJoin={() => handleJoinEvent(event.id)}
+                        onLeave={() => handleLeaveEvent(event.id)}
                         onCancelJoinRequest={() => handleCancelEventJoinRequest(event.id)}
                         onSavedChange={(isSaved) => handleSavedEventChange(event.id, isSaved)}
                       />
@@ -1146,6 +1169,10 @@ function Profile(props) {
           )}
         </div>
       </div>
+      {followListType && (
+        <FollowListModal userId={currentProfileUserId} currentUserId={currentProfileUserId}
+          type={followListType} onClose={() => setFollowListType(null)} />
+      )}
     </div>
   );
 }
@@ -1160,8 +1187,9 @@ function DisabledSetting({ icon: Icon, label, value, soon }) {
   );
 }
 
-function EventDetails({ event, onBack, onJoin, onCancelJoinRequest, onSavedChange, onEventUpdated }) {
+function EventDetails({ event, onBack, onJoin, onLeave, onCancelJoinRequest, onSavedChange, onEventUpdated }) {
   const { t } = useTranslation();
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   return (
     <section className="profile__event-detail">
       <button type="button" className="profile__event-back" onClick={onBack}>
@@ -1189,20 +1217,37 @@ function EventDetails({ event, onBack, onJoin, onCancelJoinRequest, onSavedChang
         </div>
         <div className="profile__event-detail-actions">
           <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} />
-          <button
-            type="button"
-            className={`event-card__join${
-              event.isJoinedByCurrentUser ? " event-card__join--joined" : ""
-            }`}
-            onClick={onJoin}
-            disabled={event.isJoinedByCurrentUser || event.joinRequestStatus === 'Pending'}
-          >
-            {event.isJoinedByCurrentUser
-              ? t('events.joined').toUpperCase()
-              : event.joinRequestStatus === 'Pending'
-                ? t('events.requestPending').toUpperCase()
-                : t('events.join').toUpperCase()}
-          </button>
+          {event.isJoinedByCurrentUser && !event.isOrganizer && onLeave ? (
+            confirmingLeave ? (
+              <span className="event-card__leave-confirm">
+                <span>{t('events.leaveConfirmShort')}</span>
+                <button type="button" onClick={() => setConfirmingLeave(false)}>{t('common.cancel')}</button>
+                <button type="button" className="event-card__leave-confirm-action" onClick={() => {
+                  setConfirmingLeave(false);
+                  onLeave();
+                }}>{t('events.leave')}</button>
+              </span>
+            ) : (
+              <button type="button" className="event-card__leave" onClick={() => setConfirmingLeave(true)}>
+                {t('events.leave').toUpperCase()}
+              </button>
+            )
+          ) : (
+            <button
+              type="button"
+              className={`event-card__join${
+                event.isJoinedByCurrentUser ? " event-card__join--joined" : ""
+              }`}
+              onClick={onJoin}
+              disabled={event.isJoinedByCurrentUser || event.joinRequestStatus === 'Pending'}
+            >
+              {event.isJoinedByCurrentUser
+                ? t('events.joined').toUpperCase()
+                : event.joinRequestStatus === 'Pending'
+                  ? t('events.requestPending').toUpperCase()
+                  : t('events.join').toUpperCase()}
+            </button>
+          )}
           {event.joinRequestStatus === 'Pending' && (
             <button type="button" className="event-card__cancel-request" onClick={onCancelJoinRequest}>
               {t('events.cancelRequest')}
@@ -1559,7 +1604,8 @@ function mapApiEvent(event) {
     isJoinedByCurrentUser: Boolean(
       event.isJoinedByCurrentUser ?? event.IsJoinedByCurrentUser,
     ),
-    isOrganizer: Boolean(event.isOrganizer ?? event.IsOrganizer),
+    isOrganizer: Boolean(event.isOrganizer ?? event.IsOrganizer ?? event.isCreator ?? event.IsCreator),
+    isCreator: Boolean(event.isCreator ?? event.IsCreator ?? event.isOrganizer ?? event.IsOrganizer),
     requiresParticipantApproval: Boolean(event.requiresParticipantApproval ?? event.RequiresParticipantApproval),
     joinRequestStatus: event.joinRequestStatus ?? event.JoinRequestStatus ?? null,
     pendingJoinRequestsCount: event.pendingJoinRequestsCount ?? event.PendingJoinRequestsCount ?? 0,
@@ -1720,6 +1766,12 @@ function looksLikeBackendException(body) {
 function isValidEventId(value) {
   const id = Number(value);
   return Number.isInteger(id) && id > 0;
+}
+
+function getCurrentUserIdFromToken() {
+  const payload = readJwtPayload();
+  const value = payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ?? payload?.nameid ?? payload?.sub;
+  return value == null ? null : Number(value);
 }
 
 export default Profile;

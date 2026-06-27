@@ -6,6 +6,8 @@ import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
 import UserActionsMenu from '../../components/UserActionsMenu';
 import ProfileStats from '../../components/profile/ProfileStats';
+import FollowListModal from '../../components/profile/FollowListModal';
+import { readJwtPayload } from '../../services/guestSession';
 import './Profile.css';
 
 function PublicProfile() {
@@ -33,10 +35,11 @@ function PublicProfile() {
   const [ratingSaving, setRatingSaving] = useState(false);
   const [ratingError, setRatingError] = useState("");
   const [ratingSuccess, setRatingSuccess] = useState("");
-  const [selectedEventId, setSelectedEventId] = useState("");
-  const [editingRatingId, setEditingRatingId] = useState(null);
-  const [editingRatingValue, setEditingRatingValue] = useState(0);
+  const [ratingDraftValue, setRatingDraftValue] = useState(0);
+  const [isEditingRating, setIsEditingRating] = useState(false);
   const [originalRatingValue, setOriginalRatingValue] = useState(0);
+  const [followListType, setFollowListType] = useState(null);
+  const currentUserId = getCurrentUserIdFromToken();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,8 +118,10 @@ function PublicProfile() {
         if (!response.ok) throw new Error('RATING_STATUS_FAILED');
         const data = await response.json();
         setRatingStatus(data);
-        const unratedEvent = data.eligibleEvents?.find(event => event.myRating == null);
-        setSelectedEventId(unratedEvent?.eventId ? String(unratedEvent.eventId) : "");
+        const myRating = getMyRating(data);
+        setRatingDraftValue(Number(myRating?.rating || 0));
+        setOriginalRatingValue(Number(myRating?.rating || 0));
+        setIsEditingRating(false);
       } catch (err) {
         if (err.name !== "AbortError") setRatingError(t('ratingErrors.load'));
       } finally {
@@ -155,7 +160,7 @@ function PublicProfile() {
     }
   };
 
-  const saveRating = async (value) => {
+  const saveRating = async () => {
     if (!ratingStatus?.canRate || ratingSaving) return;
     setRatingSaving(true);
     setRatingError("");
@@ -168,15 +173,16 @@ function PublicProfile() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          eventId: selectedEventId ? Number(selectedEventId) : null,
-          rating: value,
+          rating: ratingDraftValue,
         }),
       });
       if (!response.ok) throw new Error('RATING_SAVE_FAILED');
       const updatedStatus = await response.json();
       setRatingStatus(updatedStatus);
-      const nextUnratedEvent = updatedStatus.eligibleEvents?.find(event => event.myRating == null);
-      setSelectedEventId(nextUnratedEvent?.eventId ? String(nextUnratedEvent.eventId) : "");
+      const updatedRating = getMyRating(updatedStatus);
+      setRatingDraftValue(Number(updatedRating?.rating || 0));
+      setOriginalRatingValue(Number(updatedRating?.rating || 0));
+      setIsEditingRating(false);
       setRatingSuccess(t('publicProfile.ratingSaved'));
     } catch {
       setRatingError(t('ratingErrors.save'));
@@ -187,49 +193,61 @@ function PublicProfile() {
 
   const beginRatingEdit = (rating) => {
     const value = Number(rating.rating);
-    setEditingRatingId(rating.id);
-    setEditingRatingValue(value);
+    setIsEditingRating(true);
+    setRatingDraftValue(value);
     setOriginalRatingValue(value);
     setRatingError("");
     setRatingSuccess("");
   };
 
   const cancelRatingEdit = () => {
-    setEditingRatingId(null);
-    setEditingRatingValue(originalRatingValue);
+    setIsEditingRating(false);
+    setRatingDraftValue(originalRatingValue);
     setRatingError("");
   };
 
+  const handleRatingDraftChange = (value) => {
+    setRatingDraftValue(value);
+    setRatingError("");
+    setRatingSuccess("");
+  };
+
   const updateRating = async () => {
-    if (!editingRatingId || ratingSaving || editingRatingValue === originalRatingValue) return;
+    if (!isEditingRating || ratingSaving || ratingDraftValue === originalRatingValue) return;
     setRatingSaving(true);
     setRatingError("");
     setRatingSuccess("");
     try {
-      const response = await fetch(`/api/user-ratings/${editingRatingId}`, {
+      const response = await fetch(`/api/Users/${id}/rating`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ score: editingRatingValue }),
+        body: JSON.stringify({ score: ratingDraftValue }),
       });
-      if (!response.ok) throw new Error('RATING_UPDATE_FAILED');
-      setRatingStatus(await response.json());
-      setEditingRatingId(null);
+      const body = await response.text();
+      if (!response.ok) {
+        console.error("Rating update failed", { status: response.status, body });
+        throw new Error(body || t('publicProfile.ratingUpdateError'));
+      }
+      const updatedStatus = body ? JSON.parse(body) : null;
+      const updatedRating = getMyRating(updatedStatus);
+      if (!updatedStatus || !updatedRating) throw new Error(t('publicProfile.ratingUpdateError'));
+      setRatingStatus(updatedStatus);
+      setRatingDraftValue(Number(updatedRating?.rating || ratingDraftValue));
+      setOriginalRatingValue(Number(updatedRating?.rating || ratingDraftValue));
+      setIsEditingRating(false);
       setRatingSuccess(t('publicProfile.ratingUpdated'));
-    } catch {
-      setRatingError(t('publicProfile.ratingUpdateError'));
+    } catch (err) {
+      setRatingError(err.message || t('publicProfile.ratingUpdateError'));
     } finally {
       setRatingSaving(false);
     }
   };
 
   const initials = useMemo(() => getInitials(profile?.username || ""), [profile?.username]);
-  const selectedRatingEvent = ratingStatus?.eligibleEvents?.find(
-    (event) => String(event.eventId) === selectedEventId,
-  );
-  const unratedEligibleEvents = ratingStatus?.eligibleEvents?.filter((event) => event.myRating == null) || [];
+  const currentUserRating = getMyRating(ratingStatus);
 
   if (loading) {
     return <main className="public-profile"><div className="public-profile__state">{t('publicProfile.loading')}</div></main>;
@@ -282,8 +300,12 @@ function PublicProfile() {
               {profile.age != null ? ` · ${profile.age}` : ""}
             </span>
             <div className="public-profile__social-counts">
-              <span><strong>{profile.followersCount || 0}</strong> {t('publicProfile.followers')}</span>
-              <span><strong>{profile.followingCount || 0}</strong> {t('publicProfile.followingCount')}</span>
+              <button type="button" onClick={() => setFollowListType('followers')}>
+                <strong>{profile.followersCount || 0}</strong> {t('publicProfile.followers')}
+              </button>
+              <button type="button" onClick={() => setFollowListType('following')}>
+                <strong>{profile.followingCount || 0}</strong> {t('publicProfile.followingCount')}
+              </button>
             </div>
           </div>
           <div className="public-profile__actions">
@@ -348,62 +370,49 @@ function PublicProfile() {
           {!ratingLoading && ratingStatus && (
             <>
               <RatingStars value={Number(ratingStatus.averageRating || 0)} label={t('publicProfile.averageRating')} />
-              {ratingStatus.myRatings?.length > 0 && (
+              {currentUserRating && (
                 <div className="public-profile__my-ratings">
-                  <strong>{ratingStatus.myRatings.length === 1
-                    ? `${t('publicProfile.yourRating')}: ${Number(ratingStatus.myRatings[0].rating).toFixed(1)} / 5`
-                    : t('publicProfile.yourRatings')}</strong>
-                  {ratingStatus.myRatings.map((rating) => (
-                    <div className="public-profile__my-rating" key={rating.id}>
-                      <div className="public-profile__my-rating-info">
-                        <span>{rating.encounterTitle || rating.encounterType}</span>
-                        <small>{formatRatingEventDate(rating.encounterAt)} · {Number(rating.rating).toFixed(1)} / 5</small>
-                      </div>
-                      {editingRatingId === rating.id ? (
-                        <div className="public-profile__rating-edit-form">
-                          <RatingStars value={editingRatingValue} interactive disabled={ratingSaving}
-                            label={t('publicProfile.yourRating')} onChange={setEditingRatingValue} />
-                          <div>
-                            <button type="button" className="public-profile__rating-save" onClick={updateRating}
-                              disabled={ratingSaving || editingRatingValue === originalRatingValue}>
-                              {t('publicProfile.saveChanges')}
-                            </button>
-                            <button type="button" className="public-profile__rating-cancel" onClick={cancelRatingEdit}
-                              disabled={ratingSaving}>{t('common.cancel')}</button>
-                          </div>
+                  <strong>{t('publicProfile.yourRating')}: {Number(currentUserRating.rating).toFixed(1)} / 5</strong>
+                  <div className="public-profile__my-rating">
+                    {isEditingRating ? (
+                      <div className="public-profile__rating-edit-form">
+                        <RatingStars value={ratingDraftValue} interactive disabled={ratingSaving}
+                          label={t('publicProfile.yourRating')} onChange={handleRatingDraftChange} />
+                        <div>
+                          <button type="button" className="public-profile__rating-save" onClick={updateRating}
+                            disabled={ratingSaving || ratingDraftValue === originalRatingValue}>
+                            {ratingSaving ? t('common.working') : t('publicProfile.saveChanges')}
+                          </button>
+                          <button type="button" className="public-profile__rating-cancel" onClick={cancelRatingEdit}
+                            disabled={ratingSaving}>{t('common.cancel')}</button>
                         </div>
-                      ) : (
-                        <button type="button" className="public-profile__rating-edit" onClick={() => beginRatingEdit(rating)}
-                          disabled={ratingSaving || editingRatingId != null}>
+                      </div>
+                    ) : (
+                      <>
+                        <RatingStars value={Number(currentUserRating.rating || 0)}
+                          label={t('publicProfile.yourRating')} />
+                        <button type="button" className="public-profile__rating-edit" onClick={() => beginRatingEdit(currentUserRating)}
+                          disabled={ratingSaving || isEditingRating}>
                           <Pencil size={13} />{t('publicProfile.editRating')}
                         </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {ratingStatus.canRate ? (
-                <div className="public-profile__rating-editor">
-                  {unratedEligibleEvents.length > 1 && (
-                    <label><span>{t('publicProfile.chooseEvent')}</span>
-                      <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)}>
-                        {unratedEligibleEvents.map((event) => (
-                          <option key={event.eventId} value={event.eventId}>{event.title} — {formatRatingEventDate(event.dateTime)}</option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                  {selectedRatingEvent && unratedEligibleEvents.length === 1 && (
-                    <p className="public-profile__rating-event">{t('publicProfile.basedOn')} <strong>{selectedRatingEvent.title}</strong></p>
-                  )}
-                  <span className="public-profile__rating-label">{t('publicProfile.yourRating')}</span>
-                  <div className="public-profile__rating-input">
-                    <RatingStars value={Number(selectedRatingEvent?.myRating ?? ratingStatus.myRating ?? 0)} interactive
-                      disabled={ratingSaving} label={t('publicProfile.yourRating')} onChange={saveRating} />
-                    <button type="button" disabled={ratingSaving} onClick={() => saveRating(0)}>0</button>
+                      </>
+                    )}
                   </div>
                 </div>
-              ) : (
+              )}
+              {ratingStatus.canRate && !currentUserRating ? (
+                <div className="public-profile__rating-editor">
+                  <span className="public-profile__rating-label">{t('publicProfile.yourRating')}</span>
+                  <div className="public-profile__rating-input">
+                    <RatingStars value={ratingDraftValue} interactive
+                      disabled={ratingSaving} label={t('publicProfile.yourRating')} onChange={handleRatingDraftChange} />
+                    <button type="button" disabled={ratingSaving} onClick={() => handleRatingDraftChange(0)}>0</button>
+                    <button type="button" className="public-profile__rating-save" disabled={ratingSaving} onClick={saveRating}>
+                      {t('publicProfile.saveRating')}
+                    </button>
+                  </div>
+                </div>
+              ) : !currentUserRating && (
                 <p className="public-profile__rating-hint">{ratingStatus.reason || t('publicProfile.ratingHint')}</p>
               )}
             </>
@@ -468,6 +477,10 @@ function PublicProfile() {
         </article>
 
       </section>
+      {followListType && (
+        <FollowListModal userId={profile.id} currentUserId={currentUserId}
+          type={followListType} onClose={() => setFollowListType(null)} />
+      )}
     </main>
   );
 }
@@ -500,9 +513,11 @@ function RatingStars({ value, interactive = false, disabled = false, onChange, l
   );
 }
 
-function formatRatingEventDate(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
+function getMyRating(status) {
+  if (!status) return null;
+  if (status.myRating && typeof status.myRating === 'object') return status.myRating;
+  if (Array.isArray(status.myRatings) && status.myRatings.length > 0) return status.myRatings[0];
+  return null;
 }
 
 function getInitials(value) {
@@ -512,6 +527,12 @@ function getInitials(value) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "MY";
+}
+
+function getCurrentUserIdFromToken() {
+  const payload = readJwtPayload();
+  const value = payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ?? payload?.nameid ?? payload?.sub;
+  return value == null ? null : Number(value);
 }
 
 export default PublicProfile;

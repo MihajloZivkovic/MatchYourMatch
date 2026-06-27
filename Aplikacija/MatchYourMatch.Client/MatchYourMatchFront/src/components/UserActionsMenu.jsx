@@ -92,6 +92,6 @@ export default function UserActionsMenu({ userId, username, context='profile', a
       message={`${username}: ${pending==='block'?t('userActions.blockText'):t('userActions.hideText')}`}
       confirmText={pending==='block'?t('userActions.block'):t('userActions.hide')} variant="danger" errorMessage={error}
       onConfirm={run} onCancel={() => { setPending(null); setError(''); }}/>
-    <ReportUserModal open={report} username={username} onClose={() => setReport(false)}/>
+    <ReportUserModal open={report} userId={userId} username={username} onClose={() => setReport(false)}/>
   </div>;
 }

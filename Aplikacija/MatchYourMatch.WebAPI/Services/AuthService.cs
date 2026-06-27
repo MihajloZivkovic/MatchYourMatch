@@ -17,7 +17,6 @@ namespace MatchYourMatch.WebAPI.Services
         private readonly AppDbContext _context;
         private readonly EmailService _emailService;
         private readonly GoogleTokenValidator _googleTokenValidator;
-        private readonly FacebookTokenValidator _facebookTokenValidator;
         private readonly MicrosoftTokenValidator _microsoftTokenValidator;
 
         private readonly string _issuer;
@@ -26,14 +25,13 @@ namespace MatchYourMatch.WebAPI.Services
         private readonly int _expires;
 
         public AuthService(IConfiguration config, AppDbContext context, EmailService service,
-            GoogleTokenValidator googleTokenValidator, FacebookTokenValidator facebookTokenValidator,
+            GoogleTokenValidator googleTokenValidator,
             MicrosoftTokenValidator microsoftTokenValidator)
         {
             _config = config;
             _context = context;
             _emailService = service;
             _googleTokenValidator = googleTokenValidator;
-            _facebookTokenValidator = facebookTokenValidator;
             _microsoftTokenValidator = microsoftTokenValidator;
 
             _issuer = _config["JwtSettings:Issuer"]!;
@@ -164,6 +162,27 @@ namespace MatchYourMatch.WebAPI.Services
             };
         }
 
+        public GuestSessionResponseDto CreateGuestSession(GuestLoginDto dto)
+        {
+            var city = dto.City.Trim();
+            if (string.IsNullOrWhiteSpace(city))
+                throw new Exception("City is required.");
+
+            var guestId = $"guest-{Guid.NewGuid():N}";
+            var expiry = DateTime.UtcNow.AddHours(4);
+
+            return new GuestSessionResponseDto
+            {
+                Token = GenerateGuestToken(guestId, city, expiry),
+                AccessTokenExpiry = expiry,
+                User = new GuestUserDto
+                {
+                    Id = guestId,
+                    City = city
+                }
+            };
+        }
+
         private string GenerateToken(User user, DateTime expiry)
         {
             var profileComplete = user.Profile?.DateOfBirth != null;
@@ -183,6 +202,31 @@ namespace MatchYourMatch.WebAPI.Services
                 issuer: _issuer,
                 audience: _audience,
                 claims: _claims,
+                expires: expiry,
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private string GenerateGuestToken(string guestId, string city, DateTime expiry)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, guestId),
+                new Claim(ClaimTypes.Role, "Guest"),
+                new Claim("userType", "Guest"),
+                new Claim("guestCity", city),
+                new Claim("profileComplete", "true")
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _issuer,
+                audience: _audience,
+                claims: claims,
                 expires: expiry,
                 signingCredentials: creds
             );
@@ -237,12 +281,6 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task<AuthInfoDto> GoogleLoginAsync(ExternalLoginDto dto)
         {
             var identity = await _googleTokenValidator.ValidateAsync(dto.IdToken);
-            return await SignInExternalAsync(identity);
-        }
-
-        public async Task<AuthInfoDto> FacebookLoginAsync(ExternalLoginDto dto)
-        {
-            var identity = await _facebookTokenValidator.ValidateAsync(dto.AccessToken);
             return await SignInExternalAsync(identity);
         }
 

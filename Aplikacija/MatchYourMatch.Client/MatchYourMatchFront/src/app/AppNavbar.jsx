@@ -6,6 +6,7 @@ import NotificationsDropdown from "../components/notifications/NotificationsDrop
 import ThemeMenu from "../components/ThemeMenu";
 import { useTranslation } from "../hooks/useTranslation";
 import { logoutAndRedirect } from "../services/authSession";
+import { isGuestSession } from "../services/guestSession";
 import { notificationService, NOTIFICATIONS_CHANGED_EVENT } from "../services/notificationService";
 import "./AppNavbar.css";
 
@@ -16,8 +17,13 @@ function AppNavbar(props) {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const isGuest = props.currentUser?.role === "Guest" || isGuestSession();
 
   const loadUnreadNotifications = useCallback(async () => {
+    if (isGuest) {
+      setNotificationUnread(0);
+      return;
+    }
     if (!localStorage.getItem('token')) {
       setNotificationUnread(0);
       return;
@@ -25,8 +31,8 @@ function AppNavbar(props) {
     try {
       const data = await notificationService.unreadCount();
       setNotificationUnread(Math.max(0, Number(data?.count) || 0));
-    } catch { /* global session handling owns 401; polling stays quiet */ }
-  }, []);
+    } catch { /* Session handling owns 401; polling stays quiet. */ }
+  }, [isGuest]);
 
   useEffect(() => {
     loadUnreadNotifications();
@@ -68,42 +74,42 @@ function AppNavbar(props) {
   return (
     <header className="app-navbar">
       <nav className="app-navbar__inner">
-        <Link to="/app/dashboard" className="app-navbar__logo">
+        <Link to={isGuest ? "/app/events" : "/app/dashboard"} className="app-navbar__logo">
           <span className="app-navbar__logo-m">M</span>
           <span className="app-navbar__logo-accent">Y</span>
           <span className="app-navbar__logo-m">M</span>
         </Link>
 
-        <div className="app-navbar__search">
+        {!isGuest && <div className="app-navbar__search">
           <GlobalSearch />
-        </div>
+        </div>}
 
         <div className="app-navbar__center">
-          <NavLink to="/app/quick-match" className={navLinkClass}>
+          {!isGuest && <NavLink to="/app/quick-match" className={navLinkClass}>
             {t('nav.quickMatch').toUpperCase()}
-          </NavLink>
-          <NavLink to="/app/deep-match" className={navLinkClass}>
+          </NavLink>}
+          {!isGuest && <NavLink to="/app/deep-match" className={navLinkClass}>
             {t('nav.deepMatch').toUpperCase()}
-          </NavLink>
+          </NavLink>}
           <NavLink to="/app/events" className={navLinkClass}>
             {t('nav.events').toUpperCase()}
           </NavLink>
-          <NavLink to="/app/chat" className={navLinkClass}>
+          {!isGuest && <NavLink to="/app/chat" className={navLinkClass}>
             {t('nav.chat').toUpperCase()}
-          </NavLink>
+          </NavLink>}
         </div>
 
         <div className="app-navbar__right">
           <ThemeMenu variant="app" />
 
-          <Link to="/app/events/create" className="app-navbar__create">
+          {!isGuest && <Link to="/app/events/create" className="app-navbar__create">
             + {t('nav.createEvent').toUpperCase()}
-          </Link>
+          </Link>}
 
-          <NotificationsDropdown unread={notificationUnread} onUnreadChange={setNotificationUnread}
-            onRefreshUnread={loadUnreadNotifications} />
+          {!isGuest && <NotificationsDropdown unread={notificationUnread} onUnreadChange={setNotificationUnread}
+            onRefreshUnread={loadUnreadNotifications} />}
 
-          <div className="app-navbar__profile-wrap" ref={dropdownRef}>
+          {!isGuest && <div className="app-navbar__profile-wrap" ref={dropdownRef}>
             <button
               type="button"
               className="app-navbar__avatar"
@@ -126,7 +132,13 @@ function AppNavbar(props) {
                 </button>
               </div>
             )}
-          </div>
+          </div>}
+
+          {isGuest && (
+            <button type="button" className="app-navbar__drawer-logout app-navbar__guest-exit" onClick={handleLogout}>
+              {t('guest.exit')}
+            </button>
+          )}
 
           <button
             type="button"
@@ -142,27 +154,27 @@ function AppNavbar(props) {
       <div
         className={`app-navbar__drawer${menuOpen ? " app-navbar__drawer--open" : ""}`}
       >
-        <div className="app-navbar__drawer-search">
+        {!isGuest && <div className="app-navbar__drawer-search">
           <GlobalSearch onNavigate={() => setMenuOpen(false)} />
-        </div>
+        </div>}
 
-        <NotificationsDropdown mobile unread={notificationUnread} onUnreadChange={setNotificationUnread}
-          onRefreshUnread={loadUnreadNotifications} onNavigate={() => setMenuOpen(false)} />
+        {!isGuest && <NotificationsDropdown mobile unread={notificationUnread} onUnreadChange={setNotificationUnread}
+          onRefreshUnread={loadUnreadNotifications} onNavigate={() => setMenuOpen(false)} />}
 
-        <NavLink
+        {!isGuest && <NavLink
           to="/app/quick-match"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.quickMatch').toUpperCase()}
-        </NavLink>
-        <NavLink
+        </NavLink>}
+        {!isGuest && <NavLink
           to="/app/deep-match"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.deepMatch').toUpperCase()}
-        </NavLink>
+        </NavLink>}
         <NavLink
           to="/app/events"
           className={navLinkClass}
@@ -170,41 +182,41 @@ function AppNavbar(props) {
         >
           {t('nav.events').toUpperCase()}
         </NavLink>
-        <NavLink
+        {!isGuest && <NavLink
           to="/app/chat"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.chat').toUpperCase()}
-        </NavLink>
-        <Link
+        </NavLink>}
+        {!isGuest && <Link
           to="/app/events/create"
           className="app-navbar__drawer-create"
           onClick={() => setMenuOpen(false)}
         >
           + {t('nav.createEvent').toUpperCase()}
-        </Link>
-        <Link
+        </Link>}
+        {!isGuest && <Link
           to="/app/profile"
           className="app-navbar__drawer-link"
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.myProfile')}
-        </Link>
-        <Link
+        </Link>}
+        {!isGuest && <Link
           to="/app/settings"
           className="app-navbar__drawer-link"
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.settings')}
-        </Link>
+        </Link>}
         <ThemeMenu variant="app" layout="drawer" />
         <button
           type="button"
           className="app-navbar__drawer-logout"
           onClick={handleLogout}
         >
-          {t('nav.logout')}
+          {isGuest ? t('guest.exit') : t('nav.logout')}
         </button>
       </div>
       {menuOpen && (

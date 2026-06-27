@@ -525,6 +525,20 @@
   background: rgba(244, 163, 0, 0.08);
 }
 
+.app-navbar__guest-exit {
+  display: none;
+  margin-top: 0;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (min-width: 900px) {
+  .app-navbar__guest-exit {
+    display: inline-flex;
+  }
+}
+
 .app-navbar__overlay {
   position: fixed;
   inset: 0;

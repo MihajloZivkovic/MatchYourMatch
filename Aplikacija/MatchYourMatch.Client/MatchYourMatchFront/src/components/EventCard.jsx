@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { MapPin, Clock, Pencil, UserPlus, Users } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import UserAvatar from './UserAvatar';
 import EventSaveButton from './events/EventSaveButton';
 
-function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
+function EventCard({ event, style, mini = false, guestMode = false, onJoin, onLeave, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
   const { t } = useTranslation();
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const {
     title,
     category,
@@ -18,6 +20,7 @@ function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, on
     isJoinedByCurrentUser = false,
     joinRequestStatus,
   } = event;
+  const isEventOwner = Boolean(event.isCreator || event.isOrganizer);
   const extra = Math.max(0, attendeeCount - attendees.length);
 
   if (mini) {
@@ -35,7 +38,7 @@ function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, on
           }
         }}
       >
-        <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} className="event-card__save" />
+        {!guestMode && <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} className="event-card__save" />}
         <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <h4 className="event-card__title event-card__title--mini">{title}</h4>
         <p className="event-card__meta-mini">
@@ -62,7 +65,7 @@ function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, on
       <div className="event-card__top">
         <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
         <span className="event-card__top-actions">
-          <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} />
+          {!guestMode && <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} />}
           <span className="event-card__date-pill">{date}</span>
         </span>
       </div>
@@ -98,14 +101,42 @@ function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, on
           {extra > 0 && <span className="event-card__more">{t('events.more', { count: extra })}</span>}
         </div>
         <div className="event-card__actions">
-          {onEdit && <button type="button" className="event-card__edit" onClick={clickEvent => { clickEvent.stopPropagation(); onEdit(); }}><Pencil size={13}/>{t('common.edit')}</button>}
-          {isJoinedByCurrentUser && onInvite && (
+          {!guestMode && onEdit && <button type="button" className="event-card__edit" onClick={clickEvent => { clickEvent.stopPropagation(); onEdit(); }}><Pencil size={13}/>{t('common.edit')}</button>}
+          {!guestMode && isJoinedByCurrentUser && onInvite && (
             <button type="button" className="event-card__invite" onClick={(clickEvent) => {
               clickEvent.stopPropagation();
               onInvite();
             }}><UserPlus size={14} />{t('notifications.invite').toUpperCase()}</button>
           )}
-          <button
+          {guestMode ? (
+            <span className="event-card__guest-note">{t('guest.createAccountToJoin')}</span>
+          ) : isJoinedByCurrentUser && !isEventOwner && onLeave ? (
+            confirmingLeave ? (
+              <span className="event-card__leave-confirm">
+                <span>{t('events.leaveConfirmShort')}</span>
+                <button type="button" onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  setConfirmingLeave(false);
+                }}>{t('common.cancel')}</button>
+                <button type="button" className="event-card__leave-confirm-action" onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  setConfirmingLeave(false);
+                  onLeave();
+                }}>{t('events.leave')}</button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="event-card__leave"
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  setConfirmingLeave(true);
+                }}
+              >
+                {t('events.leave').toUpperCase()}
+              </button>
+            )
+          ) : <button
             type="button"
             className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
             onClick={(clickEvent) => {
@@ -119,8 +150,8 @@ function EventCard({ event, style, mini = false, onJoin, onCancelJoinRequest, on
               : joinRequestStatus === 'Pending'
                 ? t('events.requestPending').toUpperCase()
                 : t('events.join').toUpperCase()}
-          </button>
-          {joinRequestStatus === 'Pending' && onCancelJoinRequest && (
+          </button>}
+          {!guestMode && joinRequestStatus === 'Pending' && onCancelJoinRequest && (
             <button type="button" className="event-card__cancel-request"
               onClick={(clickEvent)=>{ clickEvent.stopPropagation(); onCancelJoinRequest(); }}>
               {t('events.cancelRequest')}

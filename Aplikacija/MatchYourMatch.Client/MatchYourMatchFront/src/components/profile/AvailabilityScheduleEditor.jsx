@@ -16,7 +16,32 @@ const defaultDraftByDay = days.reduce((acc, day) => {
   return acc;
 }, {});
 
-const formatTime = (value) => (value ? value.slice(0, 5) : '');
+const duplicateSlotMessageKey = 'profileUi.duplicateSlot';
+
+const formatTime = (value) => normalizeTime(value);
+
+const normalizeTime = (value) => {
+  if (!value) return '';
+  const timePart = String(value).split('-')[0].trim();
+  const [hours = '', minutes = ''] = timePart.split(':');
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+};
+
+const getSlotKey = (slot) =>
+  `${Number(slot.dayOfWeek)}|${normalizeTime(slot.startTime)}|${normalizeTime(slot.endTime)}`;
+
+const hasDuplicateSlot = (slots, candidate) =>
+  slots.some((slot) => getSlotKey(slot) === getSlotKey(candidate));
+
+const hasAnyDuplicateSlot = (slots) => {
+  const seen = new Set();
+  return slots.some((slot) => {
+    const key = getSlotKey(slot);
+    if (seen.has(key)) return true;
+    seen.add(key);
+    return false;
+  });
+};
 
 const normalizeSlots = (slots) =>
   slots
@@ -108,25 +133,31 @@ function AvailabilityScheduleEditor() {
 
   const addSlotForDay = (dayOfWeek) => {
     const draft = dayDrafts[dayOfWeek];
+    const candidate = {
+      dayOfWeek,
+      startTime: normalizeTime(draft?.startTime),
+      endTime: normalizeTime(draft?.endTime),
+    };
 
-    if (!draft?.startTime || !draft?.endTime) {
+    if (!candidate.startTime || !candidate.endTime) {
       setError('Choose both start and end time before adding availability.');
       return;
     }
 
-    if (draft.startTime >= draft.endTime) {
+    if (candidate.startTime >= candidate.endTime) {
       setError('Start time must be before end time.');
+      return;
+    }
+
+    if (hasDuplicateSlot(draftSlots, candidate)) {
+      setError(t(duplicateSlotMessageKey));
       return;
     }
 
     setDraftSlots((current) =>
       normalizeSlots([
         ...current,
-        {
-          dayOfWeek,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-        },
+        candidate,
       ]),
     );
     setError('');
@@ -142,13 +173,20 @@ function AvailabilityScheduleEditor() {
         return seenInDay !== slotIndex;
       });
     });
+    setError('');
   };
 
   const saveSlots = async () => {
-    const invalid = draftSlots.some((slot) => !slot.startTime || !slot.endTime || slot.startTime >= slot.endTime);
+    const normalizedDraftSlots = normalizeSlots(draftSlots);
+    const invalid = normalizedDraftSlots.some((slot) => !slot.startTime || !slot.endTime || slot.startTime >= slot.endTime);
 
     if (invalid) {
       setError('Each availability interval needs a valid start and end time.');
+      return;
+    }
+
+    if (hasAnyDuplicateSlot(normalizedDraftSlots)) {
+      setError(t(duplicateSlotMessageKey));
       return;
     }
 
@@ -164,7 +202,7 @@ function AvailabilityScheduleEditor() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          slots: draftSlots.map((slot) => ({
+          slots: normalizedDraftSlots.map((slot) => ({
             dayOfWeek: Number(slot.dayOfWeek),
             startTime: slot.startTime,
             endTime: slot.endTime,

@@ -2,6 +2,7 @@ import { FaInstagram, FaYoutube } from 'react-icons/fa';
 import { FaXTwitter } from 'react-icons/fa6';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
+import GuestEntryButton from './GuestEntryButton';
 
 const socialLinks = [
   { href: 'https://instagram.com', label: 'Instagram', Icon: FaInstagram },
@@ -34,6 +35,7 @@ function Hero(props) {
         <a href="#match-in" className="btn btn--primary hero__cta-btn" onClick={() => navigate('/register')}>
           {t('landing.matchIn').toUpperCase()}
         </a>
+        <GuestEntryButton className="btn btn--outline hero__guest-btn" labelKey="guest.enter" uppercase />
         <span className="hero__cta-line" aria-hidden="true" />
       </div>
 

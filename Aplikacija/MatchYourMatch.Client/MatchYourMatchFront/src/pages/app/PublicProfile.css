@@ -161,7 +161,9 @@
 
 .public-profile__follow:disabled { cursor: wait; opacity: 0.65; transform: none; }
 .public-profile__social-counts { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.7rem; }
-.public-profile__social-counts span { margin: 0; font-size: 0.72rem; }
+.public-profile__social-counts button { margin: 0; padding: 0; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 0.72rem; text-align: left; cursor: pointer; }
+.public-profile__social-counts button:hover,
+.public-profile__social-counts button:focus-visible { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .public-profile__social-counts strong { color: var(--text); }
 .public-profile__action-error { grid-column: 1 / -1; margin: -0.4rem 0 0; color: #ff9b92; font-size: 0.72rem; }
 
@@ -332,6 +334,7 @@
 .public-profile__rating-input { display: flex; align-items: center; gap: 0.65rem; }
 .public-profile__rating-input > button { min-width: 34px; height: 30px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); color: var(--text-muted); font-size: 0.7rem; }
 .public-profile__rating-input > button:hover { color: var(--accent); border-color: rgba(244, 163, 0, 0.4); }
+.public-profile__rating-input > .public-profile__rating-save { height: auto; min-height: 34px; padding: 0 0.85rem; color: #111; }
 .public-profile__rating-hint { padding: 0.75rem; border-radius: var(--radius-sm); background: var(--color-input); font-size: 0.78rem !important; }
 .public-profile__my-ratings { display: grid; gap: 0.55rem; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-input); }
 .public-profile__my-ratings > strong { color: var(--text); font-size: 0.78rem; }

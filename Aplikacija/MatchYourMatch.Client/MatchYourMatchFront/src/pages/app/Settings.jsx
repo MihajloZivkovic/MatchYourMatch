@@ -3,6 +3,7 @@ import { Bell, Check, Languages, MessagesSquare, Monitor, Moon, Palette, ShieldC
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
+import ReportHistoryModal from '../../components/ReportHistoryModal';
 import { safetyService } from '../../services/safetyService';
 import './Settings.css';
 
@@ -27,6 +28,7 @@ function Settings() {
   const { language, setLanguage, t } = useTranslation();
   const [settings, setSettings] = useState(defaults); const [numberDrafts, setNumberDrafts] = useState(numberDraftsFrom(defaults)); const [loading, setLoading] = useState(true); const [message, setMessage] = useState('');
   const [safety, setSafety] = useState(null);
+  const [reportHistoryOpen, setReportHistoryOpen] = useState(false);
   useEffect(() => { fetch('/api/Settings/me',{headers:{Authorization:`Bearer ${token()}`}}).then(r=>r.ok?r.json():Promise.reject())
     .then(data=>{ setSettings(data); setNumberDrafts(numberDraftsFrom(data)); }).catch(()=>setMessage('Settings could not be loaded.')).finally(()=>setLoading(false)); },[]);
   const save = async next => { const previous=settings; setSettings(next); setMessage('Saving…');
@@ -66,7 +68,7 @@ function Settings() {
     </Card>
     <Card icon={MessagesSquare} title="Messages & contact" subtitle="Choose who can reach you."><Select field="whoCanMessageMe" label="Who can message me"/><Select field="allowEventInvitesFrom" label="Who can invite me to events" allowed={choices.filter(x=>x[0]!=='Followers')}/><Select field="allowGroupChatInvitesFrom" label="Who can add me to group chats" allowed={choices.filter(x=>x[0]!=='Followers')}/></Card>
     <Card icon={Bell} title="Notifications" subtitle="Choose what you want to be notified about.">{[['notifyEventInvites','Event invites'],['notifyNewFollowers','New followers'],['notifyQuickMatches','Quick Match matches'],['notifyChatMessages','Chat messages'],['notifyGroupMessages','Group chat messages'],['notifyEventDiscussionReplies','Event discussion replies'],['notifyNewEventNearby','New event nearby'],['notifyEventStartingSoon','Event starting soon'],['notifyNewMatchNearby','New match nearby']].map(([f,l])=><Toggle key={f} field={f} label={l}/>)}</Card>
-    <Card icon={ShieldCheck} title="Safety" subtitle="Manage blocked users, hidden profiles and reports."><div className="settings-row"><strong>Blocked users</strong><button className="settings-manage" onClick={()=>loadSafety('blocked-users')}>{safety?.type==='blocked-users'?'Close':'Manage'}</button></div><div className="settings-row"><strong>Hidden profiles</strong><button className="settings-manage" onClick={()=>loadSafety('hidden-profiles')}>{safety?.type==='hidden-profiles'?'Close':'Manage'}</button></div><div className="settings-row is-disabled"><strong>Report history</strong><span className="settings-soon">Coming soon</span></div>{safety&&<div className="settings-safety-list"><h3>{safety.type==='blocked-users'?'Blocked users':'Hidden profiles'}</h3>{safety.items.length===0?<p>No {safety.type==='blocked-users'?'blocked users':'hidden profiles'}.</p>:safety.items.map(x=><div key={x.userId}><UserAvatar profilePicture={x.profilePicture} initials={x.username.slice(0,2).toUpperCase()} className="settings-safety-avatar"/><span>{x.username}</span><button onClick={()=>removeSafety(x.userId)}>{safety.type==='blocked-users'?'Unblock':'Unhide'}</button></div>)}</div>}</Card>
-  </div></div>;
+    <Card icon={ShieldCheck} title="Safety" subtitle="Manage blocked users, hidden profiles and reports."><div className="settings-row"><strong>Blocked users</strong><button className="settings-manage" onClick={()=>loadSafety('blocked-users')}>{safety?.type==='blocked-users'?'Close':'Manage'}</button></div><div className="settings-row"><strong>Hidden profiles</strong><button className="settings-manage" onClick={()=>loadSafety('hidden-profiles')}>{safety?.type==='hidden-profiles'?'Close':'Manage'}</button></div><div className="settings-row"><strong>{t('reports.historyTitle')}</strong><button className="settings-manage" onClick={()=>setReportHistoryOpen(true)}>{t('common.view')}</button></div>{safety&&<div className="settings-safety-list"><h3>{safety.type==='blocked-users'?'Blocked users':'Hidden profiles'}</h3>{safety.items.length===0?<p>No {safety.type==='blocked-users'?'blocked users':'hidden profiles'}.</p>:safety.items.map(x=><div key={x.userId}><UserAvatar profilePicture={x.profilePicture} initials={x.username.slice(0,2).toUpperCase()} className="settings-safety-avatar"/><span>{x.username}</span><button onClick={()=>removeSafety(x.userId)}>{safety.type==='blocked-users'?'Unblock':'Unhide'}</button></div>)}</div>}</Card>
+  </div><ReportHistoryModal open={reportHistoryOpen} onClose={()=>setReportHistoryOpen(false)} /></div>;
 }
 export default Settings;

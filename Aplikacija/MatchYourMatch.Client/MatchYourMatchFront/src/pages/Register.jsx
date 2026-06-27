@@ -2,6 +2,7 @@ import { useActionState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "../hooks/useTranslation";
 import SocialAuthButtons from "../components/SocialAuthButtons";
+import GuestEntryButton from "../components/GuestEntryButton";
 
 const emptyValues = { fullName: "", username: "", email: "", password: "", confirmPassword: "", dateOfBirth: "" };
 
@@ -114,6 +115,7 @@ function Register() {
             <button type="submit" className="btn btn--primary auth__submit" disabled={isPending}>
               {(isPending ? t("common.loading") : t("auth.createAccount")).toUpperCase()}
             </button>
+            <GuestEntryButton className="btn btn--outline auth__guest" labelKey="guest.continue" />
             <p className="auth__switch">{t("auth.hasAccount")} <Link to="/login" className="auth__switch-link">{t("nav.login")}</Link></p>
           </form>
         </div>

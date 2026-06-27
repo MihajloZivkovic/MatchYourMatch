@@ -1186,7 +1186,7 @@ namespace MatchYourMatch.WebAPI.Migrations
 
                     b.HasIndex("RatedUserId");
 
-                    b.HasIndex("RaterUserId", "RatedUserId", "EventId")
+                    b.HasIndex("RaterUserId", "RatedUserId")
                         .IsUnique();
 
                     b.ToTable("UserRatings");
@@ -1603,7 +1603,7 @@ namespace MatchYourMatch.WebAPI.Migrations
                     b.HasOne("MatchYourMatch.WebAPI.Models.Event", "Event")
                         .WithMany("UserRatings")
                         .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("MatchYourMatch.WebAPI.Models.User", "RatedUser")
                         .WithMany("ReceivedRatings")
