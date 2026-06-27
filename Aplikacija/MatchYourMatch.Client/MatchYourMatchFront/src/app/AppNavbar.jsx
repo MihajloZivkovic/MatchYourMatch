@@ -210,7 +210,7 @@ function AppNavbar(props) {
         >
           {t('nav.settings')}
         </Link>}
-        <ThemeMenu variant="app" layout="drawer" />
+        <ThemeLang variant="app" layout="drawer" />
         <button
           type="button"
           className="app-navbar__drawer-logout"

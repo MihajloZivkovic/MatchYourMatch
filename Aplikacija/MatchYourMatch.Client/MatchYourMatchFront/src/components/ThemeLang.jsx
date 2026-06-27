@@ -18,7 +18,7 @@ function ThemeLang({ variant = 'public', layout = 'dropdown' }) {
   }, []);
 
   return (
-    <div className={`theme-lang theme-lang--${variant} theme-lang--${layout}`}>
+    <div>
       <button
         type='button'
         className='language-switcher__button adjust'
