@@ -1302,7 +1302,7 @@ function Profile(props) {
                   type="submit"
                   className={`saveButton${bioSaveButtonAnimating ? " saveAnimation" : ""}`}
                 >
-                  {!bioSaveButtonAnimating ? saveButtonText : "Saved!"}
+                  {!bioSaveButtonAnimating ? saveButtonText : `${t('profileUi.saved')}`}
                 </button>
               </form>
 
