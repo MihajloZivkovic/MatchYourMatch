@@ -18,6 +18,17 @@ function Login() {
     : '/admin/dashboard';
   const [vrstaGreske, setVrstaGreske] = useState("")
   const [reactivationCredentials, setReactivationCredentials] = useState(null);
+  const [resetPanel, setResetPanel] = useState({
+    open: false,
+    step: 'request',
+    email: '',
+    token: '',
+    newPassword: '',
+    confirmPassword: '',
+    loading: false,
+    message: '',
+    error: '',
+  });
   const [state, formAction] = useActionState(handleSubmit, {
     error: null,
     values: { email: "", password: "" }
@@ -71,6 +82,77 @@ function Login() {
     navigate(isAdminSession(data.accessToken) ? adminDestination : loginDestination, { replace: true });
   }
 
+  const updateResetPanel = (patch) => {
+    setResetPanel((current) => ({ ...current, ...patch }));
+  };
+
+  const requestPasswordReset = async () => {
+    const email = resetPanel.email.trim();
+    if (!email) {
+      updateResetPanel({ error: t('passwordReset.emailRequired'), message: '' });
+      return;
+    }
+
+    updateResetPanel({ loading: true, error: '', message: '' });
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      updateResetPanel({
+        step: 'reset',
+        loading: false,
+        email,
+        message: t('passwordReset.sent'),
+      });
+    } catch {
+      updateResetPanel({
+        loading: false,
+        error: t('passwordReset.requestError'),
+      });
+    }
+  };
+
+  const submitNewPassword = async () => {
+    const token = resetPanel.token.trim();
+    if (!token || !resetPanel.newPassword) {
+      updateResetPanel({ error: t('passwordReset.missingFields'), message: '' });
+      return;
+    }
+    if (resetPanel.newPassword !== resetPanel.confirmPassword) {
+      updateResetPanel({ error: t('auth.passwordsMismatch'), message: '' });
+      return;
+    }
+
+    updateResetPanel({ loading: true, error: '', message: '' });
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          newPassword: resetPanel.newPassword,
+        }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      updateResetPanel({
+        step: 'done',
+        loading: false,
+        token: '',
+        newPassword: '',
+        confirmPassword: '',
+        message: t('passwordReset.success'),
+      });
+    } catch {
+      updateResetPanel({
+        loading: false,
+        error: t('passwordReset.resetError'),
+      });
+    }
+  };
+
   return (
     <div className="page-fade-in">
       <main className="page__main page__main--auth">
@@ -122,6 +204,99 @@ function Login() {
                 autoComplete="current-password"
               />
             </div>
+
+            <button
+              type="button"
+              className="auth__forgot"
+              onClick={() =>
+                setResetPanel((current) => ({
+                  ...current,
+                  open: !current.open,
+                  email: current.email || state.values.email,
+                  error: '',
+                  message: '',
+                }))
+              }
+            >
+              {t('passwordReset.forgot')}
+            </button>
+
+            {resetPanel.open && (
+              <div className="auth__reset-panel">
+                <p>{t('passwordReset.copy')}</p>
+                {resetPanel.message && (
+                  <span className="auth__verification-success" role="status">
+                    {resetPanel.message}
+                  </span>
+                )}
+                {resetPanel.error && (
+                  <span className="auth__error" role="alert">
+                    {resetPanel.error}
+                  </span>
+                )}
+                {resetPanel.step === 'request' && (
+                  <>
+                    <input
+                      className="auth__input"
+                      type="email"
+                      value={resetPanel.email}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      onChange={(event) => updateResetPanel({ email: event.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn--outline auth__reset-action"
+                      disabled={resetPanel.loading}
+                      onClick={requestPasswordReset}
+                    >
+                      {resetPanel.loading ? t('common.loading') : t('passwordReset.send')}
+                    </button>
+                  </>
+                )}
+                {(resetPanel.step === 'reset' || resetPanel.step === 'done') && (
+                  <>
+                    <input
+                      className="auth__input"
+                      type="text"
+                      value={resetPanel.token}
+                      placeholder={t('passwordReset.token')}
+                      autoComplete="one-time-code"
+                      disabled={resetPanel.step === 'done'}
+                      onChange={(event) => updateResetPanel({ token: event.target.value })}
+                    />
+                    <input
+                      className="auth__input"
+                      type="password"
+                      value={resetPanel.newPassword}
+                      placeholder={t('passwordReset.newPassword')}
+                      autoComplete="new-password"
+                      disabled={resetPanel.step === 'done'}
+                      onChange={(event) => updateResetPanel({ newPassword: event.target.value })}
+                    />
+                    <input
+                      className="auth__input"
+                      type="password"
+                      value={resetPanel.confirmPassword}
+                      placeholder={t('passwordReset.confirmPassword')}
+                      autoComplete="new-password"
+                      disabled={resetPanel.step === 'done'}
+                      onChange={(event) => updateResetPanel({ confirmPassword: event.target.value })}
+                    />
+                    {resetPanel.step !== 'done' && (
+                      <button
+                        type="button"
+                        className="btn btn--outline auth__reset-action"
+                        disabled={resetPanel.loading}
+                        onClick={submitNewPassword}
+                      >
+                        {resetPanel.loading ? t('common.loading') : t('passwordReset.update')}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             <button type="submit" className="btn btn--primary auth__submit">
               {t('auth.signIn').toUpperCase()}

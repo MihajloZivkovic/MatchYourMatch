@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  EyeOff,
+  Flag,
+  Info,
   LogOut,
   RefreshCw,
   Search,
@@ -14,33 +17,50 @@ import {
   Users,
 } from 'lucide-react';
 import ConfirmModal from '../../components/ConfirmModal';
+import NotificationsDropdown from '../../components/notifications/NotificationsDropdown';
 import ThemeLang from '../../components/ThemeLang';
 import { useTranslation } from '../../hooks/useTranslation';
 import { logoutAndRedirect } from '../../services/authSession';
 import { adminService } from '../../services/adminService';
+import { readJwtPayload } from '../../services/guestSession';
+import {
+  notificationService,
+  NOTIFICATIONS_CHANGED_EVENT,
+} from '../../services/notificationService';
 import '../../app/app-global.css';
 import '../../app/app-polish.css';
 import './AdminDashboard.css';
 
 const USERS_PAGE_SIZE = 8;
 const EVENTS_PAGE_SIZE = 6;
+const REPORTS_PAGE_SIZE = 8;
 
 function AdminDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
-  const [activePanel, setActivePanel] = useState('users');
+  const [selectedPanel, setSelectedPanel] = useState('users');
+  const [notificationUnread, setNotificationUnread] = useState(0);
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [reports, setReports] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [reportsLoading, setReportsLoading] = useState(true);
   const [usersError, setUsersError] = useState('');
   const [eventsError, setEventsError] = useState('');
+  const [reportsError, setReportsError] = useState('');
   const [notice, setNotice] = useState('');
   const [userQuery, setUserQuery] = useState('');
   const [userStatus, setUserStatus] = useState('all');
   const [usersPage, setUsersPage] = useState(1);
   const [eventQuery, setEventQuery] = useState('');
+  const [eventStatus, setEventStatus] = useState('all');
   const [eventsPage, setEventsPage] = useState(1);
+  const [reportQuery, setReportQuery] = useState('');
+  const [reportStatus, setReportStatus] = useState('all');
+  const [reportsPage, setReportsPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmError, setConfirmError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -73,13 +93,73 @@ function AdminDashboard() {
     }
   }, [t]);
 
+  const loadReports = useCallback(async () => {
+    setReportsLoading(true);
+    setReportsError('');
+    try {
+      const data = await adminService.reports();
+      setReports(Array.isArray(data?.items) ? data.items : []);
+    } catch (error) {
+      setReports([]);
+      setReportsError(error.message || t('admin.errors.reportsLoad'));
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [t]);
+
+  const loadUnreadNotifications = useCallback(async () => {
+    if (!localStorage.getItem('token')) {
+      setNotificationUnread(0);
+      return;
+    }
+    try {
+      const data = await notificationService.unreadCount();
+      setNotificationUnread(Math.max(0, Number(data?.count) || 0));
+    } catch {
+      /* Session handling owns auth errors; navbar polling stays quiet. */
+    }
+  }, []);
+
   useEffect(() => {
     const initial = window.setTimeout(() => {
       loadUsers();
       loadEvents();
+      loadReports();
     }, 0);
     return () => window.clearTimeout(initial);
-  }, [loadEvents, loadUsers]);
+  }, [loadEvents, loadReports, loadUsers]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(loadUnreadNotifications, 0);
+    const interval = window.setInterval(loadUnreadNotifications, 15000);
+    const refresh = () => loadUnreadNotifications();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('tokenChanged', refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+      window.removeEventListener('tokenChanged', refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [loadUnreadNotifications]);
+
+  const requestedPanel = useMemo(
+    () => getRequestedAdminPanel(location.search),
+    [location.search],
+  );
+  const activePanel = requestedPanel || selectedPanel;
+
+  const selectPanel = (panel) => {
+    setSelectedPanel(panel);
+    if (location.search) navigate('/admin/dashboard', { replace: true });
+  };
 
   const filteredUsers = useMemo(() => {
     const query = userQuery.trim().toLowerCase();
@@ -97,26 +177,55 @@ function AdminDashboard() {
     });
   }, [userQuery, userStatus, users]);
 
+  const currentAdminId = useMemo(() => getCurrentUserId(), []);
+
   const filteredEvents = useMemo(() => {
     const query = eventQuery.trim().toLowerCase();
-    if (!query) return events;
     return events.filter((event) =>
-      [
-        event.title,
-        event.location,
-        event.category,
-        event.organizerUsername,
-        String(event.id),
-      ]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query)),
+      matchesEventStatus(event, eventStatus) &&
+      (!query ||
+        [
+          event.title,
+          event.location,
+          event.category,
+          event.organizerUsername,
+          event.eventType,
+          String(event.id),
+        ]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(query))),
     );
-  }, [eventQuery, events]);
+  }, [eventQuery, eventStatus, events]);
+
+  const filteredReports = useMemo(() => {
+    const query = reportQuery.trim().toLowerCase();
+    return reports.filter((report) => {
+      const statusKey = normalizeStatusKey(report.status);
+      const matchesStatus = reportStatus === 'all' || statusKey === reportStatus;
+      const matchesQuery =
+        !query ||
+        [
+          report.reporterUsername,
+          report.reporterDisplayName,
+          report.reportedUsername,
+          report.reportedDisplayName,
+          report.reason,
+          report.details,
+          report.status,
+          String(report.id),
+        ]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(query));
+      return matchesStatus && matchesQuery;
+    });
+  }, [reportQuery, reportStatus, reports]);
 
   const usersPageCount = Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE));
   const eventsPageCount = Math.max(1, Math.ceil(filteredEvents.length / EVENTS_PAGE_SIZE));
+  const reportsPageCount = Math.max(1, Math.ceil(filteredReports.length / REPORTS_PAGE_SIZE));
   const safeUsersPage = Math.min(usersPage, usersPageCount);
   const safeEventsPage = Math.min(eventsPage, eventsPageCount);
+  const safeReportsPage = Math.min(reportsPage, reportsPageCount);
 
   const pagedUsers = useMemo(
     () => paginate(filteredUsers, safeUsersPage, USERS_PAGE_SIZE),
@@ -128,18 +237,56 @@ function AdminDashboard() {
     [filteredEvents, safeEventsPage],
   );
 
-  const stats = useMemo(() => {
+  const pagedReports = useMemo(
+    () => paginate(filteredReports, safeReportsPage, REPORTS_PAGE_SIZE),
+    [filteredReports, safeReportsPage],
+  );
+
+  const statGroups = useMemo(() => {
     const activeUsers = users.filter((user) => user.isActive).length;
     const inactiveUsers = users.length - activeUsers;
+    const upcomingEvents = events.filter((event) => !isPastEvent(event)).length;
+    const pastEvents = events.length - upcomingEvents;
+    const pendingReports = reports.filter((report) => normalizeStatusKey(report.status) === 'pending').length;
+    const reviewedReports = reports.filter((report) => normalizeStatusKey(report.status) === 'reviewed').length;
+    const dismissedReports = reports.filter((report) => normalizeStatusKey(report.status) === 'dismissed').length;
+    const actionTakenReports = reports.filter((report) => normalizeStatusKey(report.status) === 'actionTaken').length;
     return [
-      { label: t('admin.stats.totalUsers'), value: users.length, Icon: Users },
-      { label: t('admin.stats.activeUsers'), value: activeUsers, Icon: UserCheck },
-      { label: t('admin.stats.inactiveUsers'), value: inactiveUsers, Icon: UserX },
-      { label: t('admin.stats.eventsVisible'), value: events.length, Icon: CalendarDays },
+      {
+        title: t('admin.nav.users'),
+        Icon: Users,
+        primary: users.length,
+        items: [
+          { label: t('admin.stats.activeUsers'), value: activeUsers },
+          { label: t('admin.stats.inactiveUsers'), value: inactiveUsers },
+        ],
+      },
+      {
+        title: t('admin.nav.events'),
+        Icon: CalendarDays,
+        primary: events.length,
+        items: [
+          { label: t('admin.stats.upcomingEvents'), value: upcomingEvents },
+          { label: t('admin.stats.pastEvents'), value: pastEvents },
+        ],
+      },
+      {
+        title: t('admin.nav.reports'),
+        Icon: Flag,
+        primary: reports.length,
+        items: [
+          { label: t('admin.stats.pendingReports'), value: pendingReports },
+          { label: t('admin.reports.statuses.reviewed'), value: reviewedReports },
+          { label: t('admin.reports.statuses.dismissed'), value: dismissedReports },
+          { label: t('admin.reports.statuses.actionTaken'), value: actionTakenReports },
+        ],
+      },
     ];
-  }, [events.length, t, users]);
+  }, [events, reports, t, users]);
 
   const requestUserAction = (type, user) => {
+    if (isSelfUser(user, currentAdminId)) return;
+
     const copy = {
       activate: {
         title: t('admin.confirm.activateTitle'),
@@ -172,6 +319,34 @@ function AdminDashboard() {
     });
   };
 
+  const updateReportStatus = async (report, status) => {
+    setActionLoading(true);
+    setNotice('');
+    try {
+      await adminService.updateReportStatus(report.id, status);
+      await loadReports();
+      await loadUnreadNotifications();
+      setNotice(t('admin.notices.reportUpdated'));
+    } catch (error) {
+      setNotice(error.message || t('admin.errors.actionFailed'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const requestBanReportedUser = (report) => {
+    setConfirmError('');
+    setConfirmAction({
+      type: 'banReportedUser',
+      target: report,
+      title: t('admin.confirm.banReportedUserTitle'),
+      message: t('admin.confirm.banReportedUserMessage', {
+        username: report.reportedUsername,
+      }),
+      confirmText: t('admin.actions.banReportedUser'),
+    });
+  };
+
   const runConfirmedAction = async () => {
     if (!confirmAction) return;
     setActionLoading(true);
@@ -194,6 +369,13 @@ function AdminDashboard() {
         await adminService.deleteEvent(confirmAction.target.id);
         await loadEvents();
         setNotice(t('admin.notices.eventDeleted', { title: confirmAction.target.title }));
+      } else if (confirmAction.type === 'banReportedUser') {
+        await adminService.deactivateUser(confirmAction.target.reportedUserId);
+        await adminService.updateReportStatus(confirmAction.target.id, 'Action taken');
+        await loadUsers();
+        await loadReports();
+        await loadUnreadNotifications();
+        setNotice(t('admin.notices.reportedUserBanned', { username: confirmAction.target.reportedUsername }));
       }
       setConfirmAction(null);
     } catch (error) {
@@ -228,19 +410,24 @@ function AdminDashboard() {
           <Search size={17} aria-hidden='true' />
           <input
             type='search'
-            value={activePanel === 'users' ? userQuery : eventQuery}
+            value={activePanel === 'users' ? userQuery : activePanel === 'events' ? eventQuery : reportQuery}
             placeholder={
               activePanel === 'users'
                 ? t('admin.search.users')
-                : t('admin.search.events')
+                : activePanel === 'events'
+                  ? t('admin.search.events')
+                  : t('admin.search.reports')
             }
             onChange={(event) => {
               if (activePanel === 'users') {
                 setUserQuery(event.target.value);
                 setUsersPage(1);
-              } else {
+              } else if (activePanel === 'events') {
                 setEventQuery(event.target.value);
                 setEventsPage(1);
+              } else {
+                setReportQuery(event.target.value);
+                setReportsPage(1);
               }
             }}
           />
@@ -251,18 +438,30 @@ function AdminDashboard() {
             title={t('admin.nav.users')}
             count={filteredUsers.length}
             Icon={Users}
-            onClick={() => setActivePanel('users')}
+            onClick={() => selectPanel('users')}
           />
           <NavSectionButton
             active={activePanel === 'events'}
             title={t('admin.nav.events')}
             count={filteredEvents.length}
             Icon={CalendarDays}
-            onClick={() => setActivePanel('events')}
+            onClick={() => selectPanel('events')}
+          />
+          <NavSectionButton
+            active={activePanel === 'reports'}
+            title={t('admin.nav.reports')}
+            count={filteredReports.length}
+            Icon={Flag}
+            onClick={() => selectPanel('reports')}
           />
         </nav>
         <div className='admin-nav__actions'>
           <ThemeLang variant='app' />
+          <NotificationsDropdown
+            unread={notificationUnread}
+            onUnreadChange={setNotificationUnread}
+            onRefreshUnread={loadUnreadNotifications}
+          />
           <button
             type='button'
             className='admin-nav__logout'
@@ -290,6 +489,7 @@ function AdminDashboard() {
             onClick={() => {
               loadUsers();
               loadEvents();
+              loadReports();
             }}
           >
             <RefreshCw size={16} aria-hidden='true' />
@@ -304,11 +504,21 @@ function AdminDashboard() {
         )}
 
         <section className='admin-dashboard__stats'>
-          {stats.map(({ label, value, Icon }) => (
-            <article className='admin-stat' key={label}>
-              <Icon size={18} aria-hidden='true' />
-              <strong>{value}</strong>
-              <span>{label}</span>
+          {statGroups.map(({ title, primary, items, Icon }) => (
+            <article className='admin-stat-group' key={title}>
+              <div className='admin-stat-group__main'>
+                <Icon size={18} aria-hidden='true' />
+                <strong>{primary}</strong>
+                <span>{title}</span>
+              </div>
+              <dl>
+                {items.map((item) => (
+                  <div key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
             </article>
           ))}
         </section>
@@ -329,9 +539,11 @@ function AdminDashboard() {
             }}
             onRetry={loadUsers}
             onAction={requestUserAction}
+            onOpenUser={setSelectedUser}
+            currentAdminId={currentAdminId}
             t={t}
           />
-        ) : (
+        ) : activePanel === 'events' ? (
           <AdminEventsPanel
             events={pagedEvents}
             totalEvents={filteredEvents.length}
@@ -339,13 +551,47 @@ function AdminDashboard() {
             pageCount={eventsPageCount}
             loading={eventsLoading}
             error={eventsError}
+            status={eventStatus}
             onPageChange={setEventsPage}
+            onStatusChange={(nextStatus) => {
+              setEventStatus(nextStatus);
+              setEventsPage(1);
+            }}
             onRetry={loadEvents}
             onDelete={requestEventDelete}
             t={t}
           />
+        ) : (
+          <AdminReportsPanel
+            reports={pagedReports}
+            totalReports={filteredReports.length}
+            page={safeReportsPage}
+            pageCount={reportsPageCount}
+            loading={reportsLoading}
+            error={reportsError}
+            status={reportStatus}
+            actionLoading={actionLoading}
+            onPageChange={setReportsPage}
+            onStatusChange={(nextStatus) => {
+              setReportStatus(nextStatus);
+              setReportsPage(1);
+            }}
+            onRetry={loadReports}
+            onResolve={(report) => updateReportStatus(report, 'Reviewed')}
+            onReject={(report) => updateReportStatus(report, 'Dismissed')}
+            onBan={requestBanReportedUser}
+            t={t}
+          />
         )}
       </main>
+
+      <UserDetailsModal
+        user={selectedUser}
+        currentAdminId={currentAdminId}
+        onClose={() => setSelectedUser(null)}
+        onAction={requestUserAction}
+        t={t}
+      />
 
       <ConfirmModal
         isOpen={Boolean(confirmAction)}
@@ -355,7 +601,8 @@ function AdminDashboard() {
         cancelText={t('common.cancel')}
         variant={
           confirmAction?.type === 'deleteUser' ||
-          confirmAction?.type === 'deleteEvent'
+          confirmAction?.type === 'deleteEvent' ||
+          confirmAction?.type === 'banReportedUser'
             ? 'danger'
             : 'default'
         }
@@ -380,6 +627,8 @@ function AdminUsersPanel({
   onStatusChange,
   onRetry,
   onAction,
+  onOpenUser,
+  currentAdminId,
   t,
 }) {
   return (
@@ -420,7 +669,13 @@ function AdminUsersPanel({
                   <tr key={user.id}>
                     <td>{user.id}</td>
                     <td>
-                      <strong>{user.username}</strong>
+                      <button
+                        type='button'
+                        className='admin-link-button'
+                        onClick={() => onOpenUser(user)}
+                      >
+                        <strong>{user.username}</strong>
+                      </button>
                     </td>
                     <td>{user.email}</td>
                     <td>{user.role}</td>
@@ -435,10 +690,19 @@ function AdminUsersPanel({
                     </td>
                     <td>
                       <div className='admin-row-actions'>
+                        <button
+                          type='button'
+                          onClick={() => onOpenUser(user)}
+                        >
+                          <Info size={15} aria-hidden='true' />
+                          {t('common.view')}
+                        </button>
                         {user.isActive ? (
                           <button
                             type='button'
                             onClick={() => onAction('deactivate', user)}
+                            disabled={isSelfUser(user, currentAdminId)}
+                            title={isSelfUser(user, currentAdminId) ? t('admin.users.selfActionDisabled') : undefined}
                           >
                             <UserX size={15} aria-hidden='true' />
                             {t('admin.actions.deactivate')}
@@ -447,6 +711,8 @@ function AdminUsersPanel({
                           <button
                             type='button'
                             onClick={() => onAction('activate', user)}
+                            disabled={isSelfUser(user, currentAdminId)}
+                            title={isSelfUser(user, currentAdminId) ? t('admin.users.selfActionDisabled') : undefined}
                           >
                             <UserCheck size={15} aria-hidden='true' />
                             {t('admin.actions.activate')}
@@ -456,6 +722,8 @@ function AdminUsersPanel({
                           type='button'
                           className='admin-danger-action'
                           onClick={() => onAction('deleteUser', user)}
+                          disabled={isSelfUser(user, currentAdminId)}
+                          title={isSelfUser(user, currentAdminId) ? t('admin.users.selfActionDisabled') : undefined}
                         >
                           <Trash2 size={15} aria-hidden='true' />
                           {t('common.delete')}
@@ -489,7 +757,9 @@ function AdminEventsPanel({
   pageCount,
   loading,
   error,
+  status,
   onPageChange,
+  onStatusChange,
   onRetry,
   onDelete,
   t,
@@ -500,6 +770,21 @@ function AdminEventsPanel({
         title={t('admin.events.title')}
         description={t('admin.events.description', { count: totalEvents })}
       />
+      <div className='admin-toolbar'>
+        <select
+          className='admin-select'
+          value={status}
+          onChange={(event) => onStatusChange(event.target.value)}
+          aria-label={t('admin.events.filterStatus')}
+        >
+          <option value='all'>{t('admin.events.filters.all')}</option>
+          <option value='upcoming'>{t('admin.events.filters.upcoming')}</option>
+          <option value='past'>{t('admin.events.filters.past')}</option>
+        </select>
+        <span className='admin-toolbar__note'>
+          {t('admin.events.hideShowUnavailable')}
+        </span>
+      </div>
       <PanelState loading={loading} error={error} empty={!events.length} onRetry={onRetry} t={t} />
       {!loading && !error && events.length > 0 && (
         <>
@@ -528,7 +813,29 @@ function AdminEventsPanel({
                     <dt>{t('admin.events.organizer')}</dt>
                     <dd>{event.organizerUsername || t('admin.events.unknown')}</dd>
                   </div>
+                  <div>
+                    <dt>{t('admin.events.attendees')}</dt>
+                    <dd>{formatAttendees(event, t)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.events.visibility')}</dt>
+                    <dd>{t('admin.events.visible')}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.events.status')}</dt>
+                    <dd>{isPastEvent(event) ? t('admin.events.filters.past') : t('admin.events.filters.upcoming')}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.events.type')}</dt>
+                    <dd>{event.eventType || t('admin.events.unknown')}</dd>
+                  </div>
                 </dl>
+                <div className='admin-row-actions'>
+                  <button type='button' disabled title={t('admin.events.hideShowUnavailable')}>
+                    <EyeOff size={15} aria-hidden='true' />
+                    {t('admin.actions.hideEvent')}
+                  </button>
+                </div>
                 <button
                   type='button'
                   className='admin-event-card__delete'
@@ -552,6 +859,201 @@ function AdminEventsPanel({
         </>
       )}
     </section>
+  );
+}
+
+function AdminReportsPanel({
+  reports,
+  totalReports,
+  page,
+  pageCount,
+  loading,
+  error,
+  status,
+  actionLoading,
+  onPageChange,
+  onStatusChange,
+  onRetry,
+  onResolve,
+  onReject,
+  onBan,
+  t,
+}) {
+  return (
+    <section className='admin-panel'>
+      <PanelHead
+        title={t('admin.reports.title')}
+        description={t('admin.reports.description', { count: totalReports })}
+      />
+      <div className='admin-toolbar'>
+        <select
+          className='admin-select'
+          value={status}
+          onChange={(event) => onStatusChange(event.target.value)}
+          aria-label={t('admin.reports.filterStatus')}
+        >
+          <option value='all'>{t('admin.reports.statuses.all')}</option>
+          <option value='pending'>{t('admin.reports.statuses.pending')}</option>
+          <option value='reviewed'>{t('admin.reports.statuses.reviewed')}</option>
+          <option value='dismissed'>{t('admin.reports.statuses.dismissed')}</option>
+          <option value='actionTaken'>{t('admin.reports.statuses.actionTaken')}</option>
+        </select>
+      </div>
+      <PanelState loading={loading} error={error} empty={!reports.length} onRetry={onRetry} t={t} />
+      {!loading && !error && reports.length > 0 && (
+        <>
+          <div className='admin-report-list'>
+            {reports.map((report) => (
+              <article className='admin-report-card' key={report.id}>
+                <header>
+                  <div>
+                    <span>{report.reason}</span>
+                    <h3>#{report.id} {report.reportedUsername}</h3>
+                  </div>
+                  <span className={`admin-status admin-status--${normalizeStatusKey(report.status)}`}>
+                    {translateReportStatus(report.status, t)}
+                  </span>
+                </header>
+                <dl>
+                  <div>
+                    <dt>{t('admin.reports.fields.reporter')}</dt>
+                    <dd>{formatReportUser(report.reporterUsername, report.reporterDisplayName)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.reports.fields.reported')}</dt>
+                    <dd>{formatReportUser(report.reportedUsername, report.reportedDisplayName)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.reports.fields.date')}</dt>
+                    <dd>{formatDateTime(report.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('admin.reports.fields.reviewed')}</dt>
+                    <dd>{report.reviewedAt ? formatDateTime(report.reviewedAt) : t('admin.reports.notReviewed')}</dd>
+                  </div>
+                </dl>
+                <p>{report.details || t('admin.reports.noDetails')}</p>
+                <div className='admin-row-actions'>
+                  <button
+                    type='button'
+                    onClick={() => onResolve(report)}
+                    disabled={actionLoading || normalizeStatusKey(report.status) !== 'pending'}
+                  >
+                    {t('admin.actions.resolveReport')}
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => onReject(report)}
+                    disabled={actionLoading || normalizeStatusKey(report.status) !== 'pending'}
+                  >
+                    {t('admin.actions.rejectReport')}
+                  </button>
+                  <button
+                    type='button'
+                    className='admin-danger-action'
+                    onClick={() => onBan(report)}
+                    disabled={actionLoading || normalizeStatusKey(report.status) === 'actionTaken'}
+                  >
+                    <UserX size={15} aria-hidden='true' />
+                    {t('admin.actions.banReportedUser')}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={totalReports}
+            pageSize={REPORTS_PAGE_SIZE}
+            label={t('admin.nav.reports').toLowerCase()}
+            onPageChange={onPageChange}
+            t={t}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+function UserDetailsModal({ user, currentAdminId, onClose, onAction, t }) {
+  if (!user) return null;
+
+  const self = isSelfUser(user, currentAdminId);
+
+  return (
+    <div className='admin-modal' role='presentation' onMouseDown={onClose}>
+      <section
+        className='admin-modal__card'
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='admin-user-details-title'
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className='admin-modal__head'>
+          <div>
+            <span>{t('admin.users.detailsEyebrow')}</span>
+            <h2 id='admin-user-details-title'>{user.username}</h2>
+          </div>
+          <button type='button' onClick={onClose} aria-label={t('common.close')}>
+            x
+          </button>
+        </div>
+        <dl className='admin-detail-list'>
+          <div>
+            <dt>{t('admin.table.id')}</dt>
+            <dd>{user.id}</dd>
+          </div>
+          <div>
+            <dt>{t('admin.table.email')}</dt>
+            <dd>{user.email || t('profileUi.notSet')}</dd>
+          </div>
+          <div>
+            <dt>{t('admin.table.role')}</dt>
+            <dd>{user.role || t('profileUi.notSet')}</dd>
+          </div>
+          <div>
+            <dt>{t('admin.table.status')}</dt>
+            <dd>{user.isActive ? t('admin.status.active') : t('admin.status.inactive')}</dd>
+          </div>
+          <div>
+            <dt>{t('admin.users.joinedDate')}</dt>
+            <dd>{t('admin.unavailable.long')}</dd>
+          </div>
+          <div>
+            <dt>{t('admin.users.reportsCount')}</dt>
+            <dd>{t('admin.unavailable.long')}</dd>
+          </div>
+          <div>
+            <dt>{t('admin.users.profileInfo')}</dt>
+            <dd>{t('admin.users.profileInfoUnavailable')}</dd>
+          </div>
+        </dl>
+        {self && <p className='admin-modal__warning'>{t('admin.users.selfActionDisabled')}</p>}
+        <div className='admin-row-actions admin-modal__actions'>
+          {user.isActive ? (
+            <button type='button' onClick={() => onAction('deactivate', user)} disabled={self}>
+              <UserX size={15} aria-hidden='true' />
+              {t('admin.actions.deactivate')}
+            </button>
+          ) : (
+            <button type='button' onClick={() => onAction('activate', user)} disabled={self}>
+              <UserCheck size={15} aria-hidden='true' />
+              {t('admin.actions.activate')}
+            </button>
+          )}
+          <button
+            type='button'
+            className='admin-danger-action'
+            onClick={() => onAction('deleteUser', user)}
+            disabled={self}
+          >
+            <Trash2 size={15} aria-hidden='true' />
+            {t('admin.actions.deleteUser')}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -635,13 +1137,78 @@ function formatEventDate(date, time, t) {
   if (!date) return t('admin.events.tba');
   const value = new Date(`${date}T${time || '00:00:00'}`);
   if (Number.isNaN(value.getTime())) return date;
-  return value.toLocaleString([], {
+  return formatDateTime(value);
+}
+
+function formatDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value || '');
+  return date.toLocaleString([], {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function formatAttendees(event, t) {
+  const current = event.participantsCount ?? event.ParticipantsCount ?? 0;
+  const max = event.maxAttendees ?? event.MaxAttendees;
+  return max ? `${current}/${max}` : t('admin.events.attendeesCount', { count: current });
+}
+
+function getEventDateValue(event) {
+  const date = event.date ?? event.Date;
+  const time = event.time ?? event.Time ?? '00:00:00';
+  if (!date) return null;
+  const value = new Date(`${date}T${time}`);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function isPastEvent(event) {
+  const value = getEventDateValue(event);
+  return value ? value < new Date() : false;
+}
+
+function matchesEventStatus(event, status) {
+  if (status === 'upcoming') return !isPastEvent(event);
+  if (status === 'past') return isPastEvent(event);
+  return true;
+}
+
+function getCurrentUserId() {
+  const payload = readJwtPayload();
+  const id =
+    payload?.nameid ||
+    payload?.sub ||
+    payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+  const parsed = Number(id);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isSelfUser(user, currentAdminId) {
+  return currentAdminId != null && Number(user?.id) === currentAdminId;
+}
+
+function getRequestedAdminPanel(search) {
+  const section = new URLSearchParams(search).get('section');
+  return ['users', 'events', 'reports'].includes(section) ? section : '';
+}
+
+function normalizeStatusKey(status) {
+  const value = String(status || '').toLowerCase();
+  if (value === 'action taken') return 'actionTaken';
+  return value || 'pending';
+}
+
+function translateReportStatus(status, t) {
+  const key = normalizeStatusKey(status);
+  return t(`admin.reports.statuses.${key}`);
+}
+
+function formatReportUser(username, displayName) {
+  return displayName ? `${displayName} (@${username})` : `@${username}`;
 }
 
 function paginate(items, page, pageSize) {

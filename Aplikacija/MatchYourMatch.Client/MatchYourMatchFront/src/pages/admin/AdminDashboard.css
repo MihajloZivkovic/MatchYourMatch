@@ -234,16 +234,15 @@
 
 .admin-dashboard__stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, minmax(260px, 316px));
+  justify-content: center;
   gap: 0.85rem;
   margin: 1.3rem 0 1rem;
 }
 
-.admin-stat {
+.admin-stat,
+.admin-stat-group {
   min-height: 116px;
-  display: grid;
-  align-content: center;
-  gap: 0.35rem;
   padding: 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -252,23 +251,87 @@
     var(--color-surface-soft);
 }
 
-.admin-stat svg {
+.admin-stat {
+  display: grid;
+  align-content: center;
+  gap: 0.35rem;
+}
+
+.admin-stat-group {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.85fr) minmax(0, 1.3fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.admin-stat svg,
+.admin-stat-group svg {
   color: var(--accent);
 }
 
-.admin-stat strong {
+.admin-stat strong,
+.admin-stat-group strong {
   font-family: var(--font-display);
   font-size: 2.15rem;
   line-height: 1;
   letter-spacing: 0.04em;
 }
 
-.admin-stat span {
+.admin-stat span,
+.admin-stat-group span {
   color: var(--text-muted);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.admin-stat-group__main {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-stat-group dl {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-stat-group dl div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.42rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
+}
+
+.admin-stat-group dl div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.admin-stat-group dt {
+  color: var(--text-subtle);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-stat-group dd {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.admin-stat--muted {
+  opacity: 0.68;
+}
+
+.admin-stat--muted strong {
+  font-family: var(--font-body);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
 }
 
 .admin-panel {
@@ -304,9 +367,15 @@
 
 .admin-toolbar {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 0.9rem;
+}
+
+.admin-toolbar__note {
+  color: var(--text-subtle);
+  font-size: 0.76rem;
 }
 
 .admin-search {
@@ -420,10 +489,43 @@
   background: rgba(255, 92, 92, 0.08);
 }
 
+.admin-status--pending {
+  border: 1px solid rgba(244, 163, 0, 0.36);
+  color: var(--accent);
+  background: rgba(244, 163, 0, 0.09);
+}
+
+.admin-status--reviewed,
+.admin-status--actionTaken {
+  border: 1px solid rgba(82, 196, 130, 0.32);
+  color: #79dfa2;
+  background: rgba(82, 196, 130, 0.08);
+}
+
+.admin-status--dismissed {
+  border: 1px solid rgba(155, 164, 178, 0.28);
+  color: var(--text-muted);
+  background: rgba(155, 164, 178, 0.08);
+}
+
 .admin-row-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+.admin-row-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-link-button {
+  color: inherit;
+  text-align: left;
+}
+
+.admin-link-button:hover strong {
+  color: var(--accent);
 }
 
 .admin-row-actions .admin-danger-action,
@@ -510,6 +612,70 @@
   justify-self: start;
 }
 
+.admin-report-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-report-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.admin-report-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-report-card header span:first-child {
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-report-card h3 {
+  margin-top: 0.32rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+
+.admin-report-card dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.admin-report-card dt {
+  color: var(--text-subtle);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-report-card dd {
+  margin-top: 0.1rem;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.admin-report-card p {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .admin-pagination {
   display: flex;
   align-items: center;
@@ -555,6 +721,156 @@
   color: var(--text);
   font-size: 0.78rem;
   text-align: center;
+}
+
+.admin-placeholder {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.1rem;
+  border: 1px dashed color-mix(in srgb, var(--color-border) 76%, var(--accent));
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-muted);
+}
+
+.admin-placeholder svg {
+  color: var(--accent);
+}
+
+.admin-placeholder h3 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-placeholder p {
+  max-width: 720px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.admin-placeholder__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.admin-placeholder__grid span {
+  padding: 0.38rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: var(--container-padding);
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(12px);
+}
+
+.admin-modal__card {
+  width: min(560px, 100%);
+  max-height: min(720px, 88vh);
+  overflow: auto;
+  padding: 1.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(145deg, rgba(244, 163, 0, 0.07), transparent 58%),
+    var(--color-surface);
+  box-shadow: var(--elev-3);
+}
+
+.admin-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-modal__head span {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-modal__head h2 {
+  margin-top: 0.25rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.04em;
+}
+
+.admin-modal__head button {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.admin-detail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-detail-list div {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.admin-detail-list dt {
+  color: var(--text-subtle);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-detail-list dd {
+  margin-top: 0.22rem;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.84rem;
+}
+
+.admin-modal__warning {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(244, 163, 0, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(244, 163, 0, 0.08);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.admin-modal__actions {
+  justify-content: flex-end;
+  margin-top: 1rem;
 }
 
 .admin-access-denied {
@@ -641,8 +957,13 @@
 
 :root[data-theme="light"] .admin-panel,
 :root[data-theme="light"] .admin-stat,
+:root[data-theme="light"] .admin-stat-group,
 :root[data-theme="light"] .admin-event-card,
+:root[data-theme="light"] .admin-report-card,
 :root[data-theme="light"] .admin-state,
+:root[data-theme="light"] .admin-placeholder,
+:root[data-theme="light"] .admin-modal__card,
+:root[data-theme="light"] .admin-detail-list div,
 :root[data-theme="light"] .admin-access-denied section {
   background:
     linear-gradient(145deg, rgba(244, 163, 0, 0.06), transparent 58%),
@@ -661,6 +982,8 @@
 :root[data-theme="light"] .admin-table td,
 :root[data-theme="light"] .admin-event-card p,
 :root[data-theme="light"] .admin-event-card dd,
+:root[data-theme="light"] .admin-report-card p,
+:root[data-theme="light"] .admin-report-card dd,
 :root[data-theme="light"] .admin-pagination {
   color: var(--color-text-muted);
 }
@@ -720,14 +1043,24 @@
   }
 
   .admin-dashboard__stats,
-  .admin-event-grid {
+  .admin-event-grid,
+  .admin-report-card dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-stat-group {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-detail-list {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 580px) {
   .admin-dashboard__stats,
   .admin-event-grid,
+  .admin-report-card dl,
   .admin-event-card dl {
     grid-template-columns: 1fr;
   }

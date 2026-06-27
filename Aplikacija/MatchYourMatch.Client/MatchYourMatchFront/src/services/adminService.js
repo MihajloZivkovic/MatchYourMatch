@@ -57,4 +57,28 @@ export const adminService = {
     });
     return readResponse(response, 'Event could not be deleted.');
   },
+
+  async reports({ status = 'All', page = 1, pageSize = 100 } = {}) {
+    const params = new URLSearchParams({
+      status,
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    const response = await fetch(`/api/Reports/admin?${params}`, {
+      headers: authHeaders(),
+    });
+    return readResponse(response, 'Reports could not be loaded.');
+  },
+
+  async updateReportStatus(reportId, status) {
+    const response = await fetch(`/api/Reports/admin/${reportId}/status`, {
+      method: 'PUT',
+      headers: {
+        ...authHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+    return readResponse(response, 'Report status could not be updated.');
+  },
 };

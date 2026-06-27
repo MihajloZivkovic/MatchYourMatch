@@ -161,6 +161,36 @@ Object.assign(translations.en.profileUi, {
 Object.assign(translations.sr.profileUi, {
   duplicateSlot: 'Ovaj termin je vec dodat za ovaj dan.',
 });
+translations.en.passwordReset = {
+  forgot: 'Forgot password?',
+  copy: 'Enter your email and we will send you a reset token.',
+  send: 'Send reset token',
+  sent: 'Reset token sent. Check your email and paste the token below.',
+  token: 'Reset token',
+  newPassword: 'New password',
+  confirmPassword: 'Confirm new password',
+  update: 'Update password',
+  success: 'Password updated. You can sign in now.',
+  emailRequired: 'Enter your email first.',
+  missingFields: 'Enter the token and new password.',
+  requestError: 'Reset token could not be sent.',
+  resetError: 'Password could not be updated. Check the token and try again.',
+};
+translations.sr.passwordReset = {
+  forgot: 'Zaboravljena lozinka?',
+  copy: 'Unesi mejl i poslacemo ti token za reset lozinke.',
+  send: 'Posalji reset token',
+  sent: 'Reset token je poslat. Proveri mejl i nalepi token ispod.',
+  token: 'Reset token',
+  newPassword: 'Nova lozinka',
+  confirmPassword: 'Potvrdi novu lozinku',
+  update: 'Promeni lozinku',
+  success: 'Lozinka je promenjena. Mozes sada da se prijavis.',
+  emailRequired: 'Prvo unesi mejl.',
+  missingFields: 'Unesi token i novu lozinku.',
+  requestError: 'Reset token nije mogao da se posalje.',
+  resetError: 'Lozinka nije mogla da se promeni. Proveri token i pokusaj ponovo.',
+};
 Object.assign(translations.en.events, {
   leave: 'Leave event',
   left: 'You left the event.',
@@ -424,6 +454,173 @@ translations.sr.admin = {
     back: 'Nazad u aplikaciju',
   },
   empty: 'Nema pronadjenih zapisa.',
+};
+
+Object.assign(translations.en.admin.nav, {
+  reports: 'Reports',
+});
+Object.assign(translations.sr.admin.nav, {
+  reports: 'Prijave',
+});
+Object.assign(translations.en.admin.search, {
+  reports: 'Reports moderation endpoint is not available yet',
+});
+Object.assign(translations.sr.admin.search, {
+  reports: 'Admin endpoint za prijave jos nije dostupan',
+});
+Object.assign(translations.en.admin.stats, {
+  totalEvents: 'Total events',
+  upcomingEvents: 'Upcoming events',
+  pastEvents: 'Past events',
+  totalReports: 'Total reports',
+  pendingReports: 'Pending reports',
+  hiddenEvents: 'Hidden events',
+  newUsersWeek: 'New users this week',
+  newEventsWeek: 'New events this week',
+});
+Object.assign(translations.sr.admin.stats, {
+  totalEvents: 'Ukupno dogadjaja',
+  upcomingEvents: 'Predstojeci dogadjaji',
+  pastEvents: 'Prosli dogadjaji',
+  totalReports: 'Ukupno prijava',
+  pendingReports: 'Prijave na cekanju',
+  hiddenEvents: 'Sakriveni dogadjaji',
+  newUsersWeek: 'Novi korisnici ove nedelje',
+  newEventsWeek: 'Novi dogadjaji ove nedelje',
+});
+Object.assign(translations.en.admin.events, {
+  filterStatus: 'Filter events by status',
+  hideShowUnavailable: 'Hide/show is disabled because no backend endpoint exists yet.',
+  attendees: 'Attendees',
+  attendeesCount: '{{count}} attending',
+  visibility: 'Visibility',
+  visible: 'Visible',
+  status: 'Status',
+  type: 'Type',
+  filters: {
+    all: 'All events',
+    upcoming: 'Upcoming',
+    past: 'Past',
+  },
+});
+Object.assign(translations.sr.admin.events, {
+  filterStatus: 'Filtriraj dogadjaje po statusu',
+  hideShowUnavailable: 'Sakrij/prikazi je iskljuceno jer backend endpoint jos ne postoji.',
+  attendees: 'Ucesnici',
+  attendeesCount: '{{count}} prisustvuje',
+  visibility: 'Vidljivost',
+  visible: 'Vidljivo',
+  status: 'Status',
+  type: 'Tip',
+  filters: {
+    all: 'Svi dogadjaji',
+    upcoming: 'Predstojeci',
+    past: 'Prosli',
+  },
+});
+Object.assign(translations.en.admin.users, {
+  detailsEyebrow: 'User details',
+  joinedDate: 'Joined date',
+  reportsCount: 'Reports count',
+  profileInfo: 'Profile info',
+  profileInfoUnavailable: 'Detailed profile data is not exposed by the current admin endpoint.',
+  selfActionDisabled: 'Admins cannot delete or deactivate their own account here.',
+});
+Object.assign(translations.sr.admin.users, {
+  detailsEyebrow: 'Detalji korisnika',
+  joinedDate: 'Datum registracije',
+  reportsCount: 'Broj prijava',
+  profileInfo: 'Profil',
+  profileInfoUnavailable: 'Detaljni profil nije dostupan kroz trenutni admin endpoint.',
+  selfActionDisabled: 'Admin ne moze ovde da obrise ili deaktivira sopstveni nalog.',
+});
+Object.assign(translations.en.admin.actions, {
+  hideEvent: 'Hide event',
+  resolveReport: 'Resolve report',
+  rejectReport: 'Reject report',
+  banReportedUser: 'Ban reported user',
+});
+Object.assign(translations.sr.admin.actions, {
+  hideEvent: 'Sakrij dogadjaj',
+  resolveReport: 'Resi prijavu',
+  rejectReport: 'Odbij prijavu',
+  banReportedUser: 'Banuj prijavljenog korisnika',
+});
+Object.assign(translations.en.admin.errors, {
+  reportsLoad: 'Reports could not be loaded.',
+});
+Object.assign(translations.sr.admin.errors, {
+  reportsLoad: 'Prijave nisu mogle da se ucitaju.',
+});
+Object.assign(translations.en.admin.notices, {
+  reportUpdated: 'Report status was updated.',
+  reportedUserBanned: '@{{username}} was deactivated and the report was marked as action taken.',
+});
+Object.assign(translations.sr.admin.notices, {
+  reportUpdated: 'Status prijave je azuriran.',
+  reportedUserBanned: '@{{username}} je deaktiviran/a i prijava je oznacena kao preduzeta mera.',
+});
+Object.assign(translations.en.admin.confirm, {
+  banReportedUserTitle: 'Ban reported user',
+  banReportedUserMessage: 'Deactivate @{{username}} and mark this report as action taken?',
+});
+Object.assign(translations.sr.admin.confirm, {
+  banReportedUserTitle: 'Banuj prijavljenog korisnika',
+  banReportedUserMessage: 'Deaktivirati @{{username}} i oznaciti prijavu kao preduzetu meru?',
+});
+translations.en.admin.reports = {
+  title: 'Reports moderation',
+  description: '{{count}} reports from GET /api/Reports/admin.',
+  filterStatus: 'Filter reports by status',
+  noDetails: 'No description provided.',
+  notReviewed: 'Not reviewed yet',
+  fields: {
+    reporter: 'Reporter',
+    reported: 'Reported user/content',
+    reason: 'Reason',
+    description: 'Description',
+    date: 'Date',
+    reviewed: 'Reviewed',
+    status: 'Status',
+  },
+  statuses: {
+    all: 'All reports',
+    pending: 'Pending',
+    reviewed: 'Reviewed',
+    dismissed: 'Dismissed',
+    actionTaken: 'Action taken',
+  },
+};
+translations.sr.admin.reports = {
+  title: 'Moderacija prijava',
+  description: '{{count}} prijava iz GET /api/Reports/admin.',
+  filterStatus: 'Filtriraj prijave po statusu',
+  noDetails: 'Opis nije dodat.',
+  notReviewed: 'Jos nije pregledano',
+  fields: {
+    reporter: 'Prijavio',
+    reported: 'Prijavljeni korisnik/sadrzaj',
+    reason: 'Razlog',
+    description: 'Opis',
+    date: 'Datum',
+    reviewed: 'Pregledano',
+    status: 'Status',
+  },
+  statuses: {
+    all: 'Sve prijave',
+    pending: 'Na cekanju',
+    reviewed: 'Reseno',
+    dismissed: 'Odbijeno',
+    actionTaken: 'Preduzeta mera',
+  },
+};
+translations.en.admin.unavailable = {
+  short: 'N/A',
+  long: 'Not exposed by backend',
+};
+translations.sr.admin.unavailable = {
+  short: 'N/A',
+  long: 'Backend ne vraca ovaj podatak',
 };
 
 translations.en.reports = {

@@ -236,7 +236,8 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
             
@@ -244,7 +245,7 @@ namespace MatchYourMatch.WebAPI.Services
             user.ResetTokenExpiry = DateTime.UtcNow.AddHours(1);
             await _context.SaveChangesAsync();
 
-            await _emailService.SendResetEmailAsync(dto.Email, user.ResetToken);
+            await _emailService.SendResetEmailAsync(email, user.ResetToken);
         }
 
         public async Task ResetPasswordAsync(ResetPasswordDto dto)
