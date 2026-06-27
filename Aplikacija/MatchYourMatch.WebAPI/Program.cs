@@ -1,4 +1,5 @@
 using MatchYourMatch.WebAPI.Data;
+using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using MatchYourMatch.WebAPI.Middleware;
@@ -1122,6 +1123,61 @@ using (var scope = app.Services.CreateScope())
               'Gym buddy trening'
           );
         """);
+
+    const string adminEmail = "admin@admin.com";
+    const string adminPassword = "admin";
+    var adminUser = await db.Users.Include(user => user.Profile)
+        .FirstOrDefaultAsync(user => user.Email == adminEmail);
+
+    if (adminUser == null)
+    {
+        var adminUsername = await db.Users.AnyAsync(user => user.Username == "admin")
+            ? "admin-account"
+            : "admin";
+        adminUser = new User
+        {
+            Username = adminUsername,
+            Email = adminEmail,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+            Role = "Admin",
+            IsActive = true,
+            IsDeactivated = false,
+            HasPassword = true,
+            EmailConfirmed = true,
+            EmailConfirmedAt = DateTime.UtcNow,
+            Profile = new UserProfile
+            {
+                FullName = "Admin",
+                DateOfBirth = new DateOnly(2000, 1, 1),
+                ShowFullName = false,
+                ShowAge = false
+            }
+        };
+        db.Users.Add(adminUser);
+    }
+    else
+    {
+        adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+        adminUser.Role = "Admin";
+        adminUser.IsActive = true;
+        adminUser.IsDeactivated = false;
+        adminUser.DeactivatedAt = null;
+        adminUser.HasPassword = true;
+        adminUser.EmailConfirmed = true;
+        adminUser.EmailConfirmedAt ??= DateTime.UtcNow;
+        adminUser.Profile ??= new UserProfile
+        {
+            UserId = adminUser.Id,
+            FullName = "Admin",
+            DateOfBirth = new DateOnly(2000, 1, 1),
+            ShowFullName = false,
+            ShowAge = false
+        };
+        adminUser.Profile.FullName ??= "Admin";
+        adminUser.Profile.DateOfBirth ??= new DateOnly(2000, 1, 1);
+    }
+
+    await db.SaveChangesAsync();
 
     if (schemaOnly)
     {

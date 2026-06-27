@@ -242,6 +242,190 @@ Object.assign(translations.sr.common, {
   of: 'od',
 });
 
+translations.en.admin = {
+  nav: {
+    sections: 'Admin sections',
+    users: 'Users',
+    events: 'Events',
+  },
+  search: {
+    label: 'Admin search',
+    users: 'Search users, emails, roles...',
+    events: 'Search events, locations...',
+  },
+  hero: {
+    eyebrow: 'Administrator workspace',
+    title: 'Admin dashboard',
+    subtitle: 'Manage the platform areas currently exposed by the backend: users and event moderation.',
+  },
+  stats: {
+    totalUsers: 'Total users',
+    activeUsers: 'Active users',
+    inactiveUsers: 'Inactive users',
+    eventsVisible: 'Events visible',
+  },
+  users: {
+    title: 'Users',
+    description: '{{count}} matching accounts from GET /api/Admin/users.',
+    filterStatus: 'Filter users by status',
+    allStatuses: 'All statuses',
+  },
+  events: {
+    title: 'Events moderation',
+    description: '{{count}} matching events from the existing Events list.',
+    fallbackCategory: 'Event',
+    noDescription: 'No description provided.',
+    date: 'Date',
+    organizer: 'Organizer',
+    unknown: 'Unknown',
+    tba: 'TBA',
+  },
+  table: {
+    id: 'ID',
+    user: 'User',
+    email: 'Email',
+    role: 'Role',
+    status: 'Status',
+    actions: 'Actions',
+  },
+  status: {
+    active: 'Active',
+    inactive: 'Inactive',
+  },
+  actions: {
+    activate: 'Activate',
+    deactivate: 'Deactivate',
+    deleteUser: 'Delete user',
+    deleteEvent: 'Delete event',
+  },
+  confirm: {
+    activateTitle: 'Activate user',
+    activateMessage: 'Activate {{username}}? They will be able to sign in again.',
+    deactivateTitle: 'Deactivate user',
+    deactivateMessage: 'Deactivate {{username}}? They will be blocked from signing in.',
+    deleteUserTitle: 'Delete user',
+    deleteUserMessage: 'Delete {{username}}? This action uses the existing backend delete endpoint and cannot be undone.',
+    deleteEventTitle: 'Delete event',
+    deleteEventMessage: 'Delete "{{title}}" from the platform?',
+  },
+  notices: {
+    userActivated: '{{username}} is active again.',
+    userDeactivated: '{{username}} was deactivated.',
+    userDeleted: '{{username}} was deleted.',
+    eventDeleted: 'Event "{{title}}" was deleted.',
+  },
+  errors: {
+    usersLoad: 'Users could not be loaded.',
+    eventsLoad: 'Events could not be loaded.',
+    actionFailed: 'Action could not be completed.',
+  },
+  pagination: {
+    aria: '{{label}} pagination',
+    showing: 'Showing {{first}}-{{last}} of {{total}} {{label}}',
+    previous: 'Previous {{label}} page',
+    next: 'Next {{label}} page',
+    page: 'Page {{page}} / {{pageCount}}',
+  },
+  accessDenied: {
+    title: 'Access denied',
+    message: 'Only administrator accounts can open this area.',
+    back: 'Back to app',
+  },
+  empty: 'No records found.',
+};
+
+translations.sr.admin = {
+  nav: {
+    sections: 'Admin sekcije',
+    users: 'Korisnici',
+    events: 'Dogadjaji',
+  },
+  search: {
+    label: 'Admin pretraga',
+    users: 'Pretrazi korisnike, mejlove, uloge...',
+    events: 'Pretrazi dogadjaje, lokacije...',
+  },
+  hero: {
+    eyebrow: 'Administratorski prostor',
+    title: 'Admin dashboard',
+    subtitle: 'Upravljaj delovima platforme koje backend trenutno podrzava: korisnici i moderacija dogadjaja.',
+  },
+  stats: {
+    totalUsers: 'Ukupno korisnika',
+    activeUsers: 'Aktivni korisnici',
+    inactiveUsers: 'Neaktivni korisnici',
+    eventsVisible: 'Vidljivi dogadjaji',
+  },
+  users: {
+    title: 'Korisnici',
+    description: '{{count}} naloga odgovara pretrazi iz GET /api/Admin/users.',
+    filterStatus: 'Filtriraj korisnike po statusu',
+    allStatuses: 'Svi statusi',
+  },
+  events: {
+    title: 'Moderacija dogadjaja',
+    description: '{{count}} dogadjaja odgovara pretrazi iz postojece liste dogadjaja.',
+    fallbackCategory: 'Dogadjaj',
+    noDescription: 'Opis nije dodat.',
+    date: 'Datum',
+    organizer: 'Organizator',
+    unknown: 'Nepoznato',
+    tba: 'Naknadno',
+  },
+  table: {
+    id: 'ID',
+    user: 'Korisnik',
+    email: 'Mejl',
+    role: 'Uloga',
+    status: 'Status',
+    actions: 'Akcije',
+  },
+  status: {
+    active: 'Aktivan',
+    inactive: 'Neaktivan',
+  },
+  actions: {
+    activate: 'Aktiviraj',
+    deactivate: 'Deaktiviraj',
+    deleteUser: 'Obrisi korisnika',
+    deleteEvent: 'Obrisi dogadjaj',
+  },
+  confirm: {
+    activateTitle: 'Aktiviraj korisnika',
+    activateMessage: 'Aktivirati {{username}}? Korisnik ce opet moci da se prijavi.',
+    deactivateTitle: 'Deaktiviraj korisnika',
+    deactivateMessage: 'Deaktivirati {{username}}? Korisnik nece moci da se prijavi.',
+    deleteUserTitle: 'Obrisi korisnika',
+    deleteUserMessage: 'Obrisati {{username}}? Ova radnja koristi postojeci backend endpoint za brisanje i ne moze se ponistiti.',
+    deleteEventTitle: 'Obrisi dogadjaj',
+    deleteEventMessage: 'Obrisati "{{title}}" sa platforme?',
+  },
+  notices: {
+    userActivated: '{{username}} je ponovo aktivan.',
+    userDeactivated: '{{username}} je deaktiviran.',
+    userDeleted: '{{username}} je obrisan.',
+    eventDeleted: 'Dogadjaj "{{title}}" je obrisan.',
+  },
+  errors: {
+    usersLoad: 'Korisnici nisu mogli da se ucitaju.',
+    eventsLoad: 'Dogadjaji nisu mogli da se ucitaju.',
+    actionFailed: 'Radnja nije mogla da se zavrsi.',
+  },
+  pagination: {
+    aria: 'Paginacija za {{label}}',
+    showing: 'Prikaz {{first}}-{{last}} od {{total}}: {{label}}',
+    previous: 'Prethodna strana za {{label}}',
+    next: 'Sledeca strana za {{label}}',
+    page: 'Strana {{page}} / {{pageCount}}',
+  },
+  accessDenied: {
+    title: 'Pristup odbijen',
+    message: 'Samo administratorski nalozi mogu da otvore ovaj deo.',
+    back: 'Nazad u aplikaciju',
+  },
+  empty: 'Nema pronadjenih zapisa.',
+};
+
 translations.en.reports = {
   reportUser: 'Report @{{username}}',
   reason: 'Reason',

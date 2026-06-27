@@ -3,13 +3,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import GuestEntryButton from '../components/GuestEntryButton';
+import { isAdminSession } from '../services/guestSession';
 
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
   const requestedReturnUrl = new URLSearchParams(location.search).get('returnUrl');
-  const loginDestination = requestedReturnUrl?.startsWith('/app') ? requestedReturnUrl : '/app/dashboard';
+  const loginDestination = requestedReturnUrl?.startsWith('/app')
+    ? requestedReturnUrl
+    : '/app/dashboard';
+  const adminDestination = requestedReturnUrl?.startsWith('/admin')
+    ? requestedReturnUrl
+    : '/admin/dashboard';
   const [vrstaGreske, setVrstaGreske] = useState("")
   const [reactivationCredentials, setReactivationCredentials] = useState(null);
   const [state, formAction] = useActionState(handleSubmit, {
@@ -62,7 +68,7 @@ function Login() {
     localStorage.setItem("token", data.accessToken);
     localStorage.setItem('mym_authed', 'true');
     window.dispatchEvent(new Event('tokenChanged'));
-    navigate(loginDestination, { replace: true });
+    navigate(isAdminSession(data.accessToken) ? adminDestination : loginDestination, { replace: true });
   }
 
   return (

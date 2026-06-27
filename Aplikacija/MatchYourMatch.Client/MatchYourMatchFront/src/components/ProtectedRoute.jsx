@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { clearAuthSession } from '../services/authSession';
-import { isGuestSession } from '../services/guestSession';
+import { isAdminSession, isGuestSession } from '../services/guestSession';
 import { isSessionExpired } from '../services/sessionExpiry';
 
 function ProtectedRoute({ children }) {
@@ -38,6 +38,10 @@ function ProtectedRoute({ children }) {
       return <Navigate to="/app/events" replace state={{ guestBlocked: true }} />;
     }
     return children;
+  }
+
+  if (isAdminSession()) {
+    return <Navigate to='/admin/dashboard' replace />;
   }
 
   if (!hasCompletedProfile(localStorage.getItem('token'))) {

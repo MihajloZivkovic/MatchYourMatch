@@ -30,11 +30,17 @@ export function readJwtPayload(token = localStorage.getItem('token')) {
 export function getSessionRole(token = localStorage.getItem('token')) {
   const payload = readJwtPayload(token);
   if (!payload) return '';
-  return ROLE_CLAIMS.map((claim) => payload[claim]).find(Boolean) || '';
+  const rawRole = ROLE_CLAIMS.map((claim) => payload[claim]).find(Boolean) || '';
+  return Array.isArray(rawRole) ? rawRole[0] || '' : rawRole;
 }
 
 export function isGuestSession(token = localStorage.getItem('token')) {
   return getSessionRole(token).toLowerCase() === 'guest';
+}
+
+export function isAdminSession(token = localStorage.getItem('token')) {
+  const role = getSessionRole(token).toLowerCase();
+  return role === 'admin' || role === 'administrator';
 }
 
 export function getGuestCity(token = localStorage.getItem('token')) {

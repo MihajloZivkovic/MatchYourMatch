@@ -1,11 +1,11 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, ShieldCheck, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
 import { useTranslation } from "../hooks/useTranslation";
 import { logoutAndRedirect } from "../services/authSession";
-import { isGuestSession } from "../services/guestSession";
+import { isAdminSession, isGuestSession } from "../services/guestSession";
 import { notificationService, NOTIFICATIONS_CHANGED_EVENT } from "../services/notificationService";
 import "./AppNavbar.css";
 import ThemeLang from "../components/ThemeLang";
@@ -18,6 +18,7 @@ function AppNavbar(props) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const isGuest = props.currentUser?.role === "Guest" || isGuestSession();
+  const isAdmin = isAdminSession();
 
   const loadUnreadNotifications = useCallback(async () => {
     if (isGuest) {
@@ -35,7 +36,7 @@ function AppNavbar(props) {
   }, [isGuest]);
 
   useEffect(() => {
-    loadUnreadNotifications();
+    const initial = window.setTimeout(loadUnreadNotifications, 0);
     const interval = window.setInterval(loadUnreadNotifications, 15000);
     const refresh = () => loadUnreadNotifications();
     const onVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
@@ -44,6 +45,7 @@ function AppNavbar(props) {
     window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, refresh);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      window.clearTimeout(initial);
       window.clearInterval(interval);
       window.removeEventListener('tokenChanged', refresh);
       window.removeEventListener('focus', refresh);
@@ -101,6 +103,11 @@ function AppNavbar(props) {
 
         <div className="app-navbar__right">
           <ThemeLang variant="app" />
+
+          {isAdmin && <Link to="/admin/dashboard" className="app-navbar__create app-navbar__admin-link">
+            <ShieldCheck size={14} aria-hidden="true" />
+            ADMIN
+          </Link>}
 
           {!isGuest && <Link to="/app/events/create" className="app-navbar__create">
             + {t('nav.createEvent').toUpperCase()}
