@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
-import LanguageSwitcher from './LanguageSwitcher';
-import ThemeMenu from './ThemeMenu';
+import ThemeLang from "../components/ThemeLang";
 
 function Navbar({ isExiting = false, onAboutClick }) {
   const { t } = useTranslation();
@@ -16,8 +15,7 @@ function Navbar({ isExiting = false, onAboutClick }) {
         </Link>
 
         <div className="navbar__actions">
-          <LanguageSwitcher />
-          <ThemeMenu variant="public" />
+          <ThemeLang variant="public" />
           <a href="/about" className="navbar__link" onClick={onAboutClick}>
             {t('nav.about').toUpperCase()}
           </a>

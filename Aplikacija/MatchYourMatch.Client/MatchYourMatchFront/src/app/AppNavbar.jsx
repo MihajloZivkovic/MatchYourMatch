@@ -3,12 +3,12 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
-import ThemeMenu from "../components/ThemeMenu";
 import { useTranslation } from "../hooks/useTranslation";
 import { logoutAndRedirect } from "../services/authSession";
 import { isGuestSession } from "../services/guestSession";
 import { notificationService, NOTIFICATIONS_CHANGED_EVENT } from "../services/notificationService";
 import "./AppNavbar.css";
+import ThemeLang from "../components/ThemeLang";
 
 function AppNavbar(props) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -100,7 +100,7 @@ function AppNavbar(props) {
         </div>
 
         <div className="app-navbar__right">
-          <ThemeMenu variant="app" />
+          <ThemeLang variant="app" />
 
           {!isGuest && <Link to="/app/events/create" className="app-navbar__create">
             + {t('nav.createEvent').toUpperCase()}
