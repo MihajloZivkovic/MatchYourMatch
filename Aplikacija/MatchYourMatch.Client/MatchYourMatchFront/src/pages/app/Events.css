@@ -99,8 +99,30 @@
 .events-page__state {
   margin-top: 1rem;
 }
-.event-card__actions { display: flex; align-items: center; gap: .45rem; }
-.event-card__invite { min-height: 31px; padding: 0 .75rem; display: inline-flex; align-items: center; gap: .35rem; border: 1px solid rgba(244, 163, 0, .38); border-radius: var(--radius-pill); color: var(--accent); font-size: .66rem; font-weight: 700; }
-.event-card__invite:hover { background: rgba(244, 163, 0, .1); }
-.event-card__edit { min-height:31px; padding:0 .7rem; display:inline-flex; align-items:center; gap:.3rem; border:1px solid var(--color-border); border-radius:var(--radius-pill); color:var(--text-muted); font-size:.66rem; font-weight:700; }
-.event-card__edit:hover { border-color:rgba(244,163,0,.38); color:var(--accent); }
+.events-page__guest,
+.events-page__notice {
+  margin-bottom: 1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+}
+.events-page__guest span {
+  display: block;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.events-page__guest p,
+.events-page__notice {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.event-card__guest-note {
+  max-width: 190px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: right;
+}

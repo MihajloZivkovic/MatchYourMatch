@@ -14,8 +14,8 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task ResetPasswordAsync(ResetPasswordDto dto);
         Task ChangeEmailAsync(int userId, ChangeEmailDto dto);
         Task<AuthInfoDto> GoogleLoginAsync(ExternalLoginDto dto);
-        Task<AuthInfoDto> FacebookLoginAsync(ExternalLoginDto dto);
         Task<AuthInfoDto> MicrosoftLoginAsync(ExternalLoginDto dto);
+        GuestSessionResponseDto CreateGuestSession(GuestLoginDto dto);
         Task<AuthInfoDto> CompleteSocialProfileAsync(int userId, CompleteSocialProfileDto dto);
         AuthInfoDto CreateAuthResponse(User user);
     }

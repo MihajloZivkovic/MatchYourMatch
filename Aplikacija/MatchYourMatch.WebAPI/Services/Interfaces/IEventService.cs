@@ -5,6 +5,9 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
     public interface IEventService
     {
         Task<List<EventDto>> GetByQueryAsync(int currentUserId, string? category, bool includePast = false);
+        Task<List<EventDto>> GetGuestByQueryAsync(string city, string? category);
+        Task<EventDto> GetGuestByIdAsync(int id, string city);
+        Task<List<string>> GetGuestCitiesAsync();
         Task<ProfileEventsDto> GetProfileEventsAsync(int currentUserId);
         Task<List<EventDto>> GetSavedEventsAsync(int currentUserId);
         Task<EventDto> SaveEventAsync(int eventId, int currentUserId);
@@ -13,6 +16,7 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<CreateEventDto> GetForEditAsync(int id, int organizerId);
         Task<EventDto> CreateAsync(int userId, CreateEventDto dto);
         Task<EventDto> JoinAsync(int eventId, int userId);
+        Task<EventDto> LeaveAsync(int eventId, int userId);
         Task<EventDto> CancelJoinRequestAsync(int eventId, int userId);
         Task<List<EventJoinRequestDto>> GetJoinRequestsAsync(int eventId, int organizerId);
         Task<EventDto> RespondToJoinRequestAsync(int eventId, int requestId, int organizerId, bool accept);

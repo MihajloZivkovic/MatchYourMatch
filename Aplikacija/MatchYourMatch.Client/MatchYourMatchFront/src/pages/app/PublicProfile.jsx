@@ -20,6 +20,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
 import UserActionsMenu from '../../components/UserActionsMenu';
 import ProfileStats from '../../components/profile/ProfileStats';
+import FollowListModal from '../../components/profile/FollowListModal';
 import './Profile.css';
 
 function PublicProfile() {
@@ -51,6 +52,7 @@ function PublicProfile() {
   const [editingRatingId, setEditingRatingId] = useState(null);
   const [editingRatingValue, setEditingRatingValue] = useState(0);
   const [originalRatingValue, setOriginalRatingValue] = useState(0);
+  const [followListType, setFollowListType] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -253,7 +255,7 @@ function PublicProfile() {
     setRatingError('');
     setRatingSuccess('');
     try {
-      const response = await fetch(`/api/user-ratings/${editingRatingId}`, {
+      const response = await fetch(`/api/Users/${id}/rating`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -261,7 +263,8 @@ function PublicProfile() {
         },
         body: JSON.stringify({ score: editingRatingValue }),
       });
-      if (!response.ok) throw new Error('RATING_UPDATE_FAILED');
+      if (!response.ok)
+        throw new Error((await response.text()) || 'RATING_UPDATE_FAILED');
       setRatingStatus(await response.json());
       setEditingRatingId(null);
       setRatingSuccess(t('publicProfile.ratingUpdated'));
@@ -276,6 +279,7 @@ function PublicProfile() {
     () => getInitials(profile?.username || ''),
     [profile?.username],
   );
+  const currentUserId = useMemo(() => getCurrentUserId(), []);
   const selectedRatingEvent = ratingStatus?.eligibleEvents?.find(
     (event) => String(event.eventId) === selectedEventId,
   );
@@ -358,14 +362,20 @@ function PublicProfile() {
               {profile.age != null ? ` · ${profile.age}` : ''}
             </span>
             <div className='public-profile__social-counts'>
-              <span>
+              <button
+                type='button'
+                onClick={() => setFollowListType('followers')}
+              >
                 <strong>{profile.followersCount || 0}</strong>{' '}
                 {t('publicProfile.followers')}
-              </span>
-              <span>
+              </button>
+              <button
+                type='button'
+                onClick={() => setFollowListType('following')}
+              >
                 <strong>{profile.followingCount || 0}</strong>{' '}
                 {t('publicProfile.followingCount')}
-              </span>
+              </button>
             </div>
           </div>
           <div className='public-profile__actions'>
@@ -508,10 +518,7 @@ function PublicProfile() {
                           <span>
                             {rating.encounterTitle || rating.encounterType}
                           </span>
-                          <small>
-                            {formatRatingEventDate(rating.encounterAt)} ·{' '}
-                            {Number(rating.rating).toFixed(1)} / 5
-                          </small>
+                          <small>{formatRatingMeta(rating)}</small>
                         </div>
                         {editingRatingId === rating.id ? (
                           <div className='public-profile__rating-edit-form'>
@@ -745,6 +752,14 @@ function PublicProfile() {
           )}
         </article>
       </section>
+      {followListType && (
+        <FollowListModal
+          userId={profile.id}
+          currentUserId={currentUserId}
+          type={followListType}
+          onClose={() => setFollowListType(null)}
+        />
+      )}
     </main>
   );
 }
@@ -803,7 +818,16 @@ function RatingStars({
   );
 }
 
+function formatRatingMeta(rating) {
+  const date = formatRatingEventDate(
+    rating.encounterAt || rating.updatedAt || rating.createdAt,
+  );
+  const score = `${Number(rating.rating).toFixed(1)} / 5`;
+  return date ? `${date} · ${score}` : score;
+}
+
 function formatRatingEventDate(value) {
+  if (!value) return '';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString();
 }
@@ -817,6 +841,27 @@ function getInitials(value) {
       .map((part) => part[0]?.toUpperCase())
       .join('') || 'MY'
   );
+}
+
+function getCurrentUserId() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  const payload = token.split('.')[1];
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized));
+    return (
+      decoded.nameid ||
+      decoded.sub ||
+      decoded[
+        'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+      ] ||
+      null
+    );
+  } catch {
+    return null;
+  }
 }
 
 export default PublicProfile;

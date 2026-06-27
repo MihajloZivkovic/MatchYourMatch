@@ -23,6 +23,7 @@
         public List<EventParticipantAvatarDto> ParticipantAvatars { get; set; } = new();
         public bool IsJoinedByCurrentUser { get; set; }
         public bool IsOrganizer { get; set; }
+        public bool IsCreator { get; set; }
         public string? JoinRequestStatus { get; set; }
         public int PendingJoinRequestsCount { get; set; }
         public bool IsSaved { get; set; }

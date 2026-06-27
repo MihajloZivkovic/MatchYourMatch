@@ -3,14 +3,14 @@ export const translations = {
     ratingErrors: { load: 'Rating could not be loaded. Please try again.', save: 'Rating could not be saved. Please try again.' },
     sessionExpired: { title: 'Your session has expired', message: 'Sorry, you’ve been logged out. Please sign in again to continue.', action: 'Sign in again' },
     accountLifecycle: { title: 'Account access', choose: 'Choose what you want to do with your MYM account.', deactivate: 'Deactivate account', deactivateHint: 'Hide your profile and pause all activity. You can reactivate later.', delete: 'Permanently delete account', deleteHint: 'Remove private account data permanently. This cannot be undone.', deactivateWarning: 'Your profile will disappear from search and matching, and all current sessions will be signed out. You can return by confirming your identity again.', deleteWarning: 'Your private profile and account data will be permanently removed. Shared group messages and event discussions will remain under Deleted user.', currentPassword: 'Current password', typeToConfirm: 'Type {{value}} to confirm', deactivateAction: 'Deactivate account', deleteAction: 'Permanently delete', deactivated: 'Your account has been deactivated.', deleted: 'Your account has been permanently deleted.' },
-    socialAuth: { google: 'Continue with Google', facebook: 'Continue with Facebook', microsoft: 'Continue with Microsoft', orContinue: 'or continue with email', orCreate: 'or create with email', connecting: 'Connecting...', googleConfigMissing: 'Google login needs VITE_GOOGLE_CLIENT_ID configuration.', googleInitFailed: 'Google login is still initializing. Please try again.', googleUnavailable: 'Google sign-in could not be displayed. Check browser privacy settings and try again.', facebookConfigMissing: 'Facebook login needs VITE_FACEBOOK_APP_ID configuration.', microsoftConfigMissing: 'Microsoft login needs VITE_MICROSOFT_CLIENT_ID and VITE_MICROSOFT_TENANT_ID configuration.', microsoftInitFailed: 'Microsoft login is still initializing. Please try again.', popupBlocked: 'The Microsoft login popup was blocked. Allow popups for this site and try again.', cancelled: 'Login was cancelled.', failed: 'Social login failed.', completeTitle: 'Complete your profile', completeText: 'Add your date of birth before using MYM. You must be at least 16 years old.' },
+    socialAuth: { google: 'Continue with Google', microsoft: 'Continue with Microsoft', orContinue: 'or continue with email', orCreate: 'or create with email', connecting: 'Connecting...', googleConfigMissing: 'Google login needs VITE_GOOGLE_CLIENT_ID configuration.', googleInitFailed: 'Google login is still initializing. Please try again.', googleUnavailable: 'Google sign-in could not be displayed. Check browser privacy settings and try again.', microsoftConfigMissing: 'Microsoft login needs VITE_MICROSOFT_CLIENT_ID and VITE_MICROSOFT_TENANT_ID configuration.', microsoftInitFailed: 'Microsoft login is still initializing. Please try again.', popupBlocked: 'The Microsoft login popup was blocked. Allow popups for this site and try again.', cancelled: 'Login was cancelled.', failed: 'Social login failed.', completeTitle: 'Complete your profile', completeText: 'Add your date of birth before using MYM. You must be at least 16 years old.' },
     common: { loading: 'Loading...', retry: 'Retry', save: 'Save', edit: 'Edit', cancel: 'Cancel', delete: 'Delete', confirm: 'Confirm', back: 'Back', view: 'View', noData: 'No data', error: 'Something went wrong', working: 'Working...' },
     language: { label: 'Language', choose: 'Choose language', english: 'English', serbian: 'Serbian' },
     profileTags: { littlePlaceholder: 'Add a little thing...', exploringPlaceholder: 'Add exploring tag...', noLittleThings: 'No little things added yet.', add: 'Add tag', suggested: 'Suggested', showMore: 'Show more', showLess: 'Show less', tooMany: 'You can add up to {{count}} tags.', tooLong: 'Tag is too long.', duplicate: 'Tag already exists.', saveError: 'Tags could not be saved.' },
     profileLifestyle: { title: 'Lifestyle', edit: 'Edit lifestyle', addActivity: 'Add activity...', addLookingFor: 'Add what you are looking for...', noActivities: 'No favorite activities yet.', notSet: 'Not set yet', lowKey: 'Low-key', balanced: 'Balanced', verySocial: 'Very social', saveError: 'Lifestyle could not be saved.' },
     emailVerification: { title: 'Verify your email', sent: 'We sent a 6-digit code to your email.', code: 'Verification code', verify: 'Verify', resend: 'Resend code', success: 'Email verified. You can now log in.', loginBlocked: 'Please verify your email before logging in.', invalid: 'Verification code is invalid or expired.', resent: 'Code resent.', backLogin: 'Back to login' },
     theme: { label: 'Theme', choose: 'Choose theme', system: 'System', light: 'Light', dark: 'Dark' },
-    userActions: { actions: 'User actions', block: 'Block user', hide: 'Hide profile', report: 'Report user', blockTitle: 'Block user?', hideTitle: 'Hide profile?', blockText: 'This user will no longer be able to contact you.', hideText: 'This profile will be removed from your suggestions.', reason: 'Reason', details: 'Details', optional: 'Optional details', submit: 'Submit report', reportSoon: 'Reporting is coming soon.', blocked: 'You blocked this user.', blockedComment: 'Comment from blocked user hidden' },
+    userActions: { actions: 'User actions', block: 'Block user', hide: 'Hide profile', report: 'Report user', blockTitle: 'Block user?', hideTitle: 'Hide profile?', blockText: 'This user will no longer be able to contact you.', hideText: 'This profile will be removed from your suggestions.', reason: 'Reason', details: 'Details', optional: 'Optional details', submit: 'Submit report', blocked: 'You blocked this user.', blockedComment: 'Comment from blocked user hidden' },
     nav: { main: 'Main navigation', about: 'About', login: 'Login', register: 'Register', quickMatch: 'Quick Match', deepMatch: 'Deep Match', events: 'Events', chat: 'Chat', createEvent: 'Create Event', profileMenu: 'Profile menu', myProfile: 'My Profile', settings: 'Settings', logout: 'Logout', openMenu: 'Open menu', closeMenu: 'Close menu' },
     auth: { email: 'Email', password: 'Password', username: 'Username', fullName: 'Full name', yourFullName: 'Your full name', dateOfBirth: 'Date of birth', fullNameRequired: 'Full name is required.', dateOfBirthRequired: 'Date of birth is required.', minimumAge: 'You must be at least 16 years old.', registrationFailed: 'Account could not be created.', confirmPassword: 'Confirm Password', signIn: 'Sign in', createAccount: 'Create account', noAccount: "Don't have an account?", hasAccount: 'Already have an account?', yourUsername: 'Your username', wrongEmail: 'Incorrect email', wrongPassword: 'Incorrect password', passwordsMismatch: 'Passwords do not match' },
     landing: { tagline: 'Find it. Feel it. Match it.', matchIn: 'Match in', socialMedia: 'Social media' },
@@ -38,7 +38,7 @@ export const translations = {
     ratingErrors: { load: 'Ocenjivanje trenutno nije moguće učitati. Pokušajte ponovo.', save: 'Ocena trenutno nije mogla da se sačuva. Pokušajte ponovo.' },
     sessionExpired: { title: 'Sesija je istekla', message: 'Žao nam je, odjavljeni ste. Prijavite se ponovo da biste nastavili.', action: 'Prijavi se ponovo' },
     accountLifecycle: { title: 'Pristup nalogu', choose: 'Izaberi šta želiš da uradiš sa svojim MYM nalogom.', deactivate: 'Deaktiviraj nalog', deactivateHint: 'Sakrij profil i pauziraj aktivnosti. Nalog možeš vratiti kasnije.', delete: 'Trajno obriši nalog', deleteHint: 'Trajno ukloni privatne podatke naloga. Ovo se ne može poništiti.', deactivateWarning: 'Profil će nestati iz pretrage i matchinga, a sve sesije će biti odjavljene. Možeš se vratiti ponovnom potvrdom identiteta.', deleteWarning: 'Privatni profil i podaci naloga biće trajno uklonjeni. Zajedničke grupne poruke i event diskusije ostaće pod imenom Deleted user.', currentPassword: 'Trenutna lozinka', typeToConfirm: 'Ukucaj {{value}} za potvrdu', deactivateAction: 'Deaktiviraj nalog', deleteAction: 'Trajno obriši', deactivated: 'Tvoj nalog je deaktiviran.', deleted: 'Tvoj nalog je trajno obrisan.' },
-    socialAuth: { google: 'Nastavi preko Google naloga', facebook: 'Nastavi preko Facebook naloga', microsoft: 'Nastavi preko Microsoft naloga', orContinue: 'ili nastavi emailom', orCreate: 'ili napravi nalog emailom', connecting: 'Povezivanje...', googleConfigMissing: 'Za Google prijavu nedostaje VITE_GOOGLE_CLIENT_ID.', googleInitFailed: 'Google prijava se još pokreće. Pokušaj ponovo.', googleUnavailable: 'Google prijava nije mogla da se prikaže. Proveri podešavanja privatnosti pregledača i pokušaj ponovo.', facebookConfigMissing: 'Za Facebook prijavu nedostaje VITE_FACEBOOK_APP_ID.', microsoftConfigMissing: 'Za Microsoft prijavu nedostaju VITE_MICROSOFT_CLIENT_ID i VITE_MICROSOFT_TENANT_ID.', microsoftInitFailed: 'Microsoft prijava se još pokreće. Pokušaj ponovo.', popupBlocked: 'Microsoft popup je blokiran. Dozvoli popup prozore za ovaj sajt i pokušaj ponovo.', cancelled: 'Prijava je otkazana.', failed: 'Prijava preko drugog servisa nije uspela.', completeTitle: 'Dopuni profil', completeText: 'Dodaj datum rođenja pre korišćenja MYM-a. Moraš imati najmanje 16 godina.' },
+    socialAuth: { google: 'Nastavi preko Google naloga', microsoft: 'Nastavi preko Microsoft naloga', orContinue: 'ili nastavi emailom', orCreate: 'ili napravi nalog emailom', connecting: 'Povezivanje...', googleConfigMissing: 'Za Google prijavu nedostaje VITE_GOOGLE_CLIENT_ID.', googleInitFailed: 'Google prijava se još pokreće. Pokušaj ponovo.', googleUnavailable: 'Google prijava nije mogla da se prikaže. Proveri podešavanja privatnosti pregledača i pokušaj ponovo.', microsoftConfigMissing: 'Za Microsoft prijavu nedostaju VITE_MICROSOFT_CLIENT_ID i VITE_MICROSOFT_TENANT_ID.', microsoftInitFailed: 'Microsoft prijava se još pokreće. Pokušaj ponovo.', popupBlocked: 'Microsoft popup je blokiran. Dozvoli popup prozore za ovaj sajt i pokušaj ponovo.', cancelled: 'Prijava je otkazana.', failed: 'Prijava preko drugog servisa nije uspela.', completeTitle: 'Dopuni profil', completeText: 'Dodaj datum rođenja pre korišćenja MYM-a. Moraš imati najmanje 16 godina.' },
     common: { loading: 'Učitavanje...', retry: 'Pokušaj ponovo', save: 'Sačuvaj', edit: 'Izmeni', cancel: 'Otkaži', delete: 'Obriši', confirm: 'Potvrdi', back: 'Nazad', view: 'Pogledaj', noData: 'Nema podataka', error: 'Došlo je do greške', working: 'Obrada...' },
     language: { label: 'Jezik', choose: 'Izaberi jezik', english: 'Engleski', serbian: 'Srpski' },
     profileTags: { littlePlaceholder: 'Dodaj sitnicu...', exploringPlaceholder: 'Dodaj tag...', noLittleThings: 'Još nema dodatih sitnica.', add: 'Dodaj tag', suggested: 'Predloženo', showMore: 'Prikaži više', showLess: 'Prikaži manje', tooMany: 'Možete dodati najviše {{count}} tagova.', tooLong: 'Tag je predugačak.', duplicate: 'Tag već postoji.', saveError: 'Tagovi nisu mogli da se sačuvaju.' },
@@ -52,7 +52,7 @@ export const translations = {
       'Study buddy':'Društvo za učenje', 'Coffee date':'Kafa udvoje', 'Gaming duo':'Gejming duo', 'Event buddy':'Društvo za događaje', 'Long conversations':'Dugi razgovori', 'Low-pressure hangouts':'Opuštena druženja', 'New friends':'Novi prijatelji', 'Travel buddy':'Saputnik', 'Concert buddy':'Društvo za koncerte', 'Gym partner':'Partner za teretanu', 'Project partner':'Partner za projekte'
     },
     theme: { label: 'Tema', choose: 'Izaberi temu', system: 'Sistemska', light: 'Svetla', dark: 'Tamna' },
-    userActions: { actions: 'Akcije korisnika', block: 'Blokiraj korisnika', hide: 'Sakrij profil', report: 'Prijavi korisnika', blockTitle: 'Blokirati korisnika?', hideTitle: 'Sakriti profil?', blockText: 'Ovaj korisnik više neće moći da te kontaktira.', hideText: 'Ovaj profil će biti uklonjen iz tvojih preporuka.', reason: 'Razlog', details: 'Detalji', optional: 'Opcioni detalji', submit: 'Pošalji prijavu', reportSoon: 'Prijavljivanje uskoro stiže.', blocked: 'Blokirao/la si ovog korisnika.', blockedComment: 'Komentar blokiranog korisnika je sakriven' },
+    userActions: { actions: 'Akcije korisnika', block: 'Blokiraj korisnika', hide: 'Sakrij profil', report: 'Prijavi korisnika', blockTitle: 'Blokirati korisnika?', hideTitle: 'Sakriti profil?', blockText: 'Ovaj korisnik više neće moći da te kontaktira.', hideText: 'Ovaj profil će biti uklonjen iz tvojih preporuka.', reason: 'Razlog', details: 'Detalji', optional: 'Opcioni detalji', submit: 'Pošalji prijavu', blocked: 'Blokirao/la si ovog korisnika.', blockedComment: 'Komentar blokiranog korisnika je sakriven' },
     nav: { main: 'Glavna navigacija', about: 'O nama', login: 'Prijava', register: 'Registracija', quickMatch: 'Quick Match', deepMatch: 'Deep Match', events: 'Događaji', chat: 'Chat', createEvent: 'Kreiraj događaj', profileMenu: 'Meni profila', myProfile: 'Moj profil', settings: 'Podešavanja', logout: 'Odjava', openMenu: 'Otvori meni', closeMenu: 'Zatvori meni' },
     auth: { email: 'E-adresa', password: 'Lozinka', username: 'Korisničko ime', fullName: 'Puno ime', yourFullName: 'Unesite puno ime', dateOfBirth: 'Datum rođenja', fullNameRequired: 'Puno ime je obavezno.', dateOfBirthRequired: 'Datum rođenja je obavezan.', minimumAge: 'Morate imati najmanje 16 godina.', registrationFailed: 'Nalog nije mogao da se napravi.', confirmPassword: 'Potvrdi lozinku', signIn: 'Prijavi se', createAccount: 'Napravi nalog', noAccount: 'Nemaš nalog?', hasAccount: 'Već imaš nalog?', yourUsername: 'Tvoje korisničko ime', wrongEmail: 'Pogrešna e-adresa', wrongPassword: 'Pogrešna lozinka', passwordsMismatch: 'Lozinke se ne poklapaju' },
     landing: { tagline: 'Pronađi. Oseti. Poveži se.', matchIn: 'Pridruži se', socialMedia: 'Društvene mreže' },
@@ -135,11 +135,11 @@ Object.assign(translations.sr.events, {
 translations.en.quick.agePreferenceOptional = 'Age preference (optional)';
 translations.sr.quick.agePreferenceOptional = 'Starosna preferencija (opciono)';
 Object.assign(translations.en.publicProfile, {
-  editRating: 'Edit rating', yourRatings: 'Your ratings', saveChanges: 'Save changes',
+  editRating: 'Edit rating', yourRatings: 'Your ratings', saveChanges: 'Save changes', saveRating: 'Save rating',
   ratingUpdated: 'Rating updated successfully', ratingUpdateError: 'Rating could not be updated',
 });
 Object.assign(translations.sr.publicProfile, {
-  editRating: 'Izmeni ocenu', yourRatings: 'Tvoje ocene', saveChanges: 'Sačuvaj izmene',
+  editRating: 'Izmeni ocenu', yourRatings: 'Tvoje ocene', saveChanges: 'Sačuvaj izmene', saveRating: 'Sačuvaj ocenu',
   ratingUpdated: 'Ocena je uspešno izmenjena', ratingUpdateError: 'Ocenu nije moguće izmeniti',
 });
 Object.assign(translations.en.events, {
@@ -154,5 +154,152 @@ Object.assign(translations.sr.events, {
   minimumAgeOptional: 'Minimalne godine (opciono)', maximumAgeOptional: 'Maksimalne godine (opciono)',
   ageRangeInvalid: 'Unesi godine od 13 do 100. Minimum ne može biti veći od maksimuma.',
 });
+
+Object.assign(translations.en.profileUi, {
+  duplicateSlot: 'This time slot is already added for this day.',
+});
+Object.assign(translations.sr.profileUi, {
+  duplicateSlot: 'Ovaj termin je vec dodat za ovaj dan.',
+});
+Object.assign(translations.en.events, {
+  leave: 'Leave event',
+  left: 'You left the event.',
+  leaveError: 'Event could not be left.',
+  leaveConfirmShort: 'Leave this event?',
+});
+Object.assign(translations.sr.events, {
+  leave: 'Izadji iz dogadjaja',
+  left: 'Izasao/la si iz dogadjaja.',
+  leaveError: 'Nije moguce izaci iz dogadjaja.',
+  leaveConfirmShort: 'Izaci iz ovog dogadjaja?',
+});
+translations.en.followList = {
+  followers: 'Followers',
+  following: 'Following',
+  noFollowers: 'No followers yet.',
+  noFollowing: 'Not following anyone yet.',
+  loadError: 'Followers could not be loaded.',
+  previous: 'Previous',
+  next: 'Next',
+  pageOf: 'Page {{page}} of {{total}}',
+};
+translations.sr.followList = {
+  followers: 'Pratioci',
+  following: 'Prati',
+  noFollowers: 'Jos nema pratilaca.',
+  noFollowing: 'Jos nikoga ne prati.',
+  loadError: 'Pratioce nije moguce ucitati.',
+  previous: 'Prethodna',
+  next: 'Sledeca',
+  pageOf: 'Strana {{page}} od {{total}}',
+};
+translations.en.guest = {
+  enter: 'Enter as guest',
+  continue: 'Continue as guest',
+  chooseCity: 'Choose city',
+  citySubtitle: 'Select a city to browse organizer events.',
+  browsingCity: 'Browsing organizer events in {{city}}',
+  changeCity: 'Change city',
+  exit: 'Exit guest mode',
+  access: 'Guest access',
+  accountRequired: 'Create an account to use this feature.',
+  createAccountToJoin: 'Create an account to join this event.',
+  noOrganizerEvents: 'No organizer events found in this city yet.',
+  onlyPublicOrganizerEvents: 'Guests can only browse public organizer events.',
+  cityRequired: 'Choose a city to continue.',
+  startError: 'Guest access could not be started.',
+};
+
+translations.sr.guest = {
+  enter: 'Udji kao gost',
+  continue: 'Nastavi kao gost',
+  chooseCity: 'Izaberite grad',
+  citySubtitle: 'Izaberite grad da biste pregledali dogadjaje organizatora.',
+  browsingCity: 'Pregledate dogadjaje organizatora u gradu {{city}}',
+  changeCity: 'Promeni grad',
+  exit: 'Izadji iz guest rezima',
+  access: 'Gost pristup',
+  accountRequired: 'Kreirajte nalog da biste koristili ovu funkciju.',
+  createAccountToJoin: 'Kreirajte nalog da biste se pridruzili dogadjaju.',
+  noOrganizerEvents: 'Nema dogadjaja organizatora za ovaj grad.',
+  onlyPublicOrganizerEvents: 'Gosti mogu da pregledaju samo javne dogadjaje organizatora.',
+  cityRequired: 'Izaberite grad za nastavak.',
+  startError: 'Guest pristup nije mogao da se pokrene.',
+};
+
+Object.assign(translations.en.common, {
+  close: 'Close',
+  previous: 'Previous',
+  next: 'Next',
+  page: 'Page',
+  of: 'of',
+});
+Object.assign(translations.sr.common, {
+  close: 'Zatvori',
+  previous: 'Prethodna',
+  next: 'Sledeca',
+  page: 'Strana',
+  of: 'od',
+});
+
+translations.en.reports = {
+  reportUser: 'Report @{{username}}',
+  reason: 'Reason',
+  details: 'Details',
+  optionalDetails: 'Optional details',
+  submit: 'Submit report',
+  submittedMessage: 'Report submitted.',
+  submitError: 'Report could not be submitted.',
+  historyTitle: 'Report history',
+  historyEmpty: 'You have not submitted any reports yet.',
+  historyLoadError: 'Report history could not be loaded.',
+  reportedUser: 'Reported user',
+  status: 'Status',
+  submitted: 'Submitted',
+  reasons: {
+    harassment: 'Harassment',
+    spam: 'Spam',
+    fakeprofile: 'Fake profile',
+    inappropriatecontent: 'Inappropriate content',
+    hatespeech: 'Hate speech',
+    other: 'Other',
+  },
+  statuses: {
+    pending: 'Pending',
+    reviewed: 'Reviewed',
+    dismissed: 'Dismissed',
+    actionTaken: 'Action taken',
+  },
+};
+
+translations.sr.reports = {
+  reportUser: 'Prijavi @{{username}}',
+  reason: 'Razlog',
+  details: 'Detalji',
+  optionalDetails: 'Opcioni detalji',
+  submit: 'Posalji prijavu',
+  submittedMessage: 'Prijava je poslata.',
+  submitError: 'Prijava nije mogla da se posalje.',
+  historyTitle: 'Istorija prijava',
+  historyEmpty: 'Jos uvek niste poslali nijednu prijavu.',
+  historyLoadError: 'Istorija prijava nije mogla da se ucita.',
+  reportedUser: 'Prijavljeni korisnik',
+  status: 'Status',
+  submitted: 'Poslato',
+  reasons: {
+    harassment: 'Uznemiravanje',
+    spam: 'Spam',
+    fakeprofile: 'Lazni profil',
+    inappropriatecontent: 'Neprimeren sadrzaj',
+    hatespeech: 'Govor mrznje',
+    other: 'Drugo',
+  },
+  statuses: {
+    pending: 'Na cekanju',
+    reviewed: 'Pregledano',
+    dismissed: 'Odbijeno',
+    actionTaken: 'Preduzeta mera',
+  },
+};
 
 export const supportedLanguages = ['en', 'sr'];

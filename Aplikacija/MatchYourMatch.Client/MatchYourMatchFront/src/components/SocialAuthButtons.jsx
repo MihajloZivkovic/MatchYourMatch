@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { EventType, PublicClientApplication } from '@azure/msal-browser';
-import { FaFacebookF } from 'react-icons/fa';
 import { FcGoogle } from 'react-icons/fc';
 import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButton from './SocialAuthButton';
-
-const FACEBOOK_SDK = 'https://connect.facebook.net/en_US/sdk.js';
 
 function loadScript(src, ready) {
   if (ready()) return Promise.resolve();
@@ -41,7 +38,6 @@ function SocialAuthButtons({ register = false }) {
   const [googleReady, setGoogleReady] = useState(false);
   const [microsoftReady, setMicrosoftReady] = useState(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const facebookAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
   const microsoftClientId = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
   const microsoftTenantId =
     import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common';
@@ -213,40 +209,6 @@ function SocialAuthButtons({ register = false }) {
     };
   }, [microsoftClientId, microsoftTenantId, t]);
 
-  const loginWithFacebook = async () => {
-    if (!facebookAppId) {
-      setError(t('socialAuth.facebookConfigMissing'));
-      return;
-    }
-    setActiveProvider('facebook');
-    setError('');
-    try {
-      await loadScript(FACEBOOK_SDK, () => Boolean(window.FB));
-      window.FB.init({
-        appId: facebookAppId,
-        cookie: false,
-        xfbml: false,
-        version: 'v22.0',
-      });
-      window.FB.login(
-        (response) => {
-          if (!response.authResponse?.accessToken) {
-            setActiveProvider('');
-            setError(t('socialAuth.cancelled'));
-            return;
-          }
-          finishLogin('facebook', {
-            accessToken: response.authResponse.accessToken,
-          });
-        },
-        { scope: 'public_profile,email', return_scopes: true },
-      );
-    } catch (sdkError) {
-      setActiveProvider('');
-      setError(sdkError.message || t('socialAuth.failed'));
-    }
-  };
-
   const loginWithMicrosoft = async () => {
     if (!microsoftClientId || !microsoftTenantId) {
       setError(t('socialAuth.microsoftConfigMissing'));
@@ -301,15 +263,6 @@ function SocialAuthButtons({ register = false }) {
         disabled={busy || (Boolean(googleClientId) && !googleReady)}
       >
         {t('socialAuth.google')}
-      </SocialAuthButton>
-      <SocialAuthButton
-        provider='facebook'
-        icon={<FaFacebookF />}
-        onClick={loginWithFacebook}
-        loading={activeProvider === 'facebook'}
-        disabled={busy}
-      >
-        {t('socialAuth.facebook')}
       </SocialAuthButton>
       <SocialAuthButton
         provider='microsoft'

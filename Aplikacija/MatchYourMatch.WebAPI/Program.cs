@@ -67,6 +67,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnTokenValidated = async context =>
             {
+                if (context.Principal?.IsInRole("Guest") == true)
+                {
+                    if (string.IsNullOrWhiteSpace(context.Principal.FindFirst("guestCity")?.Value))
+                        context.Fail("Guest city is required.");
+                    return;
+                }
+
                 var idValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var versionValue = context.Principal?.FindFirst("tokenVersion")?.Value;
                 if (!int.TryParse(idValue, out var userId) || !int.TryParse(versionValue, out var tokenVersion))
@@ -113,7 +120,6 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<GoogleTokenValidator>();
-builder.Services.AddScoped<FacebookTokenValidator>();
 builder.Services.AddScoped<MicrosoftTokenValidator>();
 
 builder.Services.AddAuthorization();
@@ -314,6 +320,24 @@ using (var scope = app.Services.CreateScope())
         CREATE TABLE IF NOT EXISTS `HiddenProfiles` (
             `Id` int NOT NULL AUTO_INCREMENT, `UserId` int NOT NULL, `HiddenUserId` int NOT NULL, `CreatedAt` datetime(6) NOT NULL,
             CONSTRAINT `PK_HiddenProfiles` PRIMARY KEY (`Id`), UNIQUE INDEX `IX_HiddenProfiles_UserId_HiddenUserId` (`UserId`,`HiddenUserId`)
+        ) CHARACTER SET=utf8mb4;
+        CREATE TABLE IF NOT EXISTS `UserReports` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `ReporterUserId` int NOT NULL,
+            `ReportedUserId` int NOT NULL,
+            `Reason` varchar(80) CHARACTER SET utf8mb4 NOT NULL,
+            `Details` varchar(2000) CHARACTER SET utf8mb4 NULL,
+            `Status` varchar(30) CHARACTER SET utf8mb4 NOT NULL DEFAULT 'Pending',
+            `CreatedAt` datetime(6) NOT NULL,
+            `ReviewedAt` datetime(6) NULL,
+            `ReviewedByUserId` int NULL,
+            CONSTRAINT `PK_UserReports` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_UserReports_Users_ReporterUserId` FOREIGN KEY (`ReporterUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            CONSTRAINT `FK_UserReports_Users_ReportedUserId` FOREIGN KEY (`ReportedUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
+            CONSTRAINT `FK_UserReports_Users_ReviewedByUserId` FOREIGN KEY (`ReviewedByUserId`) REFERENCES `Users` (`Id`) ON DELETE SET NULL,
+            INDEX `IX_UserReports_ReporterUserId_CreatedAt` (`ReporterUserId`, `CreatedAt`),
+            INDEX `IX_UserReports_ReportedUserId` (`ReportedUserId`),
+            INDEX `IX_UserReports_ReviewedByUserId` (`ReviewedByUserId`)
         ) CHARACTER SET=utf8mb4;
         """);
 #pragma warning disable EF1002 // The interpolated identifiers and DDL below come only from this fixed local list.
@@ -796,17 +820,17 @@ using (var scope = app.Services.CreateScope())
             `Id` int NOT NULL AUTO_INCREMENT,
             `RaterUserId` int NOT NULL,
             `RatedUserId` int NOT NULL,
-            `EventId` int NOT NULL,
+            `EventId` int NULL,
             `Rating` decimal(2,1) NOT NULL,
             `CreatedAt` datetime(6) NOT NULL,
             `UpdatedAt` datetime(6) NULL,
             CONSTRAINT `PK_UserRatings` PRIMARY KEY (`Id`),
-            CONSTRAINT `FK_UserRatings_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_UserRatings_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE SET NULL,
             CONSTRAINT `FK_UserRatings_Users_RatedUserId` FOREIGN KEY (`RatedUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
             CONSTRAINT `FK_UserRatings_Users_RaterUserId` FOREIGN KEY (`RaterUserId`) REFERENCES `Users` (`Id`) ON DELETE RESTRICT,
             INDEX `IX_UserRatings_EventId` (`EventId`),
             INDEX `IX_UserRatings_RatedUserId` (`RatedUserId`),
-            UNIQUE INDEX `IX_UserRatings_RaterUserId_RatedUserId_EventId` (`RaterUserId`, `RatedUserId`, `EventId`)
+            UNIQUE INDEX `IX_UserRatings_RaterUserId_RatedUserId` (`RaterUserId`, `RatedUserId`)
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
@@ -843,8 +867,92 @@ using (var scope = app.Services.CreateScope())
               AND CONSTRAINT_NAME = 'FK_UserRatings_Events_EventId'
         );
         SET @statement := IF(
+            @ratingEventFkExists > 0,
+            'ALTER TABLE `UserRatings` DROP FOREIGN KEY `FK_UserRatings_Events_EventId`',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        """);
+    db.Database.ExecuteSqlRaw("""
+        SET @ratingRaterIndexExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND INDEX_NAME = 'IX_UserRatings_RaterUserId'
+        );
+        SET @statement := IF(
+            @ratingRaterIndexExists = 0,
+            'ALTER TABLE `UserRatings` ADD INDEX `IX_UserRatings_RaterUserId` (`RaterUserId`)',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SET @oldUserRatingIndexExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND INDEX_NAME = 'IX_UserRatings_RaterUserId_RatedUserId_EventId'
+        );
+        SET @statement := IF(
+            @oldUserRatingIndexExists > 0,
+            'ALTER TABLE `UserRatings` DROP INDEX `IX_UserRatings_RaterUserId_RatedUserId_EventId`',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        DELETE oldRating FROM `UserRatings` oldRating
+        INNER JOIN `UserRatings` newerRating
+            ON newerRating.`RaterUserId` = oldRating.`RaterUserId`
+            AND newerRating.`RatedUserId` = oldRating.`RatedUserId`
+            AND (
+                COALESCE(newerRating.`UpdatedAt`, newerRating.`CreatedAt`) > COALESCE(oldRating.`UpdatedAt`, oldRating.`CreatedAt`)
+                OR (
+                    COALESCE(newerRating.`UpdatedAt`, newerRating.`CreatedAt`) = COALESCE(oldRating.`UpdatedAt`, oldRating.`CreatedAt`)
+                    AND newerRating.`Id` > oldRating.`Id`
+                )
+            );
+
+        SET @newUserRatingIndexExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND INDEX_NAME = 'IX_UserRatings_RaterUserId_RatedUserId'
+        );
+        SET @statement := IF(
+            @newUserRatingIndexExists = 0,
+            'ALTER TABLE `UserRatings` ADD UNIQUE INDEX `IX_UserRatings_RaterUserId_RatedUserId` (`RaterUserId`, `RatedUserId`)',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SET @ratingEventIndexExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND INDEX_NAME = 'IX_UserRatings_EventId'
+        );
+        SET @statement := IF(
+            @ratingEventIndexExists = 0,
+            'ALTER TABLE `UserRatings` ADD INDEX `IX_UserRatings_EventId` (`EventId`)',
+            'SELECT 1'
+        );
+        PREPARE stmt FROM @statement;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+
+        SET @ratingEventFkExists := (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'UserRatings'
+              AND CONSTRAINT_NAME = 'FK_UserRatings_Events_EventId'
+        );
+        SET @statement := IF(
             @ratingEventFkExists = 0,
-            'ALTER TABLE `UserRatings` ADD CONSTRAINT `FK_UserRatings_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE',
+            'ALTER TABLE `UserRatings` ADD CONSTRAINT `FK_UserRatings_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE SET NULL',
             'SELECT 1'
         );
         PREPARE stmt FROM @statement;
@@ -1075,6 +1183,21 @@ app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseMiddleware<ApiExceptionMiddleware>();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User?.IsInRole("Guest") == true && !IsGuestAllowedRequest(context.Request))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Create an account to use this feature."
+        });
+        return;
+    }
+
+    await next();
+});
 app.UseAuthorization();
 app.MapControllers();
 try
@@ -1097,4 +1220,26 @@ static bool IsAddressAlreadyInUse(Exception exception)
     }
 
     return false;
+}
+
+static bool IsGuestAllowedRequest(HttpRequest request)
+{
+    if (!HttpMethods.IsGet(request.Method)) return false;
+
+    var path = request.Path.Value ?? string.Empty;
+    if (path.Equals("/api/Event", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/Events", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/Event/cities", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/api/Events/cities", StringComparison.OrdinalIgnoreCase))
+        return true;
+
+    return IsGuestEventDetailsPath(path, "/api/Event/") ||
+        IsGuestEventDetailsPath(path, "/api/Events/");
+}
+
+static bool IsGuestEventDetailsPath(string path, string prefix)
+{
+    if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+    var idPart = path[prefix.Length..];
+    return int.TryParse(idPart, out _);
 }

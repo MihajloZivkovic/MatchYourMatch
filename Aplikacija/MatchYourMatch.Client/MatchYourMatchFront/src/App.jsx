@@ -27,6 +27,7 @@ import PublicProfile from "./pages/app/PublicProfile";
 import Chat from "./pages/app/Chat";
 import Settings from "./pages/app/Settings";
 import SessionExpiredModal from "./components/SessionExpiredModal";
+import { getGuestCity, isGuestSession } from "./services/guestSession";
 import "./App.css";
 
 const USER_ID_CLAIMS = [
@@ -98,6 +99,19 @@ function App() {
         return;
       }
 
+      if (isGuestSession(token)) {
+        if (mounted) {
+          setCurrentUser({
+            id: "guest",
+            username: "Guest",
+            role: "Guest",
+            userType: "Guest",
+            city: getGuestCity(token),
+          });
+        }
+        return;
+      }
+
       try {
         const id = getId();
         if (!id) {
@@ -162,6 +176,17 @@ function App() {
             conversationStyle: "",
             lookingFor: [],
           });
+        }
+        return;
+      }
+
+      if (isGuestSession(token)) {
+        if (mounted) {
+          setUserProfile((current) => ({
+            ...current,
+            profilePicture: "",
+            location: getGuestCity(token),
+          }));
         }
         return;
       }
@@ -263,11 +288,11 @@ function App() {
           path="/app"
           element={
             <ProtectedRoute>
-              <AppShell userProfile = {userProfile}/>
+              <AppShell userProfile = {userProfile} currentUser={currentUser}/>
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route index element={<Navigate to={isGuestSession() ? "events" : "dashboard"} replace />} />
           <Route
             path="dashboard"
             element={<Dashboard currentUser={currentUser} />}

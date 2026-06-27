@@ -16,10 +16,12 @@ namespace MatchYourMatch.WebAPI.Services
             await EnsureUsersAsync(raterUserId, ratedUserId);
             var matched = await AreUsersMatchedAsync(raterUserId, ratedUserId);
             var eligibleEvents = await GetEligibleEventsAsync(raterUserId, ratedUserId);
-            var myRatings = await _context.UserRatings.AsNoTracking()
+            var myRating = await _context.UserRatings.AsNoTracking()
                 .Include(r => r.Event)
                 .Where(r => r.RaterUserId == raterUserId && r.RatedUserId == ratedUserId)
-                .ToListAsync();
+                .OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt)
+                .ThenByDescending(r => r.Id)
+                .FirstOrDefaultAsync();
             var received = _context.UserRatings.AsNoTracking().Where(r => r.RatedUserId == ratedUserId);
             var ratingsCount = await received.CountAsync();
             var average = ratingsCount == 0 ? (decimal?)null : await received.AverageAsync(r => r.Rating);
@@ -31,35 +33,23 @@ namespace MatchYourMatch.WebAPI.Services
                     EventId = e.Id,
                     Title = e.Title,
                     DateTime = e.Date.ToDateTime(e.Time),
-                    MyRating = myRatings.FirstOrDefault(rating => rating.EventId == e.Id)?.Rating
+                    MyRating = myRating?.Rating
                 }).ToList();
-            var quickMatchRating = myRatings.FirstOrDefault(rating => rating.EventId == null);
-            var canRateQuickMatch = matched && quickMatchRating == null;
-            var canRateEvent = eventDtos.Any(value => value.MyRating == null);
-            var canRate = canRateQuickMatch || canRateEvent;
+            var isEligible = matched || eventDtos.Count > 0;
+            var myRatingDto = myRating == null ? null : ToDto(myRating);
+            var canRate = isEligible && myRating == null;
 
             return new UserRatingStatusDto
             {
                 CanRate = canRate,
-                Reason = !matched && eventDtos.Count == 0
+                HasRated = myRating != null,
+                Reason = !isEligible
                     ? "You can rate this user after matching through Quick Match or attending a past event together."
-                    : !canRate ? "You already rated every eligible encounter with this user." : null,
+                    : myRating != null ? "You have already rated this user. Use edit instead." : null,
                 AverageRating = average.HasValue ? decimal.Round(average.Value, 1) : null,
                 RatingsCount = ratingsCount,
-                MyRating = eventDtos.FirstOrDefault()?.MyRating ?? quickMatchRating?.Rating,
-                MyRatings = myRatings
-                    .OrderByDescending(rating => rating.Event?.Date.ToDateTime(rating.Event.Time) ?? rating.CreatedAt)
-                    .Select(rating => new UserRatingItemDto
-                    {
-                        Id = rating.Id,
-                        Rating = rating.Rating,
-                        EncounterType = rating.EventId.HasValue ? "Event" : "QuickMatch",
-                        EventId = rating.EventId,
-                        EncounterTitle = rating.Event?.Title ?? "Quick Match",
-                        EncounterAt = rating.Event == null ? rating.CreatedAt : rating.Event.Date.ToDateTime(rating.Event.Time),
-                        CreatedAt = rating.CreatedAt,
-                        UpdatedAt = rating.UpdatedAt
-                    }).ToList(),
+                MyRating = myRatingDto,
+                MyRatings = myRatingDto == null ? new List<UserRatingItemDto>() : new List<UserRatingItemDto> { myRatingDto },
                 EligibleEvents = eventDtos
             };
         }
@@ -70,42 +60,41 @@ namespace MatchYourMatch.WebAPI.Services
             await EnsureUsersAsync(raterUserId, ratedUserId);
             var matched = await AreUsersMatchedAsync(raterUserId, ratedUserId);
             var eligibleEvents = await GetEligibleEventsAsync(raterUserId, ratedUserId);
-            var selectedEventIsEligible = dto.EventId.HasValue &&
-                eligibleEvents.Any(e => e.Id == dto.EventId.Value);
-            if (!matched && !selectedEventIsEligible)
+            var eligibleEvent = dto.EventId.HasValue
+                ? eligibleEvents.FirstOrDefault(e => e.Id == dto.EventId.Value)
+                : eligibleEvents.OrderByDescending(e => e.Date.ToDateTime(e.Time)).FirstOrDefault();
+            if (!matched && eligibleEvent == null)
                 throw new UnauthorizedAccessException(
                     "Users must have an active Quick Match match or have attended a past event together.");
 
-            var ratingEventId = selectedEventIsEligible ? dto.EventId : null;
-
             var existing = await _context.UserRatings.FirstOrDefaultAsync(r =>
-                r.RaterUserId == raterUserId && r.RatedUserId == ratedUserId && r.EventId == ratingEventId);
+                r.RaterUserId == raterUserId && r.RatedUserId == ratedUserId);
             if (existing != null)
-                throw new InvalidOperationException("You already rated this encounter.");
+                throw new InvalidOperationException("You have already rated this user. Use edit instead.");
 
             _context.UserRatings.Add(new UserRating
             {
                 RaterUserId = raterUserId,
                 RatedUserId = ratedUserId,
-                EventId = ratingEventId,
+                EventId = eligibleEvent?.Id,
                 Rating = dto.Rating
             });
             await _context.SaveChangesAsync();
             return await GetStatusAsync(raterUserId, ratedUserId);
         }
 
-        public async Task<UserRatingStatusDto> UpdateAsync(int raterUserId, int ratingId, UpdateUserRatingDto dto)
+        public async Task<UserRatingStatusDto> UpdateAsync(int raterUserId, int ratedUserId, UpdateUserRatingDto dto)
         {
             ValidateRating(dto.Score);
-            var rating = await _context.UserRatings.FirstOrDefaultAsync(value => value.Id == ratingId)
-                ?? throw new KeyNotFoundException("Rating does not exist.");
-            if (rating.RaterUserId != raterUserId)
-                throw new UnauthorizedAccessException("You can only edit ratings you created.");
+            await EnsureUsersAsync(raterUserId, ratedUserId);
+            var rating = await _context.UserRatings.FirstOrDefaultAsync(value =>
+                    value.RaterUserId == raterUserId && value.RatedUserId == ratedUserId)
+                ?? throw new KeyNotFoundException("You have not rated this user yet.");
 
             rating.Rating = dto.Score;
             rating.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
-            return await GetStatusAsync(raterUserId, rating.RatedUserId);
+            return await GetStatusAsync(raterUserId, ratedUserId);
         }
 
         private async Task EnsureUsersAsync(int raterUserId, int ratedUserId)
@@ -141,5 +130,17 @@ namespace MatchYourMatch.WebAPI.Services
             if (rating < 0 || rating > 5 || rating * 2 != decimal.Truncate(rating * 2))
                 throw new InvalidOperationException("Rating must be between 0 and 5 in steps of 0.5.");
         }
+
+        private static UserRatingItemDto ToDto(UserRating rating) => new()
+        {
+            Id = rating.Id,
+            Rating = rating.Rating,
+            EncounterType = "Profile",
+            EventId = rating.EventId,
+            EncounterTitle = null,
+            EncounterAt = null,
+            CreatedAt = rating.CreatedAt,
+            UpdatedAt = rating.UpdatedAt
+        };
     }
 }

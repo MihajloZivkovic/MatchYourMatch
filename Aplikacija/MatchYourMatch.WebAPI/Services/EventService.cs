@@ -64,6 +64,50 @@ namespace MatchYourMatch.WebAPI.Services
             return events.Select(e => ToDto(e, currentUserId)).ToList();
         }
 
+        public async Task<List<EventDto>> GetGuestByQueryAsync(string city, string? category)
+        {
+            var query = GuestVisibleEvents(city);
+
+            if (!string.IsNullOrEmpty(category))
+            {
+                query = query.Where(e => e.Interest != null && e.Interest.Name == category);
+            }
+
+            var events = await query
+                .OrderBy(e => e.Date)
+                .ThenBy(e => e.Time)
+                .ToListAsync();
+
+            return events.Select(e => ToDto(e, 0)).ToList();
+        }
+
+        public async Task<EventDto> GetGuestByIdAsync(int id, string city)
+        {
+            var e = await GuestVisibleEvents(city).FirstOrDefaultAsync(e => e.Id == id);
+            if (e == null)
+                throw new KeyNotFoundException("Event does not exist.");
+
+            return ToDto(e, 0);
+        }
+
+        public async Task<List<string>> GetGuestCitiesAsync()
+        {
+            var localNow = DateTime.Now;
+            var today = DateOnly.FromDateTime(localNow);
+            var currentTime = TimeOnly.FromDateTime(localNow);
+
+            return await _context.Events.AsNoTracking()
+                .Where(e => e.Organizer != null &&
+                    e.Organizer.Role == "Organizer" &&
+                    e.LocationCity != null &&
+                    e.LocationCity != "" &&
+                    (e.Date > today || (e.Date == today && e.Time >= currentTime)))
+                .Select(e => e.LocationCity!)
+                .Distinct()
+                .OrderBy(city => city)
+                .ToListAsync();
+        }
+
         public async Task<ProfileEventsDto> GetProfileEventsAsync(int currentUserId)
         {
             var events = await _context.Events
@@ -267,6 +311,31 @@ namespace MatchYourMatch.WebAPI.Services
                     "EventParticipantJoined", "New event participant",
                     $"{username} joined {e.Title}.", "Event", eventId);
             }
+
+            return await GetByIdAsync(eventId, userId);
+        }
+
+        public async Task<EventDto> LeaveAsync(int eventId, int userId)
+        {
+            var e = await _context.Events
+                .Include(e => e.Participants)
+                .FirstOrDefaultAsync(e => e.Id == eventId);
+
+            if (e == null)
+                throw new KeyNotFoundException("Event does not exist.");
+
+            if (e.OrganizerId == userId)
+                throw new InvalidOperationException("You cannot leave an event you created.");
+
+            if (e.Date.ToDateTime(e.Time) <= DateTime.Now)
+                throw new InvalidOperationException("You cannot leave an event that has already started.");
+
+            var participant = e.Participants.FirstOrDefault(p => p.UserId == userId);
+            if (participant == null)
+                return await GetByIdAsync(eventId, userId);
+
+            _context.EventParticipants.Remove(participant);
+            await _context.SaveChangesAsync();
 
             return await GetByIdAsync(eventId, userId);
         }
@@ -596,6 +665,28 @@ namespace MatchYourMatch.WebAPI.Services
                 throw new UnauthorizedAccessException("Join the event to open its discussion.");
         }
 
+        private IQueryable<Event> GuestVisibleEvents(string city)
+        {
+            var normalizedCity = city.Trim().ToLower();
+            var localNow = DateTime.Now;
+            var today = DateOnly.FromDateTime(localNow);
+            var currentTime = TimeOnly.FromDateTime(localNow);
+
+            return _context.Events
+                .Include(e => e.Organizer)
+                .Include(e => e.Interest)
+                .Include(e => e.SavedByUsers)
+                .Include(e => e.JoinRequests)
+                .Include(e => e.Participants)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.Profile)
+                .Where(e => e.Organizer != null &&
+                    e.Organizer.Role == "Organizer" &&
+                    e.LocationCity != null &&
+                    e.LocationCity.ToLower() == normalizedCity &&
+                    (e.Date > today || (e.Date == today && e.Time >= currentTime)));
+        }
+
         private static EventDto ToDto(Event e, int currentUserId)
         {
             var participants = e.Participants
@@ -637,6 +728,7 @@ namespace MatchYourMatch.WebAPI.Services
                     .ToList(),
                 IsJoinedByCurrentUser = participants.Any(p => p.UserId == currentUserId),
                 IsOrganizer = e.OrganizerId == currentUserId,
+                IsCreator = e.OrganizerId == currentUserId,
                 JoinRequestStatus = e.JoinRequests
                     .Where(request => request.UserId == currentUserId)
                     .Select(request => request.Status)

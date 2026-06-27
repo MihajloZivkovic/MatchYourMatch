@@ -22,15 +22,20 @@ namespace MatchYourMatch.WebAPI.Controllers
         public async Task<IActionResult> Save(int userId, SaveUserRatingDto dto) => await Execute(() =>
             _service.SaveAsync(CurrentUserId(), userId, dto));
 
-        [HttpPut("/api/user-ratings/{ratingId:int}")]
-        public async Task<IActionResult> Update(int ratingId, UpdateUserRatingDto dto) => await Execute(() =>
-            _service.UpdateAsync(CurrentUserId(), ratingId, dto));
+        [HttpPut("{userId:int}/rating")]
+        [HttpPut("/api/user-ratings/{userId:int}")]
+        public async Task<IActionResult> Update(int userId, UpdateUserRatingDto dto) => await Execute(() =>
+            _service.UpdateAsync(CurrentUserId(), userId, dto));
 
         private async Task<IActionResult> Execute(Func<Task<UserRatingStatusDto>> action)
         {
             try { return Ok(await action()); }
             catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
             catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("already rated", StringComparison.OrdinalIgnoreCase))
+            {
+                return Conflict(ex.Message);
+            }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 

@@ -201,9 +201,21 @@
   gap: 0.9rem;
   margin-top: 0.7rem;
 }
-.public-profile__social-counts span {
+.public-profile__social-counts button {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
   font-size: 0.72rem;
+  cursor: pointer;
+}
+.public-profile__social-counts button:hover,
+.public-profile__social-counts button:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .public-profile__social-counts strong {
   color: var(--text);

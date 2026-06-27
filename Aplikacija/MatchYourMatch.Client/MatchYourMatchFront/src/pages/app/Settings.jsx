@@ -14,6 +14,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
+import ReportHistoryModal from '../../components/ReportHistoryModal';
 import { safetyService } from '../../services/safetyService';
 import './Settings.css';
 
@@ -75,6 +76,7 @@ function Settings() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [safety, setSafety] = useState(null);
+  const [reportHistoryOpen, setReportHistoryOpen] = useState(false);
   useEffect(() => {
     fetch('/api/Settings/me', {
       headers: { Authorization: `Bearer ${token()}` },
@@ -373,9 +375,15 @@ function Settings() {
               {safety?.type === 'hidden-profiles' ? 'Close' : 'Manage'}
             </button>
           </div>
-          <div className='settings-row is-disabled'>
+          <div className='settings-row'>
             <strong>Report history</strong>
-            <span className='settings-soon'>Coming soon</span>
+            <button
+              type='button'
+              className='settings-manage'
+              onClick={() => setReportHistoryOpen(true)}
+            >
+              Manage
+            </button>
           </div>
           {safety && (
             <div className='settings-safety-list'>
@@ -411,6 +419,10 @@ function Settings() {
           )}
         </Card>
       </div>
+      <ReportHistoryModal
+        open={reportHistoryOpen}
+        onClose={() => setReportHistoryOpen(false)}
+      />
     </div>
   );
 }

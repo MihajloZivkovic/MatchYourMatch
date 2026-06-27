@@ -158,8 +158,29 @@
   align-items: center;
   gap: 0.35rem;
   margin-bottom: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--text-muted);
+  font: inherit;
   font-size: 0.78rem;
+  text-align: left;
+}
+
+.profile__followers--clickable {
+  cursor: pointer;
+}
+
+.profile__followers--clickable:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.profile__followers--clickable:hover,
+.profile__followers--clickable:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .profile__followers svg,
