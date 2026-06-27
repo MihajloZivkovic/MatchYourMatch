@@ -217,6 +217,7 @@ function DeepMatch() {
                   <button
                     type="button"
                     className="app-btn-pill app-btn-pill--outline deep-match__view"
+                    onClick={() => navigate(`/app/users/${match.userId}`)}
                   >
                     {t("deep.viewDetails")}
                   </button>
