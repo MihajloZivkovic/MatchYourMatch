@@ -32,6 +32,13 @@
   box-shadow: var(--elev-3);
   backdrop-filter: blur(16px);
 }
+.language-switcher__menu--settings {
+  left: 50%;
+  right: auto;
+  width: 132px;
+  min-width: 132px;
+  transform: translateX(-50%);
+}
 .language-switcher__menu button {
   width: 100%;
   min-height: 36px;

@@ -18,7 +18,7 @@ function ThemeLang({ variant = 'public', layout = 'dropdown' }) {
   }, []);
 
   return (
-    <div>
+    <div className='language-switcher'>
       <button
         type='button'
         className='language-switcher__button adjust'
@@ -31,7 +31,7 @@ function ThemeLang({ variant = 'public', layout = 'dropdown' }) {
       </button>
         {menuOpen && (
             <div
-            className='language-switcher__menu'
+            className='language-switcher__menu language-switcher__menu--settings'
             role='menu'
             ref={menuRef}
             >
