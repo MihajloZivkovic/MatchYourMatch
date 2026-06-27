@@ -19,6 +19,9 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         private int GetCurrentUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        private bool IsGuest() => User.IsInRole("Guest");
+        private string GuestCity() => User.FindFirst("guestCity")?.Value
+            ?? throw new UnauthorizedAccessException("Guest city is required.");
 
         [Authorize]
         [HttpGet]
@@ -28,6 +31,9 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
+                if (IsGuest())
+                    return Ok(await _service.GetGuestByQueryAsync(GuestCity(), category));
+
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 var events = await _service.GetByQueryAsync(userId, category, includePast);
                 return Ok(events);
@@ -36,6 +42,13 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("cities")]
+        public async Task<IActionResult> GetGuestCities()
+        {
+            return Ok(await _service.GetGuestCitiesAsync());
         }
 
         [Authorize]
@@ -83,10 +96,14 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
+                if (IsGuest())
+                    return Ok(await _service.GetGuestByIdAsync(id, GuestCity()));
+
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 var e = await _service.GetByIdAsync(id, userId);
                 return Ok(e);
             }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
@@ -124,9 +141,26 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
+                if (IsGuest())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Create an account to join events.");
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 var e = await _service.JoinAsync(id, userId);
                 return Ok(e);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [Authorize]
+        [HttpDelete("{id:int}/join")]
+        public async Task<IActionResult> Leave(int id)
+        {
+            try
+            {
+                if (IsGuest())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Create an account to manage event participation.");
+                return Ok(await _service.LeaveAsync(id, CurrentUserId()));
             }
             catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
             catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }

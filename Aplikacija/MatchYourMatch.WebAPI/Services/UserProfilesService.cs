@@ -304,6 +304,15 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto)
         {
+            ValidateTimeSlot(dto);
+            var duplicate = await _context.FreeTimeSlots.AnyAsync(slot =>
+                slot.UserId == userId &&
+                slot.DayOfWeek == dto.DayOfWeek &&
+                slot.StartTime == dto.StartTime &&
+                slot.EndTime == dto.EndTime);
+            if (duplicate)
+                throw new Exception("This time slot is already added for this day.");
+
             var timeslot = new FreeTimeSlot
             {
                 UserId = userId,
@@ -331,10 +340,12 @@ namespace MatchYourMatch.WebAPI.Services
             int userId,
             UpdateAvailabilityDto dto)
         {
-            foreach (var slot in dto.Slots)
+            var requestedSlots = dto.Slots ?? new List<CreateFreeTimeSlotDto>();
+            foreach (var slot in requestedSlots)
             {
                 ValidateTimeSlot(slot);
             }
+            ValidateNoDuplicateTimeSlots(requestedSlots);
 
             var current = await _context.FreeTimeSlots
                 .Where(s => s.UserId == userId)
@@ -342,7 +353,7 @@ namespace MatchYourMatch.WebAPI.Services
 
             _context.FreeTimeSlots.RemoveRange(current);
 
-            _context.FreeTimeSlots.AddRange(dto.Slots.Select(slot => new FreeTimeSlot
+            _context.FreeTimeSlots.AddRange(requestedSlots.Select(slot => new FreeTimeSlot
             {
                 UserId = userId,
                 DayOfWeek = slot.DayOfWeek,
@@ -451,6 +462,17 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (dto.StartTime >= dto.EndTime)
                 throw new Exception("Start time must be before end time.");
+        }
+
+        private static void ValidateNoDuplicateTimeSlots(IEnumerable<CreateFreeTimeSlotDto> slots)
+        {
+            var seen = new HashSet<string>();
+            foreach (var slot in slots)
+            {
+                var key = $"{slot.DayOfWeek}|{slot.StartTime:HH:mm}|{slot.EndTime:HH:mm}";
+                if (!seen.Add(key))
+                    throw new Exception("This time slot is already added for this day.");
+            }
         }
 
         private static DeepMatchPreferenceDto MapPreference(UserDeepMatchPreference? preference)

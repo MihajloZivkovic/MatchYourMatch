@@ -12,17 +12,15 @@ public class AccountService : IAccountService
     private readonly AppDbContext _context;
     private readonly IAuthService _authService;
     private readonly GoogleTokenValidator _google;
-    private readonly FacebookTokenValidator _facebook;
     private readonly MicrosoftTokenValidator _microsoft;
     private readonly ILogger<AccountService> _logger;
 
     public AccountService(AppDbContext context, IAuthService authService, GoogleTokenValidator google,
-        FacebookTokenValidator facebook, MicrosoftTokenValidator microsoft, ILogger<AccountService> logger)
+        MicrosoftTokenValidator microsoft, ILogger<AccountService> logger)
     {
         _context = context;
         _authService = authService;
         _google = google;
-        _facebook = facebook;
         _microsoft = microsoft;
         _logger = logger;
     }
@@ -170,7 +168,7 @@ public class AccountService : IAccountService
         dto.Provider?.Trim().ToLowerInvariant() switch
         {
             "google" => await _google.ValidateAsync(dto.IdToken),
-            "facebook" => await _facebook.ValidateAsync(dto.AccessToken),
+            "facebook" => throw new InvalidOperationException("Facebook login is not supported."),
             "microsoft" => await _microsoft.ValidateAsync(dto.IdToken),
             _ => throw new InvalidOperationException("Unsupported external provider.")
         };

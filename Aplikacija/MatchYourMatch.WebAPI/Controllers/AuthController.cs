@@ -52,6 +52,19 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
+        [HttpPost("guest")]
+        public IActionResult Guest(GuestLoginDto dto)
+        {
+            try
+            {
+                return Ok(_authService.CreateGuestSession(dto));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPost("verify-email")]
         public async Task<IActionResult> VerifyEmail(VerifyEmailDto dto)
         {
@@ -84,12 +97,9 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [HttpPost("external-login/facebook")]
-        public async Task<IActionResult> FacebookLogin(ExternalLoginDto dto)
+        public IActionResult FacebookLogin()
         {
-            try { return Ok(await _authService.FacebookLoginAsync(dto)); }
-            catch (AccountDeactivatedException ex) { return Conflict(new { requiresReactivation = true, message = ex.Message }); }
-            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
-            catch (Exception ex) { return BadRequest(ex.Message); }
+            return StatusCode(StatusCodes.Status501NotImplemented, "Facebook login is not supported.");
         }
 
         [HttpPost("external-login/microsoft")]

@@ -3,12 +3,14 @@ import AppNavbar from './AppNavbar';
 import AppFooter from './AppFooter';
 import FloatingChat from '../components/chat/FloatingChat';
 import { ChatProvider } from '../context/ChatContext';
+import { isGuestSession } from '../services/guestSession';
 import './app-global.css';
 import './app-polish.css';
 
 function AppShell(props) {
   const location = useLocation();
   const isChatRoute = location.pathname === '/app/chat';
+  const isGuest = isGuestSession();
 
   return (
     <div className="app-shell">
@@ -17,13 +19,13 @@ function AppShell(props) {
         <span className="app-shell__glow app-shell__glow--tl" />
         <span className="app-shell__glow app-shell__glow--br" />
       </div>
-      <AppNavbar picture={props.userProfile.profilePicture} />
+      <AppNavbar picture={props.userProfile.profilePicture} currentUser={props.currentUser} />
       <ChatProvider>
         <main className={`app-shell__main${isChatRoute ? ' app-shell__main--chat' : ''}`}>
           <Outlet />
           {!isChatRoute && <AppFooter />}
         </main>
-        {!isChatRoute && <FloatingChat />}
+        {!isGuest && !isChatRoute && <FloatingChat />}
       </ChatProvider>
     </div>
   );
