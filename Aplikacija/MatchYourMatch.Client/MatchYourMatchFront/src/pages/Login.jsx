@@ -31,19 +31,27 @@ function Login() {
   });
   const [state, formAction] = useActionState(handleSubmit, {
     error: null,
-    values: { email: "", password: "" }
+    values: { emailOrUsername: "", password: "" }
   })
 
 
   async function handleSubmit(prevState, formData) {
-    const email = formData.get("email")
+    const emailOrUsername = formData.get("emailOrUsername")?.trim() || ""
     const password = formData.get("password")
+
+    if (!emailOrUsername) {
+      setVrstaGreske("identifier");
+      return {
+        error: t('auth.identifierRequired'),
+        values: { emailOrUsername, password }
+      };
+    }
 
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: email,
+        emailOrUsername,
         password: password,
       }),
     });
@@ -54,22 +62,19 @@ function Login() {
       try { errorMessage = JSON.parse(rawError).message || rawError; } catch { /* plain text response */ }
       if (response.status === 409) {
         setVrstaGreske("deactivated");
-        setReactivationCredentials({ email, password });
+        setReactivationCredentials({ email: emailOrUsername, password });
       }
       else if (response.status === 403) {
         setVrstaGreske("verify");
-        sessionStorage.setItem('pendingVerificationEmail', email.trim());
-      }
-      else if (errorMessage === "Pogresan email.") {
-        setVrstaGreske("email");
+        if (emailOrUsername.includes('@')) sessionStorage.setItem('pendingVerificationEmail', emailOrUsername);
       }
       else {
-        setVrstaGreske("password"); //pogresna lozinka
+        setVrstaGreske("invalid");
       }
 
       return {
         error: errorMessage,
-        values: { email, password }
+        values: { emailOrUsername, password }
       }
     }
     setVrstaGreske("");
@@ -164,10 +169,10 @@ function Login() {
 
             {state.error && (
               <p className="auth__error" role="alert">
-                {vrstaGreske === 'verify' ? t('emailVerification.loginBlocked') : vrstaGreske === 'deactivated' ? 'This account is deactivated.' : vrstaGreske === 'email' ? t('auth.wrongEmail') : t('auth.wrongPassword')}
+                {vrstaGreske === 'verify' ? t('emailVerification.loginBlocked') : vrstaGreske === 'deactivated' ? 'This account is deactivated.' : vrstaGreske === 'identifier' ? t('auth.identifierRequired') : t('auth.invalidLogin')}
               </p>
             )}
-            {vrstaGreske === 'verify' && <p className="auth__switch"><Link to="/verify-email" state={{email:state.values.email}} className="auth__switch-link">{t('emailVerification.resend')}</Link></p>}
+            {vrstaGreske === 'verify' && <p className="auth__switch"><Link to="/verify-email" state={{email: state.values.emailOrUsername?.includes('@') ? state.values.emailOrUsername : ''}} className="auth__switch-link">{t('emailVerification.resend')}</Link></p>}
             {vrstaGreske === 'deactivated' && reactivationCredentials && <button type="button" className="btn btn--primary auth__submit" onClick={async () => {
               const response = await fetch('/api/account/reactivate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reactivationCredentials) });
               if (!response.ok) return;
@@ -177,17 +182,18 @@ function Login() {
             <SocialAuthButtons />
 
             <div className="auth__field">
-              <label className="auth__label" htmlFor="login-email">
-                {t('auth.email')}
+              <label className="auth__label" htmlFor="login-identifier">
+                {t('auth.emailOrUsername')}
               </label>
               <input
-                id="login-email"
-                className={`auth__input ${vrstaGreske === "email" ? "input-danger" : ""}`}
-                type="email"
-                name="email"
-                placeholder={vrstaGreske === "email" ? t('auth.wrongEmail') : "you@example.com"}
-                autoComplete="email"
-                defaultValue={vrstaGreske === "password" ? state.values.email : ""} //ako je greska u lozinci, ostaje mejl na mesto, ako nije onda se brise
+                id="login-identifier"
+                className={`auth__input ${vrstaGreske === "identifier" || vrstaGreske === "invalid" ? "input-danger" : ""}`}
+                type="text"
+                name="emailOrUsername"
+                placeholder={t('auth.emailOrUsernamePlaceholder')}
+                autoComplete="username"
+                required
+                defaultValue={state.values.emailOrUsername}
               />
             </div>
 
@@ -197,11 +203,12 @@ function Login() {
               </label>
               <input
                 id="login-password"
-                className={`auth__input ${vrstaGreske === "password" ? "input-danger" : ""}`}
+                className={`auth__input ${vrstaGreske === "invalid" ? "input-danger" : ""}`}
                 type="password"
                 name="password"
                 placeholder={vrstaGreske === "password" ? "pogresna lozinka" : "••••••••"}
                 autoComplete="current-password"
+                required
               />
             </div>
 
@@ -212,7 +219,7 @@ function Login() {
                 setResetPanel((current) => ({
                   ...current,
                   open: !current.open,
-                  email: current.email || state.values.email,
+                  email: current.email || (state.values.emailOrUsername?.includes('@') ? state.values.emailOrUsername : ''),
                   error: '',
                   message: '',
                 }))

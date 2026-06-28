@@ -272,6 +272,54 @@ Object.assign(translations.sr.common, {
   of: 'od',
 });
 
+Object.assign(translations.en.auth, {
+  emailOrUsername: 'Email or username',
+  emailOrUsernamePlaceholder: 'Enter your email or username',
+  identifierRequired: 'Enter your email or username.',
+  invalidLogin: 'Invalid email/username or password.',
+  accountType: 'Account type',
+  regularUser: 'Regular user',
+  organizer: 'Organizer',
+  organizationName: 'Organization name',
+  yourOrganizationName: 'Your organization name',
+  organizationNameRequired: 'Organization name is required.',
+  organizationType: 'Organization type',
+  organizationTypeOptional: 'Organization type (optional)',
+  organizationTypePlaceholder: 'Organization, institution, venue...',
+});
+
+Object.assign(translations.sr.auth, {
+  emailOrUsername: 'Email ili korisnicko ime',
+  emailOrUsernamePlaceholder: 'Unesi email ili korisnicko ime',
+  identifierRequired: 'Unesi email ili korisnicko ime.',
+  invalidLogin: 'Neispravan email/korisnicko ime ili lozinka.',
+  accountType: 'Tip naloga',
+  regularUser: 'Regular user',
+  organizer: 'Organizer',
+  organizationName: 'Naziv organizacije',
+  yourOrganizationName: 'Naziv organizacije',
+  organizationNameRequired: 'Naziv organizacije je obavezan.',
+  organizationType: 'Tip organizatora',
+  organizationTypeOptional: 'Tip organizatora (opciono)',
+  organizationTypePlaceholder: 'Organizacija, ustanova, prostor...',
+});
+
+Object.assign(translations.en.emailVerification, {
+  registrationSuccess: 'Registration successful. Please check your email to verify your account.',
+});
+
+Object.assign(translations.sr.emailVerification, {
+  registrationSuccess: 'Registracija je uspesna. Proveri email da potvrdis nalog.',
+});
+
+Object.assign(translations.en.chatUi, {
+  usersOnly: 'Only user and organizer accounts can send messages.',
+});
+
+Object.assign(translations.sr.chatUi, {
+  usersOnly: 'Samo korisnicki i organizatorski nalozi mogu da salju poruke.',
+});
+
 translations.en.admin = {
   nav: {
     sections: 'Admin sections',

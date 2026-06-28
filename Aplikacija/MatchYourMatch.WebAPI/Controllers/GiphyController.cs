@@ -5,7 +5,7 @@ namespace MatchYourMatch.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/giphy")]
-[Authorize(Roles = "User")]
+[Authorize(Roles = "User,Organizer")]
 public class GiphyController : ControllerBase
 {
     private readonly IHttpClientFactory _clients;

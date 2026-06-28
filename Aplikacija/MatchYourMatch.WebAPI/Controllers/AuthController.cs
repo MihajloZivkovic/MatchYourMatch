@@ -48,7 +48,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return ex.Message == "Please verify your email before logging in."
                     ? StatusCode(StatusCodes.Status403Forbidden, ex.Message)
-                    : Unauthorized(ex.Message);
+                    : Unauthorized("Invalid email/username or password.");
             }
         }
 

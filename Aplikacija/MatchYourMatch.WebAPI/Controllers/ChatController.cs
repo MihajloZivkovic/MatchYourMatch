@@ -38,7 +38,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("conversations/start")]
         public async Task<ActionResult<ChatConversationDto>> StartConversation(StartChatConversationDto request)
         {
@@ -60,7 +60,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("groups")]
         public async Task<ActionResult<ChatConversationDto>> CreateGroup(CreateGroupChatRequestDto request)
         {
@@ -104,7 +104,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPatch("groups/{conversationId:int}")]
         public async Task<ActionResult<GroupChatSettingsDto>> UpdateGroup(int conversationId, UpdateGroupChatDto request)
         {
@@ -147,7 +147,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpDelete("groups/{conversationId:int}/members/{memberUserId:int}")]
         public async Task<IActionResult> RemoveGroupMember(int conversationId, int memberUserId)
         {
@@ -170,7 +170,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("groups/{conversationId:int}/leave")]
         public async Task<IActionResult> LeaveGroup(int conversationId)
         {
@@ -193,7 +193,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpDelete("groups/{conversationId:int}")]
         [HttpPost("groups/{conversationId:int}/delete")]
         public async Task<IActionResult> DeleteGroup(int conversationId)
@@ -217,7 +217,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("messages")]
         public async Task<ActionResult<ChatMessageDto>> SendMessage(SendChatMessageDto request)
         {
@@ -239,7 +239,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("conversations/{conversationId:int}/attachments")]
         [RequestSizeLimit(MessageAttachmentStorage.MaxFileSize + 64 * 1024)]
         public async Task<ActionResult<ChatMessageDto>> SendAttachment(int conversationId, [FromForm] IFormFile file, [FromForm] string? body, CancellationToken cancellationToken)
@@ -250,7 +250,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("conversations/{conversationId:int}/gifs")]
         public async Task<ActionResult<ChatMessageDto>> SendGif(int conversationId, SendGifMessageDto request)
         {
@@ -336,7 +336,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPatch("messages/{messageId:int}")]
         public async Task<ActionResult<ChatMessageDto>> UpdateMessage(int messageId, UpdateChatMessageDto request)
         {
@@ -364,7 +364,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             return await DeleteMessage(messageId);
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpDelete("messages/{messageId:int}/for-everyone")]
         public async Task<ActionResult<ChatMessageDto>> DeleteMessageForEveryone(int messageId)
         {
@@ -382,7 +382,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpPost("messages/{messageId:int}/reactions")]
         public async Task<ActionResult<ChatMessageDto>> ToggleReaction(int messageId, ToggleChatMessageReactionDto request)
         {
@@ -404,7 +404,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "User")]
+        [Authorize(Roles = "User,Organizer")]
         [HttpDelete("messages/{messageId:int}/reactions")]
         public async Task<ActionResult<ChatMessageDto>> RemoveReaction(int messageId)
         {

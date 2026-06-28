@@ -26,8 +26,8 @@ namespace MatchYourMatch.WebAPI.Services
                 ?? throw new KeyNotFoundException("Event does not exist.");
             var inviter = await _context.Users.FirstOrDefaultAsync(u => u.Id == inviterUserId && u.IsActive)
                 ?? throw new KeyNotFoundException("Inviter does not exist.");
-            if (!string.Equals(inviter.Role, "User", StringComparison.OrdinalIgnoreCase))
-                throw new UnauthorizedAccessException("Only ordinary users can invite people.");
+            if (!CanUseUserEventInvites(inviter.Role))
+                throw new UnauthorizedAccessException("Only user and organizer accounts can invite people.");
             if (!await _context.EventParticipants.AnyAsync(p => p.EventId == eventId && p.UserId == inviterUserId))
                 throw new UnauthorizedAccessException("Join the event before inviting people.");
             var invitee = await _context.Users.FirstOrDefaultAsync(u => u.Id == inviteeUserId && u.IsActive)
@@ -71,8 +71,8 @@ namespace MatchYourMatch.WebAPI.Services
                 .Where(u => u.Id == inviterUserId && u.IsActive)
                 .Select(u => u.Role)
                 .FirstOrDefaultAsync() ?? throw new KeyNotFoundException("User does not exist.");
-            if (!string.Equals(inviterRole, "User", StringComparison.OrdinalIgnoreCase))
-                throw new UnauthorizedAccessException("Only ordinary users can invite people.");
+            if (!CanUseUserEventInvites(inviterRole))
+                throw new UnauthorizedAccessException("Only user and organizer accounts can invite people.");
             if (!await _context.EventParticipants.AnyAsync(p => p.EventId == eventId && p.UserId == inviterUserId))
                 throw new UnauthorizedAccessException("Join the event before inviting people.");
 
@@ -123,6 +123,12 @@ namespace MatchYourMatch.WebAPI.Services
                     CreatedAt = i.CreatedAt,
                     RespondedAt = i.RespondedAt
                 }).ToListAsync();
+
+        private static bool CanUseUserEventInvites(string role)
+        {
+            return string.Equals(role, "User", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase);
+        }
 
         public Task<EventInviteDto> AcceptAsync(int inviteId, int userId) => RespondAsync(inviteId, userId, true);
         public Task<EventInviteDto> DeclineAsync(int inviteId, int userId) => RespondAsync(inviteId, userId, false);

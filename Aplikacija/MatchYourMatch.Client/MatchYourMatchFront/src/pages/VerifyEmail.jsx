@@ -12,7 +12,7 @@ function VerifyEmail() {
   );
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(location.state?.message || '');
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(email ? 30 : 0);
   const [verified, setVerified] = useState(false);

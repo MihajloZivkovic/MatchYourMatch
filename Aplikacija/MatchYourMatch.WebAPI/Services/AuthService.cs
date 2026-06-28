@@ -44,16 +44,20 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var email = dto.Email.Trim().ToLowerInvariant();
             var username = dto.Username.Trim();
-            var fullName = dto.FullName?.Trim();
-            if (string.IsNullOrWhiteSpace(fullName))
-                throw new Exception("Full name is required.");
+            var role = NormalizePublicRegistrationRole(dto.AccountType, dto.Role);
+            var displayName = dto.FullName?.Trim();
+            if (string.IsNullOrWhiteSpace(displayName))
+                throw new Exception(role == "Organizer" ? "Organization name is required." : "Full name is required.");
 
-            if (!dto.DateOfBirth.HasValue)
-                throw new Exception("Date of birth is required.");
+            if (role == "User")
+            {
+                if (!dto.DateOfBirth.HasValue)
+                    throw new Exception("Date of birth is required.");
 
-            var latestAllowedDate = DateOnly.FromDateTime(DateTime.Today).AddYears(-16);
-            if (dto.DateOfBirth.Value > latestAllowedDate)
-                throw new Exception("You must be at least 16 years old.");
+                var latestAllowedDate = DateOnly.FromDateTime(DateTime.Today).AddYears(-16);
+                if (dto.DateOfBirth.Value > latestAllowedDate)
+                    throw new Exception("You must be at least 16 years old.");
+            }
 
             if (await _context.Users.AnyAsync(u => u.Email == email))
                 throw new Exception("Email is already in use.");
@@ -67,7 +71,7 @@ namespace MatchYourMatch.WebAPI.Services
                 Username = username,
                 Email = email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = dto.Role,
+                Role = role,
                 EmailConfirmed = false,
                 EmailVerificationCodeHash = HashVerificationCode(verificationCode),
                 EmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15),
@@ -76,8 +80,9 @@ namespace MatchYourMatch.WebAPI.Services
 
             user.Profile = new UserProfile
             {
-                FullName = fullName,
-                DateOfBirth = dto.DateOfBirth,
+                FullName = displayName,
+                DateOfBirth = role == "User" ? dto.DateOfBirth : null,
+                Bio = role == "Organizer" && !string.IsNullOrWhiteSpace(dto.OrganizationType) ? dto.OrganizationType.Trim() : null,
                 ShowFullName = false,
                 ShowAge = false
             };
@@ -90,14 +95,20 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<AuthInfoDto> LoginAsync(LoginDto dto)
         {
-            var email = dto.Email.Trim().ToLowerInvariant();
-            var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Email == email);
+            var identifier = (dto.EmailOrUsername ?? dto.Identifier ?? dto.Email)?.Trim();
+            if (string.IsNullOrWhiteSpace(identifier))
+                throw new Exception("Invalid email/username or password.");
+
+            var normalizedIdentifier = identifier.ToLowerInvariant();
+            var user = identifier.Contains('@')
+                ? await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Email == normalizedIdentifier)
+                : await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Username == identifier);
 
             if (user == null)
-                throw new Exception("Pogresan email.");
+                throw new Exception("Invalid email/username or password.");
 
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                throw new Exception("Pogresna lozinka.");
+                throw new Exception("Invalid email/username or password.");
 
             if (user.IsDeactivated)
                 throw new AccountDeactivatedException();
@@ -310,6 +321,8 @@ namespace MatchYourMatch.WebAPI.Services
                     {
                         Username = username, Email = identity.Email,
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword(Convert.ToHexString(RandomNumberGenerator.GetBytes(32))),
+                        // Social registration does not offer account-type selection yet, so it defaults to regular user.
+                        Role = "User",
                         HasPassword = false,
                         EmailConfirmed = identity.EmailVerified,
                         EmailConfirmedAt = identity.EmailVerified ? DateTime.UtcNow : null,
@@ -353,6 +366,21 @@ namespace MatchYourMatch.WebAPI.Services
             var candidate = baseName; var suffix = 1;
             while (await _context.Users.AnyAsync(x => x.Username == candidate)) candidate = $"{baseName}{suffix++}";
             return candidate;
+        }
+
+        private static string NormalizePublicRegistrationRole(string? accountType, string? legacyRole)
+        {
+            var raw = !string.IsNullOrWhiteSpace(accountType) ? accountType : legacyRole;
+            raw = raw?.Trim();
+            if (string.IsNullOrWhiteSpace(raw) || raw.Equals("Regular user", StringComparison.OrdinalIgnoreCase) ||
+                raw.Equals("RegularUser", StringComparison.OrdinalIgnoreCase))
+                return "User";
+            if (raw.Equals("User", StringComparison.OrdinalIgnoreCase))
+                return "User";
+            if (raw.Equals("Organizer", StringComparison.OrdinalIgnoreCase))
+                return "Organizer";
+
+            throw new Exception("Invalid account type.");
         }
 
         private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");

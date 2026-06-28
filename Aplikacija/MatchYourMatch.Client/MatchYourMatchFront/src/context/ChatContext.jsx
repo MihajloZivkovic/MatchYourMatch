@@ -22,7 +22,7 @@ const ChatContext = createContext(null);
 
 export function ChatProvider({ children }) {
   const [auth, setAuth] = useState(() => getAuthInfo());
-  const canSendMessages = auth.role?.toLowerCase() === "user";
+  const canSendMessages = ["user", "organizer"].includes(auth.role?.toLowerCase());
   const [conversations, setConversations] = useState([]);
   const [messagesByConversation, setMessagesByConversation] = useState({});
   const [messageLoadStateByConversation, setMessageLoadStateByConversation] = useState({});

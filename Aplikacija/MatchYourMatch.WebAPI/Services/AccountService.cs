@@ -60,9 +60,12 @@ public class AccountService : IAccountService
         User user;
         if (string.IsNullOrWhiteSpace(dto.Provider))
         {
-            var email = dto.Email?.Trim().ToLowerInvariant();
-            user = await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Email == email)
-                ?? throw new UnauthorizedAccessException("Email or password is incorrect.");
+            var identifier = dto.Email?.Trim();
+            var normalizedIdentifier = identifier?.ToLowerInvariant();
+            var matchedUser = !string.IsNullOrWhiteSpace(identifier) && identifier.Contains('@')
+                ? await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Email == normalizedIdentifier)
+                : await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Username == identifier);
+            user = matchedUser ?? throw new UnauthorizedAccessException("Email or password is incorrect.");
             if (!user.HasPassword || string.IsNullOrWhiteSpace(dto.Password) ||
                 !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Email or password is incorrect.");
