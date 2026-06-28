@@ -196,12 +196,16 @@ Object.assign(translations.en.events, {
   left: 'You left the event.',
   leaveError: 'Event could not be left.',
   leaveConfirmShort: 'Leave this event?',
+  paginationAria: 'Events pagination',
+  paginationShowing: 'Showing {{first}}-{{last}} of {{total}} events',
 });
 Object.assign(translations.sr.events, {
   leave: 'Izadji iz dogadjaja',
   left: 'Izasao/la si iz dogadjaja.',
   leaveError: 'Nije moguce izaci iz dogadjaja.',
   leaveConfirmShort: 'Izaci iz ovog dogadjaja?',
+  paginationAria: 'Paginacija dogadjaja',
+  paginationShowing: 'Prikaz {{first}}-{{last}} od {{total}} dogadjaja',
 });
 translations.en.followList = {
   followers: 'Followers',

@@ -14,6 +14,14 @@ export const GUEST_FALLBACK_CITIES = [
   'Leskovac',
 ];
 
+export function normalizeCityName(city = '') {
+  return String(city)
+    .replaceAll('NiÅ¡', 'Niš')
+    .replaceAll('Nis', 'Niš')
+    .replaceAll('NISH', 'Niš')
+    .trim();
+}
+
 export function readJwtPayload(token = localStorage.getItem('token')) {
   if (!token) return null;
 
@@ -45,14 +53,15 @@ export function isAdminSession(token = localStorage.getItem('token')) {
 
 export function getGuestCity(token = localStorage.getItem('token')) {
   const payload = readJwtPayload(token);
-  return payload?.guestCity || localStorage.getItem('mym_guest_city') || '';
+  return normalizeCityName(payload?.guestCity || localStorage.getItem('mym_guest_city') || '');
 }
 
 export async function enterAsGuest(city) {
+  const normalizedCity = normalizeCityName(city);
   const response = await fetch('/api/auth/guest', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ city }),
+    body: JSON.stringify({ city: normalizedCity }),
   });
 
   if (!response.ok) {
@@ -63,7 +72,7 @@ export async function enterAsGuest(city) {
   const token = data.token || data.accessToken;
   if (!token) throw new Error('Guest token was not returned.');
 
-  const guestCity = data.user?.city || city;
+  const guestCity = normalizeCityName(data.user?.city || normalizedCity);
   localStorage.setItem('token', token);
   localStorage.setItem('mym_authed', 'true');
   localStorage.setItem('mym_guest_city', guestCity);

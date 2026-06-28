@@ -175,7 +175,7 @@ namespace MatchYourMatch.WebAPI.Services
 
         public GuestSessionResponseDto CreateGuestSession(GuestLoginDto dto)
         {
-            var city = dto.City.Trim();
+            var city = NormalizeCityName(dto.City);
             if (string.IsNullOrWhiteSpace(city))
                 throw new Exception("City is required.");
 
@@ -366,6 +366,15 @@ namespace MatchYourMatch.WebAPI.Services
             var candidate = baseName; var suffix = 1;
             while (await _context.Users.AnyAsync(x => x.Username == candidate)) candidate = $"{baseName}{suffix++}";
             return candidate;
+        }
+
+        private static string NormalizeCityName(string? value)
+        {
+            return (value ?? string.Empty)
+                .Trim()
+                .Replace("NiÅ¡", "Niš", StringComparison.OrdinalIgnoreCase)
+                .Replace("Nis", "Niš", StringComparison.OrdinalIgnoreCase)
+                .Replace("NISH", "Niš", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizePublicRegistrationRole(string? accountType, string? legacyRole)
