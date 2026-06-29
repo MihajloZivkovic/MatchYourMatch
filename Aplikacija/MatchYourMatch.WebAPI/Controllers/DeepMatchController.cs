@@ -18,14 +18,14 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [HttpGet("matches")]
-        public async Task<IActionResult> GetMatches([FromQuery] string? interests, [FromQuery] string? vibes)
+        public async Task<IActionResult> GetMatches([FromQuery] string? interests, [FromQuery] string? vibes, [FromQuery] int page = 1)
         {
             try
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 var selectedInterests = SplitFilters(interests);
                 var selectedVibes = SplitFilters(vibes);
-                var matches = await _deepMatchService.GetMatchesAsync(userId, selectedInterests, selectedVibes);
+                var matches = await _deepMatchService.GetMatchesAsync(userId, selectedInterests, selectedVibes, page);
                 return Ok(matches);
             }
             catch (Exception ex)

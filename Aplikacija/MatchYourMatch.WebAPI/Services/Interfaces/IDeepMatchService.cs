@@ -4,6 +4,6 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
 {
     public interface IDeepMatchService
     {
-        Task<List<DeepMatchDto>> GetMatchesAsync(int userId, IReadOnlyCollection<string>? interests = null, IReadOnlyCollection<string>? vibes = null);
+        Task<PaginatedMatchesDto> GetMatchesAsync(int userId, IReadOnlyCollection<string>? interests = null, IReadOnlyCollection<string>? vibes = null, int page = 1);
     }
 }

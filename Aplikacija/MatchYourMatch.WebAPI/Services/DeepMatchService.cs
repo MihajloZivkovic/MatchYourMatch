@@ -18,7 +18,7 @@ namespace MatchYourMatch.WebAPI.Services
             _context = context;
         }
 
-        public async Task<List<DeepMatchDto>> GetMatchesAsync(int userId, IReadOnlyCollection<string>? interests = null, IReadOnlyCollection<string>? vibes = null)
+        public async Task<PaginatedMatchesDto> GetMatchesAsync(int userId, IReadOnlyCollection<string>? interests = null, IReadOnlyCollection<string>? vibes = null, int page = 1)
         {
             var currentUser = await _context.Users
                 .Include(u => u.Profile)
@@ -53,13 +53,29 @@ namespace MatchYourMatch.WebAPI.Services
                 .Concat(_context.HiddenProfiles.Where(x => x.UserId == userId).Select(x => x.HiddenUserId))
                 .Distinct().ToListAsync();
 
-            return candidates
-                .Where(candidate => !excludedIds.Contains(candidate.Id) && IsEligibleBySettings(currentUser, candidate))
+            var allMatches = candidates
+                .Where(candidate => !excludedIds.Contains(candidate.Id) && IsEligibleBySettings(currentUser,candidate))
                 .Select(candidate => ScoreCandidate(currentUser, candidate, interests ?? Array.Empty<string>(), vibes ?? Array.Empty<string>()))
-                .Where(match => match.CompatibilityScore > 0)
+                .Where(match => match.CompatibilityScore >= 20)
                 .OrderByDescending(match => match.CompatibilityScore)
                 .ThenBy(match => match.Username)
                 .ToList();
+            
+            const int pageSize = 5;
+            var totalCount = allMatches.Count;
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            
+            var paginatedMatches = allMatches
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            
+            return new PaginatedMatchesDto
+            {
+              Matches = paginatedMatches,
+              CurrentPage = page,
+              TotalPages = totalPages == 0 ? 1 : totalPages  
+            };
         }
 
         private DeepMatchDto ScoreCandidate(User currentUser, User candidate, IReadOnlyCollection<string> selectedInterests, IReadOnlyCollection<string> selectedVibes)
@@ -506,5 +522,13 @@ namespace MatchYourMatch.WebAPI.Services
                 _ => "Day"
             };
         }
+
+        private readonly ILogger<DeepMatchService> _logger;
+
+public DeepMatchService(DataContext context, ILogger<DeepMatchService> logger)
+{
+    _context = context;
+    _logger = logger;
+}
     }
 }

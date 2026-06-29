@@ -12,6 +12,8 @@ function DeepMatch() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -59,7 +61,10 @@ function DeepMatch() {
           return;
         }
 
-        const matchesResponse = await fetch("/api/DeepMatch/matches", {
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", page);
+
+        const matchesResponse = await fetch(`/api/DeepMatch/matches?${queryParams.toString()}`, {
           headers,
           signal: controller.signal,
         });
@@ -74,7 +79,9 @@ function DeepMatch() {
         }
 
         const matchesData = await matchesResponse.json();
-        setMatches(matchesData);
+        console.log ("Matches data:", matchesData);
+        setMatches(matchesData.matches || []);
+        setTotalPages(matchesData.totalPages || 1);
       } catch (err) {
         if (err.name === "AbortError") return;
         setError(err.message || "Deep matches could not be loaded.");
@@ -85,7 +92,7 @@ function DeepMatch() {
 
     loadDeepMatch();
     return () => controller.abort();
-  }, []);
+  }, [page]);
 
   const isIncomplete = !preferences?.isComplete || availability.length === 0;
 
@@ -129,9 +136,9 @@ function DeepMatch() {
               {t("deep.goProfile")}
             </button>
           </div>
-        )}
+        )} 
 
-        {!loading && !error && !isIncomplete && matches.length === 0 && (
+        {!loading && !error && !isIncomplete && Array.isArray(matches) && matches.length === 0 && (
           <div className="deep-match__state">
             <h2>{t("deep.none")}</h2>
             <p>{t("deep.noneText")}</p>
@@ -145,86 +152,126 @@ function DeepMatch() {
           </div>
         )}
 
-        {!loading && !error && !isIncomplete && matches.length > 0 && (
-          <section
-            className="deep-match__results-list"
-            aria-label={t("deep.results")}
-          >
-            {matches.map((match) => (
-              <article
-                key={match.userId}
-                className="deep-match__result-card app-tilt-hover"
-              >
-                <UserAvatar
-                  className="deep-match__avatar"
-                  profilePicture={match.profilePicture}
-                  initials={match.initials}
-                  alt=""
-                />
-                <div className="deep-match__result-main">
-                  <div className="deep-match__result-head">
-                    <div>
-                      <h2>{match.displayName || match.username}</h2>
-                      <p>{match.location || t("deep.unknownLocation")}</p>
+        {!loading && !error && !isIncomplete && Array.isArray(matches) && matches.length > 0 && (
+          <>
+            <section
+              className="deep-match__results-list"
+              aria-label={t("deep.results")}
+            >
+              {matches.map((match) => (
+                <article
+                  key={match.userId}
+                  className="deep-match__result-card app-tilt-hover"
+                >
+                  <UserAvatar
+                    className="deep-match__avatar"
+                    profilePicture={match.profilePicture}
+                    initials={match.initials}
+                    alt=""
+                  />
+                  <div className="deep-match__result-main">
+                    <div className="deep-match__result-head">
+                      <div>
+                        <h2>{match.displayName || match.username}</h2>
+                        <p>{match.location || t("deep.unknownLocation")}</p>
+                      </div>
+                      <div className="deep-match__card-actions">
+                        <span className="deep-match__score-badge">
+                          {match.compatibilityScore}%
+                        </span>
+                        <UserActionsMenu
+                          userId={match.userId}
+                          username={match.username}
+                          context="matchCard"
+                          onHidden={(id) =>
+                            setMatches((current) =>
+                              current.filter((item) => item.userId !== id),
+                            )
+                          }
+                          onBlocked={(id) =>
+                            setMatches((current) =>
+                              current.filter((item) => item.userId !== id),
+                            )
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="deep-match__card-actions">
-                      <span className="deep-match__score-badge">
-                        {match.compatibilityScore}%
-                      </span>
-                      <UserActionsMenu
-                        userId={match.userId}
-                        username={match.username}
-                        context="matchCard"
-                        onHidden={(id) =>
-                          setMatches((current) =>
-                            current.filter((item) => item.userId !== id),
-                          )
-                        }
-                        onBlocked={(id) =>
-                          setMatches((current) =>
-                            current.filter((item) => item.userId !== id),
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
 
-                  {match.about && (
-                    <p className="deep-match__about">{match.about}</p>
-                  )}
-
-                  <div className="deep-match__reason-list">
-                    {match.reasons.map((reason) => (
-                      <span key={reason}>{reason}</span>
-                    ))}
-                  </div>
-
-                  <div className="deep-match__chips">
-                    {match.approximateDistanceLabel && (
-                      <span>{match.approximateDistanceLabel}</span>
+                    {match.about && (
+                      <p className="deep-match__about">{match.about}</p>
                     )}
-                    {match.sharedInterests.map((interest) => (
-                      <span key={`interest-${interest}`}>{interest}</span>
-                    ))}
-                    {match.sharedActivities.map((activity) => (
-                      <span key={`activity-${activity}`}>{activity}</span>
-                    ))}
-                    {match.overlappingAvailability.map((overlap) => (
-                      <span key={`overlap-${overlap}`}>{overlap}</span>
-                    ))}
-                  </div>
 
-                  <button
-                    type="button"
-                    className="app-btn-pill app-btn-pill--outline deep-match__view"
-                    onClick={() => navigate(`/app/users/${match.userId}`)}
-                  >
-                    {t("deep.viewDetails")}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </section>
+                    <div className="deep-match__reason-list">
+                      {match.reasons.map((reason) => (
+                        <span key={reason}>{reason}</span>
+                      ))}
+                    </div>
+
+                    <div className="deep-match__chips">
+                      {match.approximateDistanceLabel && (
+                        <span>{match.approximateDistanceLabel}</span>
+                      )}
+                      {match.sharedInterests.map((interest) => (
+                        <span key={`interest-${interest}`}>{interest}</span>
+                      ))}
+                      {match.sharedActivities.map((activity) => (
+                        <span key={`activity-${activity}`}>{activity}</span>
+                      ))}
+                      {match.overlappingAvailability.map((overlap) => (
+                        <span key={`overlap-${overlap}`}>{overlap}</span>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="app-btn-pill app-btn-pill--outline deep-match__view"
+                      onClick={() => navigate(`/app/users/${match.userId}`)}
+                    >
+                      {t("deep.viewDetails")}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </section>
+
+            <nav className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
+              <button 
+                type="button"
+                className="app-btn-pill"
+                onClick={() => setPage(1)} 
+                disabled={page === 1}
+              >
+                First
+              </button>
+              <button 
+                type="button"
+                className="app-btn-pill"
+                onClick={() => setPage(prev => Math.max(prev - 1, 1))} 
+                disabled={page === 1}
+              >
+                Prev
+              </button>
+              <span className="pagination-info">
+                Page {page} of {totalPages || 1}
+              </span>
+              <button 
+                type="button"
+                className="app-btn-pill"
+                onClick={() => setPage(prev => Math.min(prev + 1, totalPages))} 
+                disabled={page === totalPages || totalPages === 0}
+              >
+                Next
+              </button>
+              <button 
+                type="button"
+                className="app-btn-pill"
+                onClick={() => setPage(totalPages)} 
+                disabled={page === totalPages || totalPages === 0}
+              >
+                Last
+              </button>
+            </nav>
+          </>
         )}
       </main>
     </div>
