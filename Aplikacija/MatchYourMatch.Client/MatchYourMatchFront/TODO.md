@@ -6,8 +6,9 @@ TBD - [ X ] Onemoguci da se isti time slot dva puta unese u jedan dan(ovo je mal
 TBD - [ x, ovo je uradjeno, samo ima uslov za rejtovanje, korisnik mora da ima jedan match ili da je bio na isti event s nekog da bi mogo da ga rejtuje ] Osposobiti rejtovanje korisnika
 TBD - [ x ovo ima ] Dodati mogucnost da se promeni jezik na svakoj stranici
 TBD - [  ] Dodati mogucnost za promenu lozinke/mejla(takodje forgot password na login page)
-TBD - [  ] ADMIN pogled
+TBD - [ X ] ADMIN pogled
 TBD - [  ] ORGANIZATOR pogled
+mihajlo - [ X ] dodaj following dugme na profilu za pregled korisnika koje pratis
 
 
 
