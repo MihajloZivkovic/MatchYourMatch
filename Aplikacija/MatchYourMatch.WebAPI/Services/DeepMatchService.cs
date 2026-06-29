@@ -522,13 +522,5 @@ namespace MatchYourMatch.WebAPI.Services
                 _ => "Day"
             };
         }
-
-        private readonly ILogger<DeepMatchService> _logger;
-
-public DeepMatchService(DataContext context, ILogger<DeepMatchService> logger)
-{
-    _context = context;
-    _logger = logger;
-}
     }
 }
