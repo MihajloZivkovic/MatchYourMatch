@@ -9,6 +9,7 @@ import {
 import { jwtDecode } from "jwt-decode";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 import AppShell from "./app/AppShell";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -26,6 +27,7 @@ import SearchResults from "./pages/app/SearchResults";
 import PublicProfile from "./pages/app/PublicProfile";
 import Chat from "./pages/app/Chat";
 import Settings from "./pages/app/Settings";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import SessionExpiredModal from "./components/SessionExpiredModal";
 import { getGuestCity, isGuestSession } from "./services/guestSession";
 import "./App.css";
@@ -66,6 +68,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   async function getFullName(token, signal) {
     const response = await fetch("/api/UserProfile/me", {
@@ -253,8 +256,10 @@ function App() {
 
   useEffect(() => {
     if (location.pathname === "/") {
-      setIsExiting(false);
+      const resetExit = window.setTimeout(() => setIsExiting(false), 0);
+      return () => window.clearTimeout(resetExit);
     }
+    return undefined;
   }, [location.pathname]);
 
   useEffect(() => {
@@ -311,6 +316,22 @@ function App() {
             element={<Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>}
           />
         </Route>
+      </Routes><SessionExpiredModal /></>
+    );
+  }
+
+  if (isAdminRoute) {
+    return (
+      <><Routes>
+        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
       </Routes><SessionExpiredModal /></>
     );
   }

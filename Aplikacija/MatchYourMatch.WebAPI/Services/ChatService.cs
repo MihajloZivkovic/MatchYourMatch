@@ -96,8 +96,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (otherUser == null)
                 throw new KeyNotFoundException("User does not exist.");
 
-            if (!IsOrdinaryUser(otherUser))
-                throw new UnauthorizedAccessException("You can only message ordinary users.");
+            if (!IsUserOrOrganizer(otherUser))
+                throw new UnauthorizedAccessException("You can only message user or organizer accounts.");
             if (!await CanContactAsync(userId, otherUserId))
                 throw new UnauthorizedAccessException("This user does not accept messages from you.");
 
@@ -165,8 +165,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (users.Count != memberIds.Count)
                 throw new KeyNotFoundException("One or more selected users do not exist.");
 
-            if (users.Any(user => !IsOrdinaryUser(user)))
-                throw new UnauthorizedAccessException("Groups can include only ordinary users.");
+            if (users.Any(user => !IsUserOrOrganizer(user)))
+                throw new UnauthorizedAccessException("Groups can include only user or organizer accounts.");
             foreach (var memberId in memberIds)
                 if (!await CanAddToGroupAsync(userId, memberId))
                     throw new UnauthorizedAccessException("One or more users do not accept group chat invitations from you.");
@@ -307,8 +307,8 @@ namespace MatchYourMatch.WebAPI.Services
                 if (receiver == null)
                     throw new KeyNotFoundException("Receiver does not exist.");
 
-                if (!IsOrdinaryUser(receiver))
-                    throw new UnauthorizedAccessException("You can only message ordinary users.");
+                if (!IsUserOrOrganizer(receiver))
+                    throw new UnauthorizedAccessException("You can only message user or organizer accounts.");
                 if (!await CanContactAsync(userId, receiverId!.Value))
                     throw new UnauthorizedAccessException("This user does not accept messages from you, or one of you blocked the other.");
             }
@@ -697,8 +697,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (user == null)
                 throw new KeyNotFoundException("User does not exist.");
 
-            if (!IsOrdinaryUser(user))
-                throw new UnauthorizedAccessException("Only ordinary users can send messages.");
+            if (!IsUserOrOrganizer(user))
+                throw new UnauthorizedAccessException("Only user and organizer accounts can send messages.");
         }
 
         private async Task<ChatConversation> GetConversationForUser(int conversationId, int userId)
@@ -782,9 +782,10 @@ namespace MatchYourMatch.WebAPI.Services
             return message;
         }
 
-        private static bool IsOrdinaryUser(User user)
+        private static bool IsUserOrOrganizer(User user)
         {
-            return string.Equals(user.Role, "User", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(user.Role, "User", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(user.Role, "Organizer", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void SetHiddenForUser(ChatConversation conversation, int userId, bool isHidden)

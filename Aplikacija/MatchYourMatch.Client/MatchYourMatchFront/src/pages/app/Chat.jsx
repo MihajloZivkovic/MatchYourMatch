@@ -378,7 +378,7 @@ function Chat() {
     return groupPeopleResults.filter(
       (person) =>
         Number(person.id) !== Number(auth.userId) &&
-        (!person.role || person.role.toLowerCase() === "user") &&
+        (!person.role || ["user", "organizer"].includes(person.role.toLowerCase())) &&
         !selectedIds.has(Number(person.id)),
     );
   }, [auth.userId, groupPeopleResults, selectedGroupMembers]);
@@ -1324,7 +1324,7 @@ function Chat() {
                     />
                   ) : (
                     <div className="chat-composer chat-composer--disabled">
-                      Chat sending is available only to ordinary users.
+                      {t("chatUi.usersOnly")}
                     </div>
                   )}
                 </>

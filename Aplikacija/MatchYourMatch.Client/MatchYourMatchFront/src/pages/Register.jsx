@@ -1,10 +1,24 @@
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "../hooks/useTranslation";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import GuestEntryButton from "../components/GuestEntryButton";
 
-const emptyValues = { fullName: "", username: "", email: "", password: "", confirmPassword: "", dateOfBirth: "" };
+const ACCOUNT_TYPES = {
+  user: "User",
+  organizer: "Organizer",
+};
+
+const emptyValues = {
+  fullName: "",
+  username: "",
+  accountType: ACCOUNT_TYPES.user,
+  organizationType: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+  dateOfBirth: "",
+};
 
 function getLatestAllowedBirthDate() {
   const date = new Date();
@@ -18,21 +32,28 @@ function getLatestAllowedBirthDate() {
 function Register() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [accountType, setAccountType] = useState(emptyValues.accountType);
   const [state, formAction, isPending] = useActionState(handleSubmit, { error: null, values: emptyValues });
+  const isOrganizer = accountType === ACCOUNT_TYPES.organizer;
 
   async function handleSubmit(_prevState, formData) {
     const values = {
       fullName: formData.get("fullName")?.trim() || "",
       username: formData.get("username")?.trim() || "",
+      accountType: formData.get("accountType") || ACCOUNT_TYPES.user,
+      organizationType: formData.get("organizationType")?.trim() || "",
       email: formData.get("email")?.trim() || "",
       dateOfBirth: formData.get("dateOfBirth") || "",
       password: formData.get("password") || "",
       confirmPassword: formData.get("confirmPassword") || "",
     };
+    setAccountType(values.accountType);
 
-    if (!values.fullName) return { error: t("auth.fullNameRequired"), values };
-    if (!values.dateOfBirth) return { error: t("auth.dateOfBirthRequired"), values };
-    if (values.dateOfBirth > getLatestAllowedBirthDate()) return { error: t("auth.minimumAge"), values };
+    if (!values.fullName) return { error: values.accountType === ACCOUNT_TYPES.organizer ? t("auth.organizationNameRequired") : t("auth.fullNameRequired"), values };
+    if (values.accountType === ACCOUNT_TYPES.user) {
+      if (!values.dateOfBirth) return { error: t("auth.dateOfBirthRequired"), values };
+      if (values.dateOfBirth > getLatestAllowedBirthDate()) return { error: t("auth.minimumAge"), values };
+    }
     if (values.password !== values.confirmPassword) return { error: t("auth.passwordsMismatch"), values };
 
     try {
@@ -41,10 +62,12 @@ function Register() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: values.username,
+          accountType: values.accountType,
           email: values.email,
           password: values.password,
           fullName: values.fullName,
-          dateOfBirth: values.dateOfBirth,
+          organizationType: values.accountType === ACCOUNT_TYPES.organizer && values.organizationType ? values.organizationType : null,
+          dateOfBirth: values.accountType === ACCOUNT_TYPES.user ? values.dateOfBirth : null,
         }),
       });
 
@@ -56,7 +79,14 @@ function Register() {
       const data = await response.json();
       const verificationEmail = data.email || values.email;
       sessionStorage.setItem('pendingVerificationEmail', verificationEmail);
-      navigate("/verify-email", { replace: true, state: { email: verificationEmail } });
+      navigate("/verify-email", {
+        replace: true,
+        state: {
+          email: verificationEmail,
+          message: data.message || t("emailVerification.registrationSuccess"),
+        },
+      });
+      setAccountType(emptyValues.accountType);
       return { error: null, values: emptyValues };
     } catch {
       return { error: t("auth.registrationFailed"), values };
@@ -74,9 +104,9 @@ function Register() {
             <SocialAuthButtons register />
 
             <div className="auth__field">
-              <label className="auth__label" htmlFor="register-full-name">{t("auth.fullName")}</label>
+              <label className="auth__label" htmlFor="register-full-name">{isOrganizer ? t("auth.organizationName") : t("auth.fullName")}</label>
               <input id="register-full-name" className="auth__input" type="text" name="fullName"
-                placeholder={t("auth.yourFullName")} autoComplete="name" maxLength="160" required
+                placeholder={isOrganizer ? t("auth.yourOrganizationName") : t("auth.yourFullName")} autoComplete="name" maxLength="160" required
                 defaultValue={state.values.fullName} />
             </div>
 
@@ -88,16 +118,43 @@ function Register() {
             </div>
 
             <div className="auth__field">
+              <span className="auth__label" id="register-account-type-label">{t("auth.accountType")}</span>
+              <div className="auth__account-type" role="radiogroup" aria-labelledby="register-account-type-label">
+                <label className={`auth__account-pill ${accountType === ACCOUNT_TYPES.user ? "auth__account-pill--active" : ""}`}>
+                  <input type="radio" name="accountType" value={ACCOUNT_TYPES.user}
+                    checked={accountType === ACCOUNT_TYPES.user}
+                    onChange={(event) => setAccountType(event.target.value)} />
+                  <span>{t("auth.regularUser")}</span>
+                </label>
+                <label className={`auth__account-pill ${accountType === ACCOUNT_TYPES.organizer ? "auth__account-pill--active" : ""}`}>
+                  <input type="radio" name="accountType" value={ACCOUNT_TYPES.organizer}
+                    checked={accountType === ACCOUNT_TYPES.organizer}
+                    onChange={(event) => setAccountType(event.target.value)} />
+                  <span>{t("auth.organizer")}</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="auth__field">
               <label className="auth__label" htmlFor="register-email">{t("auth.email")}</label>
               <input id="register-email" className="auth__input" type="email" name="email"
                 placeholder="you@example.com" autoComplete="email" required defaultValue={state.values.email} />
             </div>
 
-            <div className="auth__field">
-              <label className="auth__label" htmlFor="register-birthday">{t("auth.dateOfBirth")}</label>
-              <input id="register-birthday" className="auth__input" type="date" name="dateOfBirth"
-                autoComplete="bday" max={getLatestAllowedBirthDate()} required defaultValue={state.values.dateOfBirth} />
-            </div>
+            {isOrganizer ? (
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="register-organization-type">{t("auth.organizationTypeOptional")}</label>
+                <input id="register-organization-type" className="auth__input" type="text" name="organizationType"
+                  placeholder={t("auth.organizationTypePlaceholder")} maxLength="80"
+                  defaultValue={state.values.organizationType} />
+              </div>
+            ) : (
+              <div className="auth__field">
+                <label className="auth__label" htmlFor="register-birthday">{t("auth.dateOfBirth")}</label>
+                <input id="register-birthday" className="auth__input" type="date" name="dateOfBirth"
+                  autoComplete="bday" max={getLatestAllowedBirthDate()} required defaultValue={state.values.dateOfBirth} />
+              </div>
+            )}
 
             <div className="auth__field">
               <label className="auth__label" htmlFor="register-password">{t("auth.password")}</label>

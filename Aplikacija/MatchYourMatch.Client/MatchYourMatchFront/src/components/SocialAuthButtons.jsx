@@ -4,6 +4,7 @@ import { EventType, PublicClientApplication } from '@azure/msal-browser';
 import { FcGoogle } from 'react-icons/fc';
 import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButton from './SocialAuthButton';
+import { isAdminSession } from '../services/guestSession';
 
 function loadScript(src, ready) {
   if (ready()) return Promise.resolve();
@@ -81,8 +82,15 @@ function SocialAuthButtons({ register = false }) {
         const destination = requestedReturnUrl?.startsWith('/app')
           ? requestedReturnUrl
           : '/app/dashboard';
+        const adminDestination = requestedReturnUrl?.startsWith('/admin')
+          ? requestedReturnUrl
+          : '/admin/dashboard';
         navigate(
-          data.requiresProfileCompletion ? '/complete-profile' : destination,
+          isAdminSession(data.accessToken)
+            ? adminDestination
+            : data.requiresProfileCompletion
+              ? '/complete-profile'
+              : destination,
           { replace: true },
         );
       } catch (requestError) {

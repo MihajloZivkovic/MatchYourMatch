@@ -667,7 +667,7 @@ namespace MatchYourMatch.WebAPI.Services
 
         private IQueryable<Event> GuestVisibleEvents(string city)
         {
-            var normalizedCity = city.Trim().ToLower();
+            var cityVariants = GetCitySearchVariants(city);
             var localNow = DateTime.Now;
             var today = DateOnly.FromDateTime(localNow);
             var currentTime = TimeOnly.FromDateTime(localNow);
@@ -683,8 +683,30 @@ namespace MatchYourMatch.WebAPI.Services
                 .Where(e => e.Organizer != null &&
                     e.Organizer.Role == "Organizer" &&
                     e.LocationCity != null &&
-                    e.LocationCity.ToLower() == normalizedCity &&
+                    cityVariants.Contains(e.LocationCity) &&
                     (e.Date > today || (e.Date == today && e.Time >= currentTime)));
+        }
+
+        private static List<string> GetCitySearchVariants(string city)
+        {
+            var value = city.Trim();
+            var normalized = NormalizeCityName(value);
+            var variants = new List<string> { value, normalized };
+            if (string.Equals(normalized, "Niš", StringComparison.OrdinalIgnoreCase))
+                variants.AddRange(new[] { "Niš", "Nis", "NiÅ¡" });
+
+            return variants
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string NormalizeCityName(string value)
+        {
+            return value
+                .Replace("NiÅ¡", "Niš", StringComparison.OrdinalIgnoreCase)
+                .Replace("Nis", "Niš", StringComparison.OrdinalIgnoreCase)
+                .Replace("NISH", "Niš", StringComparison.OrdinalIgnoreCase);
         }
 
         private static EventDto ToDto(Event e, int currentUserId)

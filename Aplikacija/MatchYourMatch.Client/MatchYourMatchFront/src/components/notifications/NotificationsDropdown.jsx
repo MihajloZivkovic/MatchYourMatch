@@ -83,6 +83,10 @@ function NotificationsDropdown({
     if (!item.actorUserId) return;
     setOpen(false);
     onNavigate?.();
+    if (item.relatedEntityType === 'UserReport') {
+      navigate('/admin/dashboard?section=reports');
+      return;
+    }
     navigate(`/app/users/${item.actorUserId}`);
   };
 
@@ -104,6 +108,8 @@ function NotificationsDropdown({
       );
     } else if (item.relatedEntityType === 'Event') {
       navigate(`/app/events?event=${item.relatedEntityId}`);
+    } else if (item.relatedEntityType === 'UserReport') {
+      navigate('/admin/dashboard?section=reports');
     } else if (item.type === 'QuickMatch') {
       navigate('/app/chat');
     }

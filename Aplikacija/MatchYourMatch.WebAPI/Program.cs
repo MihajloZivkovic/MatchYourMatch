@@ -1,4 +1,5 @@
 using MatchYourMatch.WebAPI.Data;
+using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using MatchYourMatch.WebAPI.Middleware;
@@ -1122,6 +1123,226 @@ using (var scope = app.Services.CreateScope())
               'Gym buddy trening'
           );
         """);
+
+    const string adminEmail = "admin@admin.com";
+    const string adminPassword = "admin";
+    var adminUser = await db.Users.Include(user => user.Profile)
+        .FirstOrDefaultAsync(user => user.Email == adminEmail);
+
+    if (adminUser == null)
+    {
+        var adminUsername = await db.Users.AnyAsync(user => user.Username == "admin")
+            ? "admin-account"
+            : "admin";
+        adminUser = new User
+        {
+            Username = adminUsername,
+            Email = adminEmail,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+            Role = "Admin",
+            IsActive = true,
+            IsDeactivated = false,
+            HasPassword = true,
+            EmailConfirmed = true,
+            EmailConfirmedAt = DateTime.UtcNow,
+            Profile = new UserProfile
+            {
+                FullName = "Admin",
+                DateOfBirth = new DateOnly(2000, 1, 1),
+                ShowFullName = false,
+                ShowAge = false
+            }
+        };
+        db.Users.Add(adminUser);
+    }
+    else
+    {
+        adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
+        adminUser.Role = "Admin";
+        adminUser.IsActive = true;
+        adminUser.IsDeactivated = false;
+        adminUser.DeactivatedAt = null;
+        adminUser.HasPassword = true;
+        adminUser.EmailConfirmed = true;
+        adminUser.EmailConfirmedAt ??= DateTime.UtcNow;
+        adminUser.Profile ??= new UserProfile
+        {
+            UserId = adminUser.Id,
+            FullName = "Admin",
+            DateOfBirth = new DateOnly(2000, 1, 1),
+            ShowFullName = false,
+            ShowAge = false
+        };
+        adminUser.Profile.FullName ??= "Admin";
+        adminUser.Profile.DateOfBirth ??= new DateOnly(2000, 1, 1);
+    }
+
+    await db.SaveChangesAsync();
+
+    var demoOrganizer = await db.Users.Include(user => user.Profile)
+        .FirstOrDefaultAsync(user => user.Email == "demo.organizer@mym.local");
+    if (demoOrganizer == null)
+    {
+        demoOrganizer = new User
+        {
+            Username = "exit_organization",
+            Email = "demo.organizer@mym.local",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
+            Role = "Organizer",
+            IsActive = true,
+            IsDeactivated = false,
+            HasPassword = false,
+            EmailConfirmed = true,
+            EmailConfirmedAt = DateTime.UtcNow,
+            Profile = new UserProfile
+            {
+                FullName = "Exit Organization",
+                Bio = "Music festival organizer",
+                ShowFullName = true,
+                ShowAge = false
+            }
+        };
+        db.Users.Add(demoOrganizer);
+        await db.SaveChangesAsync();
+    }
+    else
+    {
+        demoOrganizer.Role = "Organizer";
+        demoOrganizer.IsActive = true;
+        demoOrganizer.IsDeactivated = false;
+        demoOrganizer.DeactivatedAt = null;
+        demoOrganizer.EmailConfirmed = true;
+        demoOrganizer.EmailConfirmedAt ??= DateTime.UtcNow;
+        demoOrganizer.Profile ??= new UserProfile
+        {
+            UserId = demoOrganizer.Id,
+            FullName = "Exit Organization",
+            ShowFullName = true,
+            ShowAge = false
+        };
+        demoOrganizer.Profile.FullName = "Exit Organization";
+        demoOrganizer.Profile.Bio = "Music festival organizer";
+    }
+
+    var demoInterestNames = new[] { "Study", "Gaming", "Coffee", "Social", "Sport" };
+    foreach (var interestName in demoInterestNames)
+    {
+        if (!await db.Interests.AnyAsync(interest => interest.Name == interestName))
+        {
+            db.Interests.Add(new Interest { Name = interestName, Category = "Event" });
+        }
+    }
+    await db.SaveChangesAsync();
+
+    var demoInterests = await db.Interests
+        .Where(interest => demoInterestNames.Contains(interest.Name))
+        .ToDictionaryAsync(interest => interest.Name, interest => interest.Id);
+
+    var today = DateOnly.FromDateTime(DateTime.Today);
+    var demoEvents = new[]
+    {
+        new
+        {
+            Title = "Exit warm-up night Niš",
+            Category = "Social",
+            Date = today.AddDays(3),
+            Time = new TimeOnly(21, 0),
+            Location = "Tvrđava Niš, Niš, Serbia",
+            MaxAttendees = 120,
+            Description = "Demo organizatorski događaj za dokumentaciju: muzika, druženje i festival vibe u Nišu."
+        },
+        new
+        {
+            Title = "Studentski networking u Nišu",
+            Category = "Study",
+            Date = today.AddDays(4),
+            Time = new TimeOnly(18, 30),
+            Location = "Univerzitet u Nišu, Niš, Serbia",
+            MaxAttendees = 60,
+            Description = "Upoznavanje studenata, razmena projekata i mini diskusije o praksi."
+        },
+        new
+        {
+            Title = "Gaming arena meetup Niš",
+            Category = "Gaming",
+            Date = today.AddDays(5),
+            Time = new TimeOnly(19, 0),
+            Location = "Delta Planet Niš, Niš, Serbia",
+            MaxAttendees = 40,
+            Description = "Casual turniri, co-op stanice i upoznavanje lokalne gaming ekipe."
+        },
+        new
+        {
+            Title = "Coffee & startup talks Niš",
+            Category = "Coffee",
+            Date = today.AddDays(6),
+            Time = new TimeOnly(17, 30),
+            Location = "Obrenovićeva, Niš, Serbia",
+            MaxAttendees = 35,
+            Description = "Neformalna kafa sa organizatorima, startup temama i idejama za nove evente."
+        },
+        new
+        {
+            Title = "Jutarnji trening u Čairu",
+            Category = "Sport",
+            Date = today.AddDays(7),
+            Time = new TimeOnly(9, 0),
+            Location = "Park Čair, Niš, Serbia",
+            MaxAttendees = 30,
+            Description = "Lagan trening na otvorenom, beginner friendly i otvoren za goste."
+        }
+    };
+
+    foreach (var demoEvent in demoEvents)
+    {
+        var existingEvent = await db.Events
+            .Include(value => value.Participants)
+            .FirstOrDefaultAsync(value => value.Title == demoEvent.Title);
+        if (existingEvent == null)
+        {
+            existingEvent = new Event
+            {
+                Title = demoEvent.Title,
+                OrganizerId = demoOrganizer.Id,
+                InterestId = demoInterests[demoEvent.Category],
+                Date = demoEvent.Date,
+                Time = demoEvent.Time,
+                Location = demoEvent.Location,
+                LocationCity = "Niš",
+                LocationCountry = "Serbia",
+                ShowFullAddress = false,
+                MaxAttendees = demoEvent.MaxAttendees,
+                Description = demoEvent.Description,
+                RequiresParticipantApproval = false
+            };
+            db.Events.Add(existingEvent);
+        }
+        else
+        {
+            existingEvent.OrganizerId = demoOrganizer.Id;
+            existingEvent.InterestId = demoInterests[demoEvent.Category];
+            existingEvent.Date = demoEvent.Date;
+            existingEvent.Time = demoEvent.Time;
+            existingEvent.Location = demoEvent.Location;
+            existingEvent.LocationCity = "Niš";
+            existingEvent.LocationCountry = "Serbia";
+            existingEvent.ShowFullAddress = false;
+            existingEvent.MaxAttendees = demoEvent.MaxAttendees;
+            existingEvent.Description = demoEvent.Description;
+            existingEvent.RequiresParticipantApproval = false;
+        }
+
+        if (!existingEvent.Participants.Any(participant => participant.UserId == demoOrganizer.Id))
+        {
+            existingEvent.Participants.Add(new EventParticipant
+            {
+                UserId = demoOrganizer.Id,
+                JoinedAt = DateTime.UtcNow
+            });
+        }
+    }
+
+    await db.SaveChangesAsync();
 
     if (schemaOnly)
     {

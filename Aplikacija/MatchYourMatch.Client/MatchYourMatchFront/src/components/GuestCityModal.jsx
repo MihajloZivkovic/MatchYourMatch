@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
-import { enterAsGuest, GUEST_FALLBACK_CITIES } from '../services/guestSession';
+import { enterAsGuest, GUEST_FALLBACK_CITIES, normalizeCityName } from '../services/guestSession';
 
 function GuestCityModal({ onClose }) {
   const [cities, setCities] = useState(GUEST_FALLBACK_CITIES);
@@ -26,7 +26,9 @@ function GuestCityModal({ onClose }) {
     fetch('/api/Events/cities')
       .then((response) => response.ok ? response.json() : [])
       .then((data) => {
-        if (!ignore && Array.isArray(data) && data.length > 0) setCities(data);
+        if (!ignore && Array.isArray(data) && data.length > 0) {
+          setCities([...new Set(data.map(normalizeCityName))]);
+        }
       })
       .catch(() => {});
     return () => { ignore = true; };
@@ -42,7 +44,7 @@ function GuestCityModal({ onClose }) {
     setLoading(true);
     setError('');
     try {
-      await enterAsGuest(city);
+      await enterAsGuest(normalizeCityName(city));
       onClose?.();
       navigate('/app/events', { replace: true });
     } catch (err) {
@@ -68,7 +70,7 @@ function GuestCityModal({ onClose }) {
           </label>
           <select id="guest-city" className="guest-modal__select" value={city} onChange={(event) => setCity(event.target.value)}>
             <option value="">{t('guest.chooseCity')}</option>
-            {cities.map((value) => <option key={value} value={value}>{value}</option>)}
+            {cities.map((value) => <option key={value} value={normalizeCityName(value)}>{normalizeCityName(value)}</option>)}
           </select>
           {error && <p className="guest-modal__error" role="alert">{error}</p>}
           <div className="guest-modal__actions">

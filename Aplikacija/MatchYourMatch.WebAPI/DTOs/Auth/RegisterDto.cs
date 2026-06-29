@@ -14,13 +14,18 @@ namespace MatchYourMatch.WebAPI.DTOs.Auth
         [Required]
         public required string Password { get; set; }
 
-        [Required]
         [StringLength(160)]
-        public required string FullName { get; set; }
+        public string? FullName { get; set; }
 
-        [Required]
         public DateOnly? DateOfBirth { get; set; }
 
-        public string Role { get; set; } = "User";
+        [StringLength(40)]
+        public string AccountType { get; set; } = "User";
+
+        [StringLength(40)]
+        public string? Role { get; set; }
+
+        [StringLength(80)]
+        public string? OrganizationType { get; set; }
     }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarX } from 'lucide-react';
+import { CalendarX, ChevronLeft, ChevronRight } from 'lucide-react';
 import EventCard from '../../components/EventCard';
 import EventInviteModal from '../../components/events/EventInviteModal';
 import GuestCityModal from '../../components/GuestCityModal';
@@ -9,6 +9,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { getGuestCity, isGuestSession } from '../../services/guestSession';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
+const EVENTS_PAGE_SIZE = 4;
 
 function Events({ currentUser }) {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ function Events({ currentUser }) {
   const [guestCityModalOpen, setGuestCityModalOpen] = useState(false);
   const [blockedMessage, setBlockedMessage] = useState('');
   const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(1);
   const { t } = useTranslation();
   const isGuest = isGuestSession();
   const guestCity = getGuestCity();
@@ -81,6 +83,17 @@ function Events({ currentUser }) {
     }
 
     return events.filter((event) => normalizeCategory(event.category) === activeFilter);
+  }, [activeFilter, events]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / EVENTS_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * EVENTS_PAGE_SIZE;
+  const pagedEvents = filtered.slice(pageStart, pageStart + EVENTS_PAGE_SIZE);
+  const showingFrom = filtered.length === 0 ? 0 : pageStart + 1;
+  const showingTo = Math.min(pageStart + pagedEvents.length, filtered.length);
+
+  useEffect(() => {
+    setPage(1);
   }, [activeFilter, events]);
 
   const handleJoin = async (eventId) => {
@@ -223,23 +236,55 @@ function Events({ currentUser }) {
       ) : null}
 
       {!loading && !error && filtered.length > 0 && (
-        <div className="events-page__grid">
-          {filtered.map((event, i) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              style={{ '--i': i }}
-              guestMode={isGuest}
-              onJoin={() => handleJoin(event.id)}
-              onLeave={() => handleLeave(event.id)}
-              onCancelJoinRequest={() => handleCancelJoinRequest(event.id)}
-              onSavedChange={(isSaved) => setEvents((current) => current.map((value) =>
-                value.id === event.id ? { ...value, isSaved } : value))}
-              onInvite={() => setInviteEvent(event)}
-              onEdit={Number(event.createdByUserId) === Number(currentUser?.id) ? () => navigate(`/app/events/${event.id}/edit`) : undefined}
-            />
-          ))}
-        </div>
+        <>
+          <div className="events-page__grid">
+            {pagedEvents.map((event, i) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                style={{ '--i': i }}
+                guestMode={isGuest}
+                onJoin={() => handleJoin(event.id)}
+                onLeave={() => handleLeave(event.id)}
+                onCancelJoinRequest={() => handleCancelJoinRequest(event.id)}
+                onSavedChange={(isSaved) => setEvents((current) => current.map((value) =>
+                  value.id === event.id ? { ...value, isSaved } : value))}
+                onInvite={() => setInviteEvent(event)}
+                onEdit={Number(event.createdByUserId) === Number(currentUser?.id) ? () => navigate(`/app/events/${event.id}/edit`) : undefined}
+              />
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <nav className="events-page__pagination" aria-label={t('events.paginationAria')}>
+              <p className="events-page__pagination-count">
+                {t('events.paginationShowing', { first: showingFrom, last: showingTo, total: filtered.length })}
+              </p>
+              <div className="events-page__pagination-actions">
+                <button
+                  type="button"
+                  className="events-page__page-btn"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={safePage === 1}
+                  aria-label={t('common.previous')}
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <span className="events-page__page-status">
+                  {t('common.page')} {safePage} {t('common.of')} {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className="events-page__page-btn"
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  disabled={safePage === totalPages}
+                  aria-label={t('common.next')}
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+            </nav>
+          )}
+        </>
       )}
       {inviteEvent && <EventInviteModal event={inviteEvent} onClose={() => setInviteEvent(null)} />}
       {guestCityModalOpen && <GuestCityModal onClose={() => {
