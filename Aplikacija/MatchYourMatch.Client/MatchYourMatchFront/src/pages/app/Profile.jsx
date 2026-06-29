@@ -778,6 +778,13 @@ function Profile(props) {
 
   const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
 
+  const followingValue = props.currentUser?.followingCount ?? props.userProfile?.followingCount;
+  
+  const followingDisplay =
+    typeof followingValue === "number" ? String(followingValue) : "—";
+
+
+
   const savedLocationInput =
     props.currentUser?.locationRawInput || props.userProfile.location || "";
   const profileHasChanges =
@@ -923,6 +930,16 @@ function Profile(props) {
                 <Users size={14} />
                 <strong>{followersDisplay}</strong>{" "}
                 {t("publicProfile.followers")}
+              </button>
+              <button
+                type="button"
+                className="profile__followers profile__followers--clickable"
+                onClick={() => setFollowListType("following")}
+                disabled={!profileUserId}
+              >
+                <Users size={14} />
+                <strong>{followingDisplay}</strong>{" "}
+                {t("publicProfile.following")}
               </button>
               <p className="profile__location">
                 <MapPin size={14} />
