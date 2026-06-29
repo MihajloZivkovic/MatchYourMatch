@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Zap,
   Brain,
   Calendar,
-  Heart,
   MessageCircle,
   ChevronRight,
   Users,
@@ -12,6 +11,7 @@ import {
 import { events } from "../../data/events";
 import "./Dashboard.css";
 import { useTranslation } from "../../hooks/useTranslation";
+import { useChat } from "../../context/ChatContext";
 
 const INTEREST_PILLS = [
   "Late Night Drives",
@@ -86,16 +86,57 @@ function mapDeepMatchToConnection(match) {
 
 function Dashboard(props) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { startConversation, setActiveConversationId, loadMessages } = useChat();
   const [interests, setInterests] = useState([]);
   const [vibe, setVibe] = useState("");
   const [suggestedConnections, setSuggestedConnections] = useState([]);
   const [suggestedStatus, setSuggestedStatus] = useState("loading");
   const [suggestedMessage, setSuggestedMessage] = useState("");
+  const [suggestedActionMessage, setSuggestedActionMessage] = useState("");
+  const [chatLoadingUserId, setChatLoadingUserId] = useState(null);
 
   const toggleInterest = (pill) => {
     setInterests((prev) =>
       prev.includes(pill) ? prev.filter((p) => p !== pill) : [...prev, pill],
     );
+  };
+
+  const openProfile = (userId) => {
+    if (!userId) return;
+    navigate(`/app/users/${userId}`);
+  };
+
+  const handleConnectionKeyDown = (event, userId) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openProfile(userId);
+  };
+
+  const openChat = async (event, person) => {
+    event.stopPropagation();
+    if (!person?.id || chatLoadingUserId) return;
+
+    setSuggestedActionMessage("");
+    setChatLoadingUserId(person.id);
+    try {
+      const conversation = await startConversation(person.id);
+      if (conversation?.conversationId) {
+        setActiveConversationId(conversation.conversationId);
+        await loadMessages(conversation.conversationId);
+      }
+      navigate("/app/chat");
+    } catch (error) {
+      const message = error.message || "";
+      setSuggestedActionMessage(
+        error.status === 403 ||
+          message.toLowerCase().includes("does not accept messages")
+          ? "You can't message this user because of their privacy settings."
+          : "Conversation could not be started.",
+      );
+    } finally {
+      setChatLoadingUserId(null);
+    }
   };
 
   useEffect(() => {
@@ -173,7 +214,12 @@ function Dashboard(props) {
         }
 
         const matchesData = await matchesResponse.json();
-        const connections = matchesData
+        const matches = Array.isArray(matchesData)
+          ? matchesData
+          : Array.isArray(matchesData?.matches)
+            ? matchesData.matches
+            : [];
+        const connections = matches
           .map(mapDeepMatchToConnection)
           .sort((first, second) => second.compatibility - first.compatibility)
           .slice(0, 5);
@@ -386,22 +432,29 @@ function Dashboard(props) {
             </div>
           )}
 
+          {suggestedActionMessage && (
+            <div className="dashboard__connections-state dashboard__connections-state--error">
+              {suggestedActionMessage}
+            </div>
+          )}
+
           {suggestedStatus === "ready" &&
             suggestedConnections.map((person, i) => (
               <article
                 key={person.id}
                 className="dashboard__connection app-tilt-hover"
                 style={{ "--i": i }}
+                role="button"
+                tabIndex={0}
+                onClick={() => openProfile(person.id)}
+                onKeyDown={(event) => handleConnectionKeyDown(event, person.id)}
               >
                 <div className="dashboard__conn-avatar">{person.initials}</div>
                 <div className="dashboard__conn-body">
                   <div className="dashboard__conn-head">
-                    <Link
-                      to={`/app/users/${person.id}`}
-                      className="dashboard__conn-name"
-                    >
+                    <span className="dashboard__conn-name">
                       {person.name}
-                    </Link>
+                    </span>
                     <span className="dashboard__conn-compat">
                       {person.compatibility}%
                     </span>
@@ -414,20 +467,14 @@ function Dashboard(props) {
                   </div>
                 </div>
                 <div className="dashboard__conn-actions">
-                  <Link
-                    to={`/app/chat?userId=${person.id}&username=${encodeURIComponent(person.username)}`}
-                    className="dashboard__conn-btn app-interactive"
-                    aria-label="Message"
-                  >
-                    <MessageCircle size={16} />
-                  </Link>
                   <button
                     type="button"
-                    className="dashboard__conn-btn dashboard__conn-btn--match app-interactive"
-                    aria-label="Like unavailable"
-                    disabled
+                    className="dashboard__conn-btn app-interactive"
+                    aria-label="Message"
+                    disabled={chatLoadingUserId === person.id}
+                    onClick={(event) => openChat(event, person)}
                   >
-                    <Heart size={16} />
+                    <MessageCircle size={16} />
                   </button>
                 </div>
               </article>

@@ -25,6 +25,7 @@ import AvailabilityScheduleEditor from "../../components/profile/AvailabilitySch
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
 import ProfileTagEditor from "../../components/profile/ProfileTagEditor";
 import { locationService } from "../../services/locationService";
+import { accountService } from "../../services/accountService";
 import UserAvatar from "../../components/UserAvatar";
 import UserActionsMenu from "../../components/UserActionsMenu";
 import ChatComposer from "../../components/chat/ChatComposer";
@@ -156,6 +157,20 @@ function Profile(props) {
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
   const [accountDangerOpen, setAccountDangerOpen] = useState(false);
+  const [accountEditor, setAccountEditor] = useState(null);
+  const [accountSaving, setAccountSaving] = useState("");
+  const [accountMessage, setAccountMessage] = useState({ type: "", text: "" });
+  const [usernameDraft, setUsernameDraft] = useState(props.currentUser?.username || "");
+  const [emailDraft, setEmailDraft] = useState(props.currentUser?.email || "");
+  const [emailPasswordDraft, setEmailPasswordDraft] = useState("");
+  const [passwordDraft, setPasswordDraft] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+  const [visibilityDraft, setVisibilityDraft] = useState(
+    props.userProfile?.profileVisibility || props.currentUser?.profileVisibility || "Standard",
+  );
   const [followListType, setFollowListType] = useState(null);
   const [lifestyleEditing, setLifestyleEditing] = useState(false);
   const [lifestyleSaving, setLifestyleSaving] = useState(false);
@@ -240,6 +255,21 @@ function Profile(props) {
     props.userProfile.showFullName,
     props.userProfile.dateOfBirth,
     props.userProfile.showAge,
+  ]);
+
+  useEffect(() => {
+    setUsernameDraft(props.currentUser?.username || "");
+    setEmailDraft(props.currentUser?.email || "");
+    setVisibilityDraft(
+      props.userProfile?.profileVisibility ||
+        props.currentUser?.profileVisibility ||
+        "Standard",
+    );
+  }, [
+    props.currentUser?.username,
+    props.currentUser?.email,
+    props.currentUser?.profileVisibility,
+    props.userProfile?.profileVisibility,
   ]);
 
   useEffect(() => {
@@ -334,6 +364,8 @@ function Profile(props) {
         eventsJoinedCount: data.eventsJoinedCount ?? null,
         profileScorePercent: data.profileScorePercent ?? null,
         responseRatePercent: data.responseRatePercent ?? null,
+        pendingEmail: data.pendingEmail ?? "",
+        profileVisibility: data.profileVisibility ?? prev.profileVisibility ?? "Standard",
         followersCount: data.followersCount ?? 0,
         followingCount: data.followingCount ?? 0,
         averageRating: data.averageRating ?? null,
@@ -593,6 +625,130 @@ function Profile(props) {
     setLocationSearchActive(false);
   };
 
+  const openAccountEditor = (editor) => {
+    setAccountEditor(editor);
+    setAccountMessage({ type: "", text: "" });
+    setProfileError("");
+    setProfileSuccess("");
+    if (editor === "username") setUsernameDraft(props.currentUser?.username || "");
+    if (editor === "email") {
+      setEmailDraft(props.currentUser?.email || "");
+      setEmailPasswordDraft("");
+    }
+    if (editor === "password") {
+      setPasswordDraft({
+        currentPassword: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+    }
+    if (editor === "visibility") {
+      setVisibilityDraft(
+        props.userProfile?.profileVisibility ||
+          props.currentUser?.profileVisibility ||
+          "Standard",
+      );
+    }
+  };
+
+  const cancelAccountEditor = () => {
+    setAccountEditor(null);
+    setAccountSaving("");
+    setAccountMessage({ type: "", text: "" });
+    setEmailPasswordDraft("");
+    setPasswordDraft({
+      currentPassword: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    });
+  };
+
+  const applySavedProfile = (saved) => {
+    if (!saved) return;
+    props.setUserProfile((previous) => ({
+      ...previous,
+      ...saved,
+      pendingEmail: saved.pendingEmail ?? previous.pendingEmail ?? "",
+      profileVisibility: saved.profileVisibility ?? previous.profileVisibility ?? "Standard",
+    }));
+    window.dispatchEvent(new Event("tokenChanged"));
+  };
+
+  const saveUsername = async () => {
+    setAccountSaving("username");
+    setAccountMessage({ type: "", text: "" });
+    try {
+      const saved = await accountService.updateUsername({
+        username: usernameDraft.trim(),
+      });
+      applySavedProfile(saved);
+      setAccountMessage({ type: "success", text: "Username updated." });
+      setAccountEditor(null);
+    } catch (error) {
+      setAccountMessage({ type: "error", text: error.message || "Username could not be updated." });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
+  const saveEmail = async () => {
+    setAccountSaving("email");
+    setAccountMessage({ type: "", text: "" });
+    try {
+      const result = await accountService.updateEmail({
+        newEmail: emailDraft.trim(),
+        password: emailPasswordDraft,
+      });
+      setEmailPasswordDraft("");
+      setAccountMessage({
+        type: "success",
+        text: result?.message || "Verification code sent to the new email address.",
+      });
+      setAccountEditor(null);
+      window.dispatchEvent(new Event("tokenChanged"));
+    } catch (error) {
+      setAccountMessage({ type: "error", text: error.message || "Email change could not be started." });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
+  const savePassword = async () => {
+    setAccountSaving("password");
+    setAccountMessage({ type: "", text: "" });
+    try {
+      await accountService.updatePassword(passwordDraft);
+      setPasswordDraft({
+        currentPassword: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+      setAccountMessage({ type: "success", text: "Password updated." });
+      setAccountEditor(null);
+    } catch (error) {
+      setAccountMessage({ type: "error", text: error.message || "Password could not be updated." });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
+  const saveVisibility = async () => {
+    setAccountSaving("visibility");
+    setAccountMessage({ type: "", text: "" });
+    try {
+      const saved = await accountService.updateProfileVisibility({
+        profileVisibility: visibilityDraft,
+      });
+      applySavedProfile(saved);
+      setAccountMessage({ type: "success", text: "Profile visibility updated." });
+      setAccountEditor(null);
+    } catch (error) {
+      setAccountMessage({ type: "error", text: error.message || "Profile visibility could not be updated." });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
   const handleProfileSave = async () => {
     setProfileSaving(true);
     setProfileError("");
@@ -625,6 +781,9 @@ function Profile(props) {
           savedProfile?.profileScorePercent ?? prev.profileScorePercent,
         responseRatePercent:
           savedProfile?.responseRatePercent ?? prev.responseRatePercent,
+        pendingEmail: savedProfile?.pendingEmail ?? prev.pendingEmail ?? "",
+        profileVisibility:
+          savedProfile?.profileVisibility ?? prev.profileVisibility ?? "Standard",
         followersCount: savedProfile?.followersCount ?? prev.followersCount,
         followingCount: savedProfile?.followingCount ?? prev.followingCount,
         averageRating: savedProfile?.averageRating ?? prev.averageRating,
@@ -1201,27 +1360,119 @@ function Profile(props) {
                     </div>
                   </div>
                   <div className="profile-settings-coming-list">
-                    <DisabledSetting
+                    <EditableSetting
                       icon={UserRound}
                       label={t("profileSettings.username")}
                       value={`@${props.currentUser.username}`}
-                      soon={t("profileSettings.comingSoon")}
-                    />
-                    <DisabledSetting
+                      active={accountEditor === "username"}
+                      onOpen={() => openAccountEditor("username")}
+                    >
+                      <label>
+                        <span>{t("profileSettings.username")}</span>
+                        <input
+                          type="text"
+                          value={usernameDraft}
+                          onChange={(event) => setUsernameDraft(event.target.value)}
+                          autoComplete="username"
+                        />
+                      </label>
+                      <SettingActions
+                        saving={accountSaving === "username"}
+                        onSave={saveUsername}
+                        onCancel={cancelAccountEditor}
+                      />
+                    </EditableSetting>
+                    <EditableSetting
                       icon={Mail}
                       label={t("profileSettings.email")}
                       value={
-                        props.currentUser.email ||
-                        t("profileSettings.privateValue")
+                        props.currentUser.pendingEmail
+                          ? `${props.currentUser.email} (pending ${props.currentUser.pendingEmail})`
+                          : props.currentUser.email ||
+                            t("profileSettings.privateValue")
                       }
-                      soon={t("profileSettings.comingSoon")}
-                    />
-                    <DisabledSetting
+                      active={accountEditor === "email"}
+                      onOpen={() => openAccountEditor("email")}
+                    >
+                      <label>
+                        <span>{t("profileSettings.email")}</span>
+                        <input
+                          type="email"
+                          value={emailDraft}
+                          onChange={(event) => setEmailDraft(event.target.value)}
+                          autoComplete="email"
+                        />
+                      </label>
+                      <label>
+                        <span>Current password</span>
+                        <input
+                          type="password"
+                          value={emailPasswordDraft}
+                          onChange={(event) => setEmailPasswordDraft(event.target.value)}
+                          autoComplete="current-password"
+                        />
+                      </label>
+                      <SettingActions
+                        saving={accountSaving === "email"}
+                        onSave={saveEmail}
+                        onCancel={cancelAccountEditor}
+                      />
+                    </EditableSetting>
+                    <EditableSetting
                       icon={KeyRound}
                       label={t("profileSettings.password")}
                       value="••••••••"
-                      soon={t("profileSettings.comingSoon")}
-                    />
+                      active={accountEditor === "password"}
+                      onOpen={() => openAccountEditor("password")}
+                    >
+                      <label>
+                        <span>Current password</span>
+                        <input
+                          type="password"
+                          value={passwordDraft.currentPassword}
+                          onChange={(event) =>
+                            setPasswordDraft((current) => ({
+                              ...current,
+                              currentPassword: event.target.value,
+                            }))
+                          }
+                          autoComplete="current-password"
+                        />
+                      </label>
+                      <label>
+                        <span>New password</span>
+                        <input
+                          type="password"
+                          value={passwordDraft.newPassword}
+                          onChange={(event) =>
+                            setPasswordDraft((current) => ({
+                              ...current,
+                              newPassword: event.target.value,
+                            }))
+                          }
+                          autoComplete="new-password"
+                        />
+                      </label>
+                      <label>
+                        <span>Confirm new password</span>
+                        <input
+                          type="password"
+                          value={passwordDraft.confirmNewPassword}
+                          onChange={(event) =>
+                            setPasswordDraft((current) => ({
+                              ...current,
+                              confirmNewPassword: event.target.value,
+                            }))
+                          }
+                          autoComplete="new-password"
+                        />
+                      </label>
+                      <SettingActions
+                        saving={accountSaving === "password"}
+                        onSave={savePassword}
+                        onCancel={cancelAccountEditor}
+                      />
+                    </EditableSetting>
                   </div>
                 </section>
 
@@ -1233,12 +1484,48 @@ function Profile(props) {
                       <p>{t("profileSettings.privacyText")}</p>
                     </div>
                   </div>
-                  <DisabledSetting
+                  <EditableSetting
                     icon={Shield}
                     label={t("profileSettings.visibility")}
-                    value={t("profileSettings.visibilityValue")}
-                    soon={t("profileSettings.comingSoon")}
-                  />
+                    value={formatVisibilityLabel(
+                      props.userProfile?.profileVisibility ||
+                        props.currentUser?.profileVisibility ||
+                        "Standard",
+                    )}
+                    active={accountEditor === "visibility"}
+                    onOpen={() => openAccountEditor("visibility")}
+                  >
+                    <label>
+                      <span>{t("profileSettings.visibility")}</span>
+                      <select
+                        value={visibilityDraft}
+                        onChange={(event) => setVisibilityDraft(event.target.value)}
+                      >
+                        <option value="Public">Public</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Private">Private</option>
+                      </select>
+                    </label>
+                    <div className="profile-settings-visibility-help">
+                      <p>
+                        <strong>Public</strong>
+                        <span>Visible in search, matches, event participants and public profile views.</span>
+                      </p>
+                      <p>
+                        <strong>Standard</strong>
+                        <span>Normal MYM visibility for logged-in users, with existing privacy rules.</span>
+                      </p>
+                      <p>
+                        <strong>Private</strong>
+                        <span>Hidden from global search, Deep Match and Quick Match suggestions. Other users see only limited profile details.</span>
+                      </p>
+                    </div>
+                    <SettingActions
+                      saving={accountSaving === "visibility"}
+                      onSave={saveVisibility}
+                      onCancel={cancelAccountEditor}
+                    />
+                  </EditableSetting>
                 </section>
 
                 <section className="profile-settings-section profile-settings-section--danger">
@@ -1266,6 +1553,17 @@ function Profile(props) {
                 {profileSuccess && (
                   <span className="profile__location-success">
                     {profileSuccess}
+                  </span>
+                )}
+                {accountMessage.text && (
+                  <span
+                    className={
+                      accountMessage.type === "error"
+                        ? "profile__location-error"
+                        : "profile__location-success"
+                    }
+                  >
+                    {accountMessage.text}
                   </span>
                 )}
               </div>
@@ -1726,17 +2024,64 @@ function Profile(props) {
   );
 }
 
-function DisabledSetting({ icon: Icon, label, value, soon }) {
+function EditableSetting({ icon: Icon, label, value, active, onOpen, children }) {
+  const displayValue = label === "Password" || label === "Lozinka" ? "********" : value;
   return (
-    <div className="profile-settings-disabled" aria-disabled="true">
-      <Icon size={16} />
-      <div>
-        <strong>{label}</strong>
-        <span>{value}</span>
-      </div>
-      <small>{soon}</small>
+    <div className={`profile-settings-editable${active ? " is-active" : ""}`}>
+      <button
+        type="button"
+        className="profile-settings-editable__summary"
+        onClick={onOpen}
+        aria-expanded={active}
+      >
+        <Icon size={16} />
+        <div>
+          <strong>{label}</strong>
+          <span>{displayValue}</span>
+        </div>
+        <small>{active ? "Editing" : "Edit"}</small>
+      </button>
+      {active && (
+        <div className="profile-settings-editable__form">
+          {children}
+        </div>
+      )}
     </div>
   );
+}
+
+function SettingActions({ saving, onSave, onCancel }) {
+  return (
+    <div className="profile-settings-editable__actions">
+      <button
+        type="button"
+        className="profile__quiet-btn"
+        onClick={onCancel}
+        disabled={saving}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="app-btn-pill"
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </div>
+  );
+}
+
+function formatVisibilityLabel(value) {
+  switch (value) {
+    case "Public":
+      return "Public";
+    case "Private":
+      return "Private";
+    default:
+      return "Standard";
+  }
 }
 
 function EventDetails({

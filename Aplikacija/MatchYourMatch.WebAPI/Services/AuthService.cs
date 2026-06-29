@@ -126,15 +126,36 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var email = dto.Email.Trim().ToLowerInvariant();
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null || user.EmailConfirmed || string.IsNullOrWhiteSpace(user.EmailVerificationCodeHash) ||
-                user.EmailVerificationCodeExpiresAt <= DateTime.UtcNow || !VerificationCodeMatches(dto.Code, user.EmailVerificationCodeHash))
+            if (user != null && !user.EmailConfirmed && !string.IsNullOrWhiteSpace(user.EmailVerificationCodeHash) &&
+                user.EmailVerificationCodeExpiresAt > DateTime.UtcNow && VerificationCodeMatches(dto.Code, user.EmailVerificationCodeHash))
+            {
+                user.EmailConfirmed = true;
+                user.EmailConfirmedAt = DateTime.UtcNow;
+                user.EmailVerificationCodeHash = null;
+                user.EmailVerificationCodeExpiresAt = null;
+                user.EmailVerificationCodeSentAt = null;
+                await _context.SaveChangesAsync();
+                return;
+            }
+
+            user = await _context.Users.FirstOrDefaultAsync(u => u.PendingEmail == email);
+            if (user == null || string.IsNullOrWhiteSpace(user.PendingEmail) ||
+                string.IsNullOrWhiteSpace(user.PendingEmailVerificationCodeHash) ||
+                user.PendingEmailVerificationCodeExpiresAt <= DateTime.UtcNow ||
+                !VerificationCodeMatches(dto.Code, user.PendingEmailVerificationCodeHash))
                 throw new Exception("Verification code is invalid or expired.");
 
+            if (await _context.Users.AnyAsync(u => u.Id != user.Id && u.Email == email))
+                throw new Exception("Email is already in use.");
+
+            user.Email = user.PendingEmail;
             user.EmailConfirmed = true;
             user.EmailConfirmedAt = DateTime.UtcNow;
-            user.EmailVerificationCodeHash = null;
-            user.EmailVerificationCodeExpiresAt = null;
-            user.EmailVerificationCodeSentAt = null;
+            user.PendingEmail = null;
+            user.PendingEmailVerificationCodeHash = null;
+            user.PendingEmailVerificationCodeExpiresAt = null;
+            user.PendingEmailVerificationCodeSentAt = null;
+            user.TokenVersion++;
             await _context.SaveChangesAsync();
         }
 
@@ -283,11 +304,17 @@ namespace MatchYourMatch.WebAPI.Services
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 throw new Exception("Netacna lozinka!");
 
-            if (await _context.Users.AnyAsync(u => u.Email == dto.NewEmail))
+            var newEmail = dto.NewEmail.Trim().ToLowerInvariant();
+            if (await _context.Users.AnyAsync(u => u.Id != userId && u.Email == newEmail))
                 throw new Exception("Email je vec u upotrebi!");
 
-            user.Email = dto.NewEmail;
+            var code = GenerateVerificationCode();
+            user.PendingEmail = newEmail;
+            user.PendingEmailVerificationCodeHash = HashVerificationCode(code);
+            user.PendingEmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+            user.PendingEmailVerificationCodeSentAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            await _emailService.SendEmailVerificationAsync(newEmail, code);
         }
 
         public async Task<AuthInfoDto> GoogleLoginAsync(ExternalLoginDto dto)

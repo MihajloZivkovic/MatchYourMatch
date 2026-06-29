@@ -15,6 +15,10 @@ async function request(url, options = {}) {
 
 export const accountService = {
   status: () => request('/api/account/status', { headers: headers() }),
+  updateUsername: (payload) => request('/api/account/username', { method: 'PATCH', headers: headers(), body: JSON.stringify(payload) }),
+  updateEmail: (payload) => request('/api/account/email', { method: 'PATCH', headers: headers(), body: JSON.stringify(payload) }),
+  updatePassword: (payload) => request('/api/account/password', { method: 'PATCH', headers: headers(), body: JSON.stringify(payload) }),
+  updateProfileVisibility: (payload) => request('/api/account/profile-visibility', { method: 'PATCH', headers: headers(), body: JSON.stringify(payload) }),
   deactivate: (payload) => request('/api/account/deactivate', { method: 'POST', headers: headers(), body: JSON.stringify(payload) }),
   delete: (payload) => request('/api/account', { method: 'DELETE', headers: headers(), body: JSON.stringify(payload) }),
 };

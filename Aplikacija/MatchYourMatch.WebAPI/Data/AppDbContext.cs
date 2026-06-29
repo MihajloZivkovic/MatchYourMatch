@@ -48,6 +48,8 @@ namespace MatchYourMatch.WebAPI.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username).IsUnique();
             modelBuilder.Entity<User>().Property(u => u.EmailVerificationCodeHash).HasMaxLength(64);
+            modelBuilder.Entity<User>().Property(u => u.PendingEmail).HasMaxLength(255);
+            modelBuilder.Entity<User>().Property(u => u.PendingEmailVerificationCodeHash).HasMaxLength(64);
             modelBuilder.Entity<ExternalLogin>().HasIndex(x => new { x.Provider, x.ProviderUserId }).IsUnique();
             modelBuilder.Entity<ExternalLogin>().Property(x => x.Provider).HasMaxLength(30);
             modelBuilder.Entity<ExternalLogin>().Property(x => x.ProviderUserId).HasMaxLength(200);
@@ -97,6 +99,11 @@ namespace MatchYourMatch.WebAPI.Data
                 .Property(p => p.LocationPrivacy)
                 .IsRequired()
                 .HasMaxLength(30);
+            modelBuilder.Entity<UserProfile>()
+                .Property(p => p.ProfileVisibility)
+                .IsRequired()
+                .HasMaxLength(30)
+                .HasDefaultValue("Standard");
             modelBuilder.Entity<UserProfile>().Property(p => p.FullName).HasMaxLength(160);
             modelBuilder.Entity<UserProfile>().Property(p => p.ConversationStyle).HasMaxLength(80);
             

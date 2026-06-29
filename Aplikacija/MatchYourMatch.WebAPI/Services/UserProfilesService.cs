@@ -103,12 +103,14 @@ namespace MatchYourMatch.WebAPI.Services
                 Id = user.Id,
                 Username = user.Username,
                 Email = user.Email,
+                PendingEmail = user.PendingEmail,
                 Bio = user.Profile?.Bio,
                 ProfilePicture = user.Profile?.ProfilePicture,
                 Location = GetPublicLocation(user.Profile),
                 LocationRawInput = user.Profile?.LocationRawInput ?? user.Profile?.Location,
                 LocationDisplayName = GetPublicLocation(user.Profile),
                 LocationPrivacy = user.Profile?.LocationPrivacy ?? "CityOnly",
+                ProfileVisibility = user.Profile?.ProfileVisibility ?? "Standard",
                 MatchesCount = matchesCount,
                 EventsJoinedCount = eventsJoinedCount,
                 ProfileScorePercent = profileScorePercent,
@@ -186,6 +188,25 @@ namespace MatchYourMatch.WebAPI.Services
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
 
+            var visibility = user.Profile?.ProfileVisibility ?? "Standard";
+            var viewerRole = await _context.Users.AsNoTracking()
+                .Where(u => u.Id == currentUserId)
+                .Select(u => u.Role)
+                .FirstOrDefaultAsync();
+            var canViewFullProfile = userId == currentUserId || string.Equals(viewerRole, "Admin", StringComparison.OrdinalIgnoreCase);
+            if (visibility == "Private" && !canViewFullProfile)
+            {
+                return new PublicUserProfileDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    ProfilePicture = user.Profile?.ProfilePicture,
+                    ProfileVisibility = visibility,
+                    IsPrivate = true,
+                    CanMessage = false
+                };
+            }
+
             var responseRatePercent = await CalculateResponseRateAsync(userId);
             var matchesCount = await CalculateMatchesCountAsync(userId);
             var eventsJoinedCount = await CalculateEventsJoinedCountAsync(userId);
@@ -204,6 +225,8 @@ namespace MatchYourMatch.WebAPI.Services
                 Bio = user.Profile?.Bio,
                 ProfilePicture = user.Profile?.ProfilePicture,
                 LocationDisplayName = GetPublicLocation(user.Profile),
+                ProfileVisibility = visibility,
+                IsPrivate = false,
                 MatchesCount = matchesCount,
                 EventsJoinedCount = eventsJoinedCount,
                 ProfileScorePercent = profileScorePercent,

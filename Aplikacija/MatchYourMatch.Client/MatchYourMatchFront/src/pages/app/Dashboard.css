@@ -404,11 +404,14 @@
   animation: cardReveal 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: calc(var(--i) * 0.05s);
   transition: var(--transition);
+  cursor: pointer;
 }
 
-.dashboard__connection:hover {
+.dashboard__connection:hover,
+.dashboard__connection:focus-visible {
   border-left-color: var(--accent);
   box-shadow: var(--elev-2);
+  outline: none;
 }
 
 .dashboard__conn-avatar {
@@ -493,6 +496,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  align-items: center;
 }
 
 .dashboard__conn-btn {
@@ -503,8 +507,10 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--glass-border);
+  background: transparent;
   color: var(--text-muted);
   transition: var(--transition);
+  cursor: pointer;
 }
 
 .dashboard__conn-btn:hover {
@@ -519,17 +525,6 @@
 
 .dashboard__conn-btn:disabled:hover {
   border-color: var(--glass-border);
-  color: var(--text-muted);
-}
-
-.dashboard__conn-btn--match:hover {
-  background: var(--accent);
-  color: #000;
-  border-color: var(--accent);
-}
-
-.dashboard__conn-btn--match:disabled:hover {
-  background: transparent;
   color: var(--text-muted);
 }
 

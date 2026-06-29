@@ -19,6 +19,29 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> Status() => Ok(await _accounts.GetStatusAsync(CurrentUserId()));
 
     [Authorize]
+    [HttpPatch("username")]
+    public async Task<IActionResult> UpdateUsername(UpdateUsernameDto dto) => await Handle(async () =>
+        Ok(await _accounts.UpdateUsernameAsync(CurrentUserId(), dto)));
+
+    [Authorize]
+    [HttpPatch("email")]
+    public async Task<IActionResult> UpdateEmail(UpdateEmailDto dto) => await Handle(async () =>
+        Ok(await _accounts.UpdateEmailAsync(CurrentUserId(), dto)));
+
+    [Authorize]
+    [HttpPatch("password")]
+    public async Task<IActionResult> UpdatePassword(UpdatePasswordDto dto) => await Handle(async () =>
+    {
+        await _accounts.ChangePasswordAsync(CurrentUserId(), dto);
+        return Ok(new { success = true, message = "Password updated." });
+    });
+
+    [Authorize]
+    [HttpPatch("profile-visibility")]
+    public async Task<IActionResult> UpdateProfileVisibility(UpdateProfileVisibilityDto dto) => await Handle(async () =>
+        Ok(await _accounts.UpdateProfileVisibilityAsync(CurrentUserId(), dto)));
+
+    [Authorize]
     [HttpPost("deactivate")]
     public async Task<IActionResult> Deactivate(DeactivateAccountDto dto) => await Handle(async () =>
     {

@@ -20,6 +20,10 @@ namespace MatchYourMatch.WebAPI.Controllers
 
         private int GetCurrentUserId() => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         private bool IsGuest() => User.IsInRole("Guest");
+        private bool IsOrganizer() => User.IsInRole("Organizer") ||
+            string.Equals(User.FindFirstValue(ClaimTypes.Role), "Organizer", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(User.FindFirstValue("role"), "Organizer", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(User.FindFirstValue("userType"), "Organizer", StringComparison.OrdinalIgnoreCase);
         private string GuestCity() => User.FindFirst("guestCity")?.Value
             ?? throw new UnauthorizedAccessException("Guest city is required.");
 
@@ -125,10 +129,13 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
+                if (!IsOrganizer())
+                    return StatusCode(StatusCodes.Status403Forbidden, "Only organizers can create events.");
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 var e = await _service.CreateAsync(userId, dto);
                 return Ok(e);
             }
+            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
@@ -303,7 +310,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "Organizer")]
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

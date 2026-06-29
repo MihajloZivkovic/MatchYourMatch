@@ -5,7 +5,7 @@ import GlobalSearch from "../components/GlobalSearch";
 import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
 import { useTranslation } from "../hooks/useTranslation";
 import { logoutAndRedirect } from "../services/authSession";
-import { isAdminSession, isGuestSession } from "../services/guestSession";
+import { isAdminSession, isGuestSession, isOrganizerSession } from "../services/guestSession";
 import { notificationService, NOTIFICATIONS_CHANGED_EVENT } from "../services/notificationService";
 import "./AppNavbar.css";
 import ThemeLang from "../components/ThemeLang";
@@ -19,6 +19,7 @@ function AppNavbar(props) {
   const { t } = useTranslation();
   const isGuest = props.currentUser?.role === "Guest" || isGuestSession();
   const isAdmin = isAdminSession();
+  const canCreateEvents = !isGuest && isOrganizerSession();
 
   const loadUnreadNotifications = useCallback(async () => {
     if (isGuest) {
@@ -109,7 +110,7 @@ function AppNavbar(props) {
             ADMIN
           </Link>}
 
-          {!isGuest && <Link to="/app/events/create" className="app-navbar__create">
+          {canCreateEvents && <Link to="/app/events/create" className="app-navbar__create">
             + {t('nav.createEvent').toUpperCase()}
           </Link>}
 
@@ -196,7 +197,7 @@ function AppNavbar(props) {
         >
           {t('nav.chat').toUpperCase()}
         </NavLink>}
-        {!isGuest && <Link
+        {canCreateEvents && <Link
           to="/app/events/create"
           className="app-navbar__drawer-create"
           onClick={() => setMenuOpen(false)}

@@ -6,7 +6,7 @@ import EventInviteModal from '../../components/events/EventInviteModal';
 import GuestCityModal from '../../components/GuestCityModal';
 import './Events.css';
 import { useTranslation } from '../../hooks/useTranslation';
-import { getGuestCity, isGuestSession } from '../../services/guestSession';
+import { getGuestCity, isGuestSession, isOrganizerSession } from '../../services/guestSession';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
 const EVENTS_PAGE_SIZE = 4;
@@ -24,6 +24,7 @@ function Events({ currentUser }) {
   const [page, setPage] = useState(1);
   const { t } = useTranslation();
   const isGuest = isGuestSession();
+  const canCreateEvents = !isGuest && isOrganizerSession();
   const guestCity = getGuestCity();
   const filterLabels = { ALL: t('events.all'), NEARBY: t('events.nearby'), 'THIS WEEK': t('events.thisWeek'), STUDY: t('events.study'), GAMING: t('events.gaming'), COFFEE: t('events.coffee'), SOCIAL: t('events.social'), SPORT: t('events.sport') };
 
@@ -61,6 +62,9 @@ function Events({ currentUser }) {
     const state = window.history.state?.usr;
     if (state?.guestBlocked) {
       setBlockedMessage(t('guest.accountRequired'));
+      window.history.replaceState({ ...window.history.state, usr: {} }, '');
+    } else if (state?.organizerOnly) {
+      setBlockedMessage('Only organizers can create events.');
       window.history.replaceState({ ...window.history.state, usr: {} }, '');
     }
   }, [t]);
@@ -167,9 +171,9 @@ function Events({ currentUser }) {
           <button type="button" className="app-btn-pill events-page__create" onClick={() => setGuestCityModalOpen(true)}>
             {t('guest.changeCity')}
           </button>
-        ) : <Link to="/app/events/create" className="app-btn-pill events-page__create">
+        ) : canCreateEvents ? <Link to="/app/events/create" className="app-btn-pill events-page__create">
           + {t('nav.createEvent').toUpperCase()}
-        </Link>}
+        </Link> : null}
       </header>
 
       {isGuest && (
@@ -223,15 +227,15 @@ function Events({ currentUser }) {
           <p className="app-empty__text">
             {isGuest
               ? t('guest.onlyPublicOrganizerEvents')
-              : events.length === 0
+              : events.length === 0 && canCreateEvents
               ? t('events.createInvite')
               : t('events.tryFilter')}
           </p>
           {isGuest ? <button type="button" className="app-btn-pill" onClick={() => setGuestCityModalOpen(true)}>
             {t('guest.changeCity')}
-          </button> : <Link to="/app/events/create" className="app-btn-pill">
+          </button> : canCreateEvents ? <Link to="/app/events/create" className="app-btn-pill">
             {t('events.createOne')}
-          </Link>}
+          </Link> : null}
         </div>
       ) : null}
 

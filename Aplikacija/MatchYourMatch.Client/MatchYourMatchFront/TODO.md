@@ -1,4 +1,4 @@
-TBD - [ +, jana ce ] Dodati paginaciju za deep i quick match(i svugde gde ima smisla)
+TBD - [ + ] Dodati paginaciju za deep i quick match(i svugde gde ima smisla)
 TBD - [ X ] Osposobi prikaz followera klikom na "followers" tekst u profilu(i ovde paginacija treba)
 TBD - [ + jana ce i ovo ] Osposobiti dugme "View details" na deep match-u
 TBD - [ x] Dodati opciju da se izadje iz nekog dogadjaja

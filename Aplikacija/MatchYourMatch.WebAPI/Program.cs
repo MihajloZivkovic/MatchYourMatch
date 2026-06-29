@@ -206,6 +206,10 @@ using (var scope = app.Services.CreateScope())
         (Name: "EmailVerificationCodeHash", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeHash` varchar(64) NULL"),
         (Name: "EmailVerificationCodeExpiresAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeExpiresAt` datetime(6) NULL"),
         (Name: "EmailVerificationCodeSentAt", Sql: "ALTER TABLE `Users` ADD COLUMN `EmailVerificationCodeSentAt` datetime(6) NULL"),
+        (Name: "PendingEmail", Sql: "ALTER TABLE `Users` ADD COLUMN `PendingEmail` varchar(255) NULL"),
+        (Name: "PendingEmailVerificationCodeHash", Sql: "ALTER TABLE `Users` ADD COLUMN `PendingEmailVerificationCodeHash` varchar(64) NULL"),
+        (Name: "PendingEmailVerificationCodeExpiresAt", Sql: "ALTER TABLE `Users` ADD COLUMN `PendingEmailVerificationCodeExpiresAt` datetime(6) NULL"),
+        (Name: "PendingEmailVerificationCodeSentAt", Sql: "ALTER TABLE `Users` ADD COLUMN `PendingEmailVerificationCodeSentAt` datetime(6) NULL"),
         (Name: "IsDeactivated", Sql: "ALTER TABLE `Users` ADD COLUMN `IsDeactivated` tinyint(1) NOT NULL DEFAULT 0"),
         (Name: "DeactivatedAt", Sql: "ALTER TABLE `Users` ADD COLUMN `DeactivatedAt` datetime(6) NULL"),
         (Name: "TokenVersion", Sql: "ALTER TABLE `Users` ADD COLUMN `TokenVersion` int NOT NULL DEFAULT 0"),
@@ -354,6 +358,7 @@ using (var scope = app.Services.CreateScope())
         ,(Name: "SocialEnergy", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `SocialEnergy` int NULL")
         ,(Name: "ConversationStyle", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ConversationStyle` varchar(80) NULL")
         ,(Name: "LookingForJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `LookingForJson` longtext NULL")
+        ,(Name: "ProfileVisibility", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ProfileVisibility` varchar(30) NOT NULL DEFAULT \"Standard\"")
     })
     {
         db.Database.ExecuteSqlRaw($"""

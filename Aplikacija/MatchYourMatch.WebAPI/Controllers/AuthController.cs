@@ -159,7 +159,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 await _authService.ChangeEmailAsync(userId, dto);
-                return Ok("Email uspesno promenjen.");
+                return Ok("Verification code sent to the new email address.");
             }
             catch (Exception ex)
             {

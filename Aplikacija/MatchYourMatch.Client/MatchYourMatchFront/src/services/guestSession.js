@@ -51,6 +51,11 @@ export function isAdminSession(token = localStorage.getItem('token')) {
   return role === 'admin' || role === 'administrator';
 }
 
+export function isOrganizerSession(token = localStorage.getItem('token')) {
+  const role = getSessionRole(token).toLowerCase();
+  return role === 'organizer' || role === 'eventorganizer';
+}
+
 export function getGuestCity(token = localStorage.getItem('token')) {
   const payload = readJwtPayload(token);
   return normalizeCityName(payload?.guestCity || localStorage.getItem('mym_guest_city') || '');

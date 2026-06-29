@@ -44,6 +44,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .Include(u => u.QuickMatchPosts)
                     .ThenInclude(p => p.Activity)
                 .Where(u => u.Id != userId && u.IsActive &&
+                    (u.Profile == null || u.Profile.ProfileVisibility != "Private") &&
                     (u.AppSettings == null || u.AppSettings.ShowMeInDeepMatch))
                 .ToListAsync();
 

@@ -1,9 +1,14 @@
 using MatchYourMatch.WebAPI.Data;
 using MatchYourMatch.WebAPI.DTOs.Account;
 using MatchYourMatch.WebAPI.DTOs.Auth;
+using MatchYourMatch.WebAPI.DTOs.User;
 using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MatchYourMatch.WebAPI.Services;
 
@@ -11,15 +16,19 @@ public class AccountService : IAccountService
 {
     private readonly AppDbContext _context;
     private readonly IAuthService _authService;
+    private readonly IUserProfilesService _profiles;
+    private readonly EmailService _emailService;
     private readonly GoogleTokenValidator _google;
     private readonly MicrosoftTokenValidator _microsoft;
     private readonly ILogger<AccountService> _logger;
 
-    public AccountService(AppDbContext context, IAuthService authService, GoogleTokenValidator google,
+    public AccountService(AppDbContext context, IAuthService authService, IUserProfilesService profiles, EmailService emailService, GoogleTokenValidator google,
         MicrosoftTokenValidator microsoft, ILogger<AccountService> logger)
     {
         _context = context;
         _authService = authService;
+        _profiles = profiles;
+        _emailService = emailService;
         _google = google;
         _microsoft = microsoft;
         _logger = logger;
@@ -34,6 +43,76 @@ public class AccountService : IAccountService
             HasPassword = user.HasPassword,
             HasExternalLogin = await _context.ExternalLogins.AnyAsync(x => x.UserId == userId)
         };
+    }
+
+    public async Task<UserProfileDto> UpdateUsernameAsync(int userId, UpdateUsernameDto dto)
+    {
+        var username = NormalizeUsername(dto.Username);
+        var normalizedUsername = username.ToLowerInvariant();
+        var user = await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        if (await _context.Users.AnyAsync(x => x.Id != userId && x.Username.ToLower() == normalizedUsername))
+            throw new InvalidOperationException("Username is already in use.");
+
+        user.Username = username;
+        await _context.SaveChangesAsync();
+        return await _profiles.GetProfileAsync(userId);
+    }
+
+    public async Task<object> UpdateEmailAsync(int userId, UpdateEmailDto dto)
+    {
+        var newEmail = NormalizeEmail(dto.NewEmail);
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        EnsurePassword(user, dto.Password);
+
+        if (string.Equals(user.Email, newEmail, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("This email is already active on your account.");
+        if (await _context.Users.AnyAsync(x => x.Id != userId && x.Email == newEmail))
+            throw new InvalidOperationException("Email is already in use.");
+        if (await _context.Users.AnyAsync(x => x.Id != userId && x.PendingEmail == newEmail))
+            throw new InvalidOperationException("Email is already pending verification.");
+
+        var code = GenerateVerificationCode();
+        user.PendingEmail = newEmail;
+        user.PendingEmailVerificationCodeHash = HashVerificationCode(code);
+        user.PendingEmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+        user.PendingEmailVerificationCodeSentAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        await _emailService.SendEmailVerificationAsync(newEmail, code);
+
+        return new
+        {
+            success = true,
+            message = "Verification code sent to the new email address.",
+            email = user.Email,
+            pendingEmail = newEmail
+        };
+    }
+
+    public async Task ChangePasswordAsync(int userId, UpdatePasswordDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        EnsurePassword(user, dto.CurrentPassword);
+        if (dto.NewPassword != dto.ConfirmNewPassword)
+            throw new InvalidOperationException("New password and confirmation do not match.");
+        ValidatePassword(dto.NewPassword);
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        user.HasPassword = true;
+        user.TokenVersion++;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<UserProfileDto> UpdateProfileVisibilityAsync(int userId, UpdateProfileVisibilityDto dto)
+    {
+        var visibility = NormalizeProfileVisibility(dto.ProfileVisibility);
+        var user = await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+        user.Profile ??= new UserProfile { UserId = userId };
+        user.Profile.ProfileVisibility = visibility;
+        await _context.SaveChangesAsync();
+        return await _profiles.GetProfileAsync(userId);
     }
 
     public async Task DeactivateAsync(int userId, DeactivateAccountDto dto)
@@ -166,6 +245,58 @@ public class AccountService : IAccountService
             throw new InvalidOperationException($"Type {requiredConfirmation} to confirm this action.");
         }
     }
+
+    private static void EnsurePassword(User user, string? password)
+    {
+        if (!user.HasPassword)
+            throw new UnauthorizedAccessException("Password sign-in is not enabled for this account.");
+        if (string.IsNullOrWhiteSpace(password) || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            throw new UnauthorizedAccessException("Current password is incorrect.");
+    }
+
+    private static string NormalizeUsername(string? username)
+    {
+        var value = username?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException("Username is required.");
+        if (value.Length is < 3 or > 30)
+            throw new InvalidOperationException("Username must be between 3 and 30 characters.");
+        if (!Regex.IsMatch(value, "^[A-Za-z0-9._-]+$"))
+            throw new InvalidOperationException("Username can contain only letters, numbers, dots, underscores and hyphens.");
+        return value;
+    }
+
+    private static string NormalizeEmail(string? email)
+    {
+        var value = email?.Trim().ToLowerInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException("Email is required.");
+        if (!new EmailAddressAttribute().IsValid(value))
+            throw new InvalidOperationException("Email format is invalid.");
+        return value;
+    }
+
+    private static void ValidatePassword(string? password)
+    {
+        var value = password ?? string.Empty;
+        if (value.Length < 8)
+            throw new InvalidOperationException("Password must be at least 8 characters long.");
+        if (!value.Any(char.IsUpper) || !value.Any(char.IsLower) || !value.Any(char.IsDigit))
+            throw new InvalidOperationException("Password must contain uppercase, lowercase and number characters.");
+    }
+
+    private static string NormalizeProfileVisibility(string? visibility)
+    {
+        var value = visibility?.Trim();
+        if (string.Equals(value, "Public", StringComparison.OrdinalIgnoreCase)) return "Public";
+        if (string.Equals(value, "Standard", StringComparison.OrdinalIgnoreCase)) return "Standard";
+        if (string.Equals(value, "Private", StringComparison.OrdinalIgnoreCase)) return "Private";
+        throw new InvalidOperationException("Profile visibility must be Public, Standard or Private.");
+    }
+
+    private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+
+    private static string HashVerificationCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 
     private async Task<ExternalIdentity> ValidateExternalIdentityAsync(ReactivateAccountDto dto) =>
         dto.Provider?.Trim().ToLowerInvariant() switch

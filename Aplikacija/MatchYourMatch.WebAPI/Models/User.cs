@@ -17,6 +17,10 @@
         public string? EmailVerificationCodeHash { get; set; }
         public DateTime? EmailVerificationCodeExpiresAt { get; set; }
         public DateTime? EmailVerificationCodeSentAt { get; set; }
+        public string? PendingEmail { get; set; }
+        public string? PendingEmailVerificationCodeHash { get; set; }
+        public DateTime? PendingEmailVerificationCodeExpiresAt { get; set; }
+        public DateTime? PendingEmailVerificationCodeSentAt { get; set; }
         public UserProfile? Profile { get; set; }
         public UserDeepMatchPreference? DeepMatchPreference { get; set; }
         public UserAppSettings? AppSettings { get; set; }

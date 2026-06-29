@@ -29,7 +29,7 @@ import Chat from "./pages/app/Chat";
 import Settings from "./pages/app/Settings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import SessionExpiredModal from "./components/SessionExpiredModal";
-import { getGuestCity, isGuestSession } from "./services/guestSession";
+import { getGuestCity, isGuestSession, isOrganizerSession } from "./services/guestSession";
 import "./App.css";
 
 const USER_ID_CLAIMS = [
@@ -52,6 +52,8 @@ function App() {
     eventsJoinedCount: null,
     profileScorePercent: null,
     responseRatePercent: null,
+    pendingEmail: "",
+    profileVisibility: "Standard",
     fullName: "",
     showFullName: false,
     dateOfBirth: "",
@@ -167,6 +169,8 @@ function App() {
             eventsJoinedCount: null,
             profileScorePercent: null,
             responseRatePercent: null,
+            pendingEmail: "",
+            profileVisibility: "Standard",
             fullName: "",
             showFullName: false,
             dateOfBirth: "",
@@ -216,6 +220,8 @@ function App() {
             eventsJoinedCount: data.eventsJoinedCount ?? null,
             profileScorePercent: data.profileScorePercent ?? null,
             responseRatePercent: data.responseRatePercent ?? null,
+            pendingEmail: data.pendingEmail ?? "",
+            profileVisibility: data.profileVisibility ?? "Standard",
             fullName: data.fullName ?? "",
             showFullName: Boolean(data.showFullName),
             dateOfBirth: data.dateOfBirth ?? "",
@@ -305,7 +311,14 @@ function App() {
           <Route path="quick-match" element={<QuickMatch />} />
           <Route path="deep-match" element={<DeepMatch />} />
           <Route path="events" element={<Events currentUser={currentUser} />} />
-          <Route path="events/create" element={<CreateEvent />} />
+          <Route
+            path="events/create"
+            element={
+              <OrganizerEventRoute>
+                <CreateEvent />
+              </OrganizerEventRoute>
+            }
+          />
           <Route path="events/:id/edit" element={<CreateEvent />} />
           <Route path="search" element={<SearchResults />} />
           <Route path="users/:id" element={<PublicProfile />} />
@@ -355,6 +368,22 @@ function App() {
       <SessionExpiredModal />
     </div>
   );
+}
+
+function OrganizerEventRoute({ children }) {
+  const location = useLocation();
+
+  if (!isOrganizerSession()) {
+    return (
+      <Navigate
+        to="/app/events"
+        replace
+        state={{ organizerOnly: true, from: location.pathname }}
+      />
+    );
+  }
+
+  return children;
 }
 
 export default App;

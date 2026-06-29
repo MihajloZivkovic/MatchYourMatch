@@ -67,7 +67,8 @@ namespace MatchYourMatch.WebAPI.Controllers
                 .Include(u => u.Profile)
                 .Include(u => u.UserInterests)
                     .ThenInclude(ui => ui.Interest)
-                .Where(u => u.IsActive && u.Id != currentUserId && !excluded.Contains(u.Id))
+                .Where(u => u.IsActive && u.Id != currentUserId && !excluded.Contains(u.Id) &&
+                    (u.Profile == null || u.Profile.ProfileVisibility != "Private"))
                 .ToListAsync();
 
             return users

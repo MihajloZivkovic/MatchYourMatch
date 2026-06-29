@@ -14,6 +14,7 @@
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public string LocationPrivacy { get; set; } = "CityOnly";
+        public string ProfileVisibility { get; set; } = "Standard";
         public string? FullName { get; set; }
         public bool ShowFullName { get; set; }
         public DateOnly? DateOfBirth { get; set; }

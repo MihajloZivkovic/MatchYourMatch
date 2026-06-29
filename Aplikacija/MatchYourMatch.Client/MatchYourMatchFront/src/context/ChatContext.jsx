@@ -31,11 +31,13 @@ export function ChatProvider({ children }) {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
   const conversationsRef = useRef([]);
+  const messagesByConversationRef = useRef({});
   const hasLoadedConversationsRef = useRef(false);
   const backendUnavailableUntilRef = useRef(0);
 
   const resetChatState = useCallback(() => {
     conversationsRef.current = [];
+    messagesByConversationRef.current = {};
     hasLoadedConversationsRef.current = false;
     backendUnavailableUntilRef.current = 0;
     setConversations([]);
@@ -128,7 +130,9 @@ export function ChatProvider({ children }) {
         hasToken: Boolean(token),
         hasAuthorizationHeader: Boolean(token),
       });
-      throw new Error(getFriendlyChatError(message, response.status, url));
+      const error = new Error(getFriendlyChatError(message, response.status, url));
+      error.status = response.status;
+      throw error;
     }
 
     if (response.status === 204) {
@@ -166,6 +170,13 @@ export function ChatProvider({ children }) {
               lastMessagePreview = "Encrypted message could not be opened.";
             }
           }
+
+          if (!lastMessagePreview) {
+            lastMessagePreview = getLastMessagePreviewFromMessages(
+              messagesByConversationRef.current[conversation.conversationId] || [],
+            );
+          }
+
           return { ...conversation, lastMessagePreview };
         }),
       );
@@ -245,14 +256,12 @@ export function ChatProvider({ children }) {
 
         decrypted.sort(compareChatMessages);
 
-        setMessagesByConversation((current) => ({
-          ...current,
-          [conversationId]: decrypted,
-        }));
+        setMessagesForConversation(setMessagesByConversation, messagesByConversationRef, conversationId, decrypted);
         setMessageLoadStateByConversation((current) => ({
           ...current,
           [conversationId]: { status: "success", error: "" },
         }));
+        updateConversationPreviewFromMessages(setConversations, conversationsRef, conversationId, decrypted);
 
         if (markRead) {
           await apiFetch(`/api/Chat/conversations/${conversationId}/read`, {
@@ -331,10 +340,12 @@ export function ChatProvider({ children }) {
       });
       const displayMessage = normalizeChatMessage({ ...sent, displayBody: body, isMine: true }, auth.userId);
 
-      setMessagesByConversation((current) => ({
-        ...current,
-        [conversationId]: [...(current[conversationId] || []), displayMessage],
-      }));
+      const nextMessages = [
+        ...(messagesByConversationRef.current[conversationId] || []),
+        displayMessage,
+      ];
+      setMessagesForConversation(setMessagesByConversation, messagesByConversationRef, conversationId, nextMessages);
+      updateConversationPreviewFromMessages(setConversations, conversationsRef, conversationId, nextMessages);
       await loadConversations({ silent: true });
       return displayMessage;
     },
@@ -354,7 +365,9 @@ export function ChatProvider({ children }) {
       request.onerror = () => reject(new Error("Upload failed.")); request.send(form);
     });
     const display = normalizeChatMessage({ ...sent, displayBody: text.trim(), isMine: true }, auth.userId);
-    setMessagesByConversation((current) => ({ ...current, [conversationId]: [...(current[conversationId] || []), display] }));
+    const nextMessages = [...(messagesByConversationRef.current[conversationId] || []), display];
+    setMessagesForConversation(setMessagesByConversation, messagesByConversationRef, conversationId, nextMessages);
+    updateConversationPreviewFromMessages(setConversations, conversationsRef, conversationId, nextMessages);
     await loadConversations({ silent: true }); return display;
   }, [auth.userId, canSendMessages, loadConversations]);
 
@@ -365,7 +378,9 @@ export function ChatProvider({ children }) {
     const body = plainBody ? await encryptChatBody(plainBody, auth.userId, getConversationPeerId(conversation)) : null;
     const sent = await apiFetch(`/api/Chat/conversations/${conversationId}/gifs`, { method:"POST", body:JSON.stringify({ ...gif, body }) });
     const display = normalizeChatMessage({ ...sent, displayBody:plainBody, isMine:true }, auth.userId);
-    setMessagesByConversation((current) => ({ ...current, [conversationId]: [...(current[conversationId] || []), display] }));
+    const nextMessages = [...(messagesByConversationRef.current[conversationId] || []), display];
+    setMessagesForConversation(setMessagesByConversation, messagesByConversationRef, conversationId, nextMessages);
+    updateConversationPreviewFromMessages(setConversations, conversationsRef, conversationId, nextMessages);
     await loadConversations({ silent:true }); return display;
   }, [apiFetch, auth.userId, canSendMessages, loadConversations]);
 
@@ -386,12 +401,16 @@ export function ChatProvider({ children }) {
       });
       const displayMessage = normalizeChatMessage({ ...updated, displayBody: body, isMine: true }, auth.userId);
 
-      setMessagesByConversation((current) => ({
-        ...current,
-        [message.conversationId]: (current[message.conversationId] || []).map((item) =>
-          item.id === message.id ? displayMessage : item,
-        ),
-      }));
+      const nextMessages = (messagesByConversationRef.current[message.conversationId] || []).map((item) =>
+        item.id === message.id ? displayMessage : item,
+      );
+      setMessagesForConversation(
+        setMessagesByConversation,
+        messagesByConversationRef,
+        message.conversationId,
+        nextMessages,
+      );
+      updateConversationPreviewFromMessages(setConversations, conversationsRef, message.conversationId, nextMessages);
       await loadConversations({ silent: true });
       return displayMessage;
     },
@@ -403,12 +422,16 @@ export function ChatProvider({ children }) {
       await apiFetch(`/api/Chat/messages/${message.id}/for-me`, {
         method: "DELETE",
       });
-      setMessagesByConversation((current) => ({
-        ...current,
-        [message.conversationId]: (current[message.conversationId] || []).filter(
-          (item) => item.id !== message.id,
-        ),
-      }));
+      const nextMessages = (messagesByConversationRef.current[message.conversationId] || []).filter(
+        (item) => item.id !== message.id,
+      );
+      setMessagesForConversation(
+        setMessagesByConversation,
+        messagesByConversationRef,
+        message.conversationId,
+        nextMessages,
+      );
+      updateConversationPreviewFromMessages(setConversations, conversationsRef, message.conversationId, nextMessages);
       await loadConversations({ silent: true });
     },
     [apiFetch, loadConversations],
@@ -424,12 +447,16 @@ export function ChatProvider({ children }) {
         auth.userId,
       );
 
-      setMessagesByConversation((current) => ({
-        ...current,
-        [message.conversationId]: (current[message.conversationId] || []).map((item) =>
-          item.id === message.id ? displayMessage : item,
-        ),
-      }));
+      const nextMessages = (messagesByConversationRef.current[message.conversationId] || []).map((item) =>
+        item.id === message.id ? displayMessage : item,
+      );
+      setMessagesForConversation(
+        setMessagesByConversation,
+        messagesByConversationRef,
+        message.conversationId,
+        nextMessages,
+      );
+      updateConversationPreviewFromMessages(setConversations, conversationsRef, message.conversationId, nextMessages);
       await loadConversations({ silent: true });
       return displayMessage;
     },
@@ -455,12 +482,15 @@ export function ChatProvider({ children }) {
         auth.userId,
       );
 
-      setMessagesByConversation((current) => ({
-        ...current,
-        [message.conversationId]: (current[message.conversationId] || []).map((item) =>
-          item.id === message.id ? displayMessage : item,
-        ),
-      }));
+      const nextMessages = (messagesByConversationRef.current[message.conversationId] || []).map((item) =>
+        item.id === message.id ? displayMessage : item,
+      );
+      setMessagesForConversation(
+        setMessagesByConversation,
+        messagesByConversationRef,
+        message.conversationId,
+        nextMessages,
+      );
 
       return displayMessage;
     },
@@ -599,6 +629,65 @@ function updateConversationList(conversations, conversationId, patch) {
   return conversations.map((conversation) =>
     conversation.conversationId === conversationId ? { ...conversation, ...patch } : conversation,
   );
+}
+
+function setMessagesForConversation(setter, ref, conversationId, messages) {
+  ref.current = {
+    ...ref.current,
+    [conversationId]: messages,
+  };
+  setter(ref.current);
+}
+
+function updateConversationPreviewFromMessages(setter, ref, conversationId, messages) {
+  const lastMessagePreview = getLastMessagePreviewFromMessages(messages);
+  const lastMessageAt = getLastMessageCreatedAt(messages);
+  const patch = {
+    ...(lastMessagePreview ? { lastMessagePreview } : {}),
+    ...(lastMessageAt ? { lastMessageAt } : {}),
+  };
+
+  if (Object.keys(patch).length === 0) return;
+
+  const next = updateConversationList(ref.current, conversationId, patch);
+  ref.current = next;
+  setter(next);
+}
+
+function getLastMessagePreviewFromMessages(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return "";
+
+  const lastMessage = [...messages].sort(compareChatMessages).at(-1);
+  if (!lastMessage) return "";
+
+  if (lastMessage.isDeletedForEveryone ?? lastMessage.IsDeletedForEveryone) {
+    return "This message was deleted";
+  }
+
+  const body = String(
+    lastMessage.displayBody ?? lastMessage.body ?? lastMessage.Body ?? "",
+  ).trim();
+  if (body) return body;
+
+  const attachment = lastMessage.attachment ?? lastMessage.Attachment;
+  if (!attachment) return "";
+
+  const kind = String(attachment.kind ?? attachment.Kind ?? "").toLowerCase();
+  if (kind === "gif") return "GIF";
+
+  return (
+    attachment.originalFileName ??
+    attachment.OriginalFileName ??
+    attachment.fileName ??
+    attachment.FileName ??
+    "Attachment"
+  );
+}
+
+function getLastMessageCreatedAt(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return null;
+  const lastMessage = [...messages].sort(compareChatMessages).at(-1);
+  return lastMessage?.createdAt ?? lastMessage?.CreatedAt ?? null;
 }
 
 function compareChatMessages(first, second) {

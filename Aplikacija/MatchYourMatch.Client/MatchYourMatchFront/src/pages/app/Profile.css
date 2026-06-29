@@ -526,6 +526,29 @@
 .profile-settings-fields .profile-settings-check { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
 .profile-settings-fields .profile-settings-check input { width:18px; min-height:18px; accent-color:var(--accent); }
 .profile-settings-coming-list { display: grid; gap: .45rem; }
+.profile-settings-editable { border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-input); overflow: hidden; }
+.profile-settings-editable.is-active { border-color: rgba(244, 163, 0, .42); box-shadow: 0 0 0 3px rgba(244, 163, 0, .06); }
+.profile-settings-editable__summary { width: 100%; min-height: 48px; padding: .55rem .65rem; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: .55rem; color: var(--text-muted); text-align: left; cursor: pointer; }
+.profile-settings-editable__summary > svg { color: var(--text-muted); }
+.profile-settings-editable__summary strong, .profile-settings-editable__summary span { display: block; }
+.profile-settings-editable__summary strong { color: var(--text); font-size: .74rem; }
+.profile-settings-editable__summary span { margin-top: .1rem; font-size: .66rem; overflow-wrap: anywhere; }
+.profile-settings-editable__summary small { padding: .25rem .45rem; border-radius: var(--radius-pill); background: rgba(244, 163, 0, .1); color: var(--accent); font-size: .6rem; font-weight: 700; white-space: nowrap; }
+.profile-settings-editable__form { display: grid; gap: .65rem; padding: .65rem; border-top: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface-soft) 72%, transparent); }
+.profile-settings-editable__form label > span { display: block; margin-bottom: .35rem; color: var(--text-muted); font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.profile-settings-editable__form input, .profile-settings-editable__form select { width: 100%; min-height: 40px; padding: 0 .72rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); outline: none; background: var(--color-input); color: var(--text); }
+.profile-settings-editable__form select option { background: #11100d; color: #f4efe4; }
+.profile-settings-editable__form select option:checked { background: #2b2110; color: var(--accent); }
+.profile-settings-editable__form input:focus, .profile-settings-editable__form select:focus { border-color: rgba(244, 163, 0, .55); box-shadow: 0 0 0 3px rgba(244, 163, 0, .08); }
+.profile-settings-visibility-help { display: grid; gap: .45rem; padding: .65rem; border: 1px solid color-mix(in srgb, var(--color-border) 82%, var(--accent)); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .24); }
+.profile-settings-visibility-help p { margin: 0; display: grid; gap: .12rem; }
+.profile-settings-visibility-help strong { color: var(--accent); font-size: .68rem; }
+.profile-settings-visibility-help span { color: var(--text-muted); font-size: .68rem; line-height: 1.35; }
+.profile-settings-editable__actions { display: flex; justify-content: flex-end; gap: .55rem; }
+.profile-settings-editable__actions .app-btn-pill { min-height: 34px; padding: 0 .9rem; font-size: .68rem; }
+.profile-settings-editable__actions .app-btn-pill:hover,
+.profile-settings-editable__actions .app-btn-pill:focus-visible { color: #17110a; background: var(--accent); border-color: var(--accent); box-shadow: 0 0 18px rgba(244, 163, 0, .22); }
+.profile-settings-editable__actions button:disabled { cursor: not-allowed; opacity: .55; }
 .profile-settings-disabled { min-height: 48px; padding: .55rem .65rem; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: .55rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--text-muted); background: var(--color-input); opacity: .72; }
 .profile-settings-disabled > svg { color: var(--text-muted); }
 .profile-settings-disabled strong, .profile-settings-disabled span { display: block; }

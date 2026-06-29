@@ -33,13 +33,14 @@ namespace MatchYourMatch.WebAPI.Services
             await _expiration.ExpireDuePostsAsync();
             var post = await _context.QuickMatchPosts
                 .Include(p => p.User)
+                    .ThenInclude(u => u.Profile)
                 .FirstOrDefaultAsync(p => p.Id == postId)
                 ?? throw new KeyNotFoundException("This Quick Match post is no longer available.");
             if (!post.IsActive || post.EndsAtUtc <= DateTime.UtcNow)
                 throw new InvalidOperationException("This Quick Match post is no longer available.");
             if (post.UserId == userId)
                 throw new InvalidOperationException("You cannot match with yourself.");
-            if (!post.User.IsActive || post.User.IsDeactivated || await IsExcludedAsync(userId, post.UserId))
+            if (!post.User.IsActive || post.User.IsDeactivated || post.User.Profile?.ProfileVisibility == "Private" || await IsExcludedAsync(userId, post.UserId))
                 throw new InvalidOperationException("This Quick Match post is no longer available.");
             var requester = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeactivated)
                 ?? throw new UnauthorizedAccessException("Your account cannot use Quick Match.");
@@ -250,6 +251,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .Where(p =>
                     p.UserId != userId &&
                     p.User.IsActive && !p.User.IsDeactivated &&
+                    (p.User.Profile == null || p.User.Profile.ProfileVisibility != "Private") &&
                     p.IsActive && p.EndsAtUtc > DateTime.UtcNow)
                 .ToListAsync();
 
@@ -318,6 +320,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .Where(p =>
                     p.UserId != userId &&
                     p.User.IsActive && !p.User.IsDeactivated &&
+                    (p.User.Profile == null || p.User.Profile.ProfileVisibility != "Private") &&
                     (p.User.AppSettings == null || p.User.AppSettings.ShowMeInQuickMatch) &&
                     p.IsActive && p.EndsAtUtc > DateTime.UtcNow)
                 .OrderBy(p => p.StartTime)
@@ -501,6 +504,7 @@ namespace MatchYourMatch.WebAPI.Services
 
         private static bool IsEligibleBySettings(User current, User candidate, bool quick)
         {
+            if (candidate.Profile?.ProfileVisibility == "Private") return false;
             if (quick && candidate.AppSettings?.ShowMeInQuickMatch == false) return false;
             var age = CalculateAge(candidate.Profile?.DateOfBirth);
             if (current.AppSettings?.MinAge is int min && (!age.HasValue || age < min)) return false;

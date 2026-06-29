@@ -94,14 +94,30 @@ namespace MatchYourMatch.WebAPI.Services
                     .ToListAsync();
 
             var joinRequestNotifications = notifications
-                .Where(n => n.Type == "EventJoinRequest" && n.RelatedEntityId.HasValue && n.ActorUserId.HasValue)
+                .Where(n => n.Type == "EventJoinRequest" && n.RelatedEntityId.HasValue)
                 .ToList();
-            var joinRequestEventIds = joinRequestNotifications.Select(n => n.RelatedEntityId!.Value).Distinct().ToList();
-            var joinRequestActorIds = joinRequestNotifications.Select(n => n.ActorUserId!.Value).Distinct().ToList();
-            var eventJoinRequests = joinRequestEventIds.Count == 0
+            var joinRequestIds = joinRequestNotifications
+                .Where(n => n.RelatedEntityType == "EventJoinRequest")
+                .Select(n => n.RelatedEntityId!.Value)
+                .Distinct()
+                .ToList();
+            var legacyJoinRequestEventIds = joinRequestNotifications
+                .Where(n => n.RelatedEntityType != "EventJoinRequest" && n.ActorUserId.HasValue)
+                .Select(n => n.RelatedEntityId!.Value)
+                .Distinct()
+                .ToList();
+            var joinRequestActorIds = joinRequestNotifications
+                .Where(n => n.ActorUserId.HasValue)
+                .Select(n => n.ActorUserId!.Value)
+                .Distinct()
+                .ToList();
+            var eventJoinRequests = joinRequestIds.Count == 0 && legacyJoinRequestEventIds.Count == 0
                 ? new List<EventJoinRequest>()
                 : await _context.EventJoinRequests.AsNoTracking()
-                    .Where(r => joinRequestEventIds.Contains(r.EventId) && joinRequestActorIds.Contains(r.UserId))
+                    .Where(r => joinRequestIds.Contains(r.Id) ||
+                        (legacyJoinRequestEventIds.Contains(r.EventId) && joinRequestActorIds.Contains(r.UserId)))
+                    .OrderByDescending(r => r.RespondedAt ?? r.CreatedAt)
+                    .ThenByDescending(r => r.Id)
                     .ToListAsync();
 
             return notifications.Select(n =>
@@ -113,7 +129,9 @@ namespace MatchYourMatch.WebAPI.Services
                     ? quickRequests.FirstOrDefault(r => r.Id == n.RelatedEntityId)
                     : null;
                 var eventJoinRequest = n.Type == "EventJoinRequest"
-                    ? eventJoinRequests.FirstOrDefault(r => r.EventId == n.RelatedEntityId && r.UserId == n.ActorUserId)
+                    ? n.RelatedEntityType == "EventJoinRequest"
+                        ? eventJoinRequests.FirstOrDefault(r => r.Id == n.RelatedEntityId)
+                        : eventJoinRequests.FirstOrDefault(r => r.EventId == n.RelatedEntityId && r.UserId == n.ActorUserId)
                     : null;
                 return new NotificationDto
                 {
@@ -128,8 +146,10 @@ namespace MatchYourMatch.WebAPI.Services
                             ? n.ActorUser.Profile.FullName
                             : n.ActorUser?.Username,
                     ActorAvatar = n.ActorUser?.Profile?.ProfilePicture,
-                    RelatedEntityType = n.RelatedEntityType,
-                    RelatedEntityId = n.RelatedEntityId,
+                    RelatedEntityType = n.Type == "EventJoinRequest" ? "Event" : n.RelatedEntityType,
+                    RelatedEntityId = n.Type == "EventJoinRequest"
+                        ? eventJoinRequest?.EventId ?? n.RelatedEntityId
+                        : n.RelatedEntityId,
                     IsRead = n.IsRead,
                     CreatedAt = n.CreatedAt,
                     EventInviteId = invite?.Id,

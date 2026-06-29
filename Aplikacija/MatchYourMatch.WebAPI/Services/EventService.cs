@@ -211,6 +211,13 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<EventDto> CreateAsync(int userId, CreateEventDto dto)
         {
+            var role = await _context.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => user.Role)
+                .FirstOrDefaultAsync();
+            if (!string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Only organizers can create events.");
+
             ValidateEvent(dto);
             var location = await ResolveLocationAsync(dto.Location);
             var category = NormalizeCategory(dto.Category);
@@ -298,7 +305,7 @@ namespace MatchYourMatch.WebAPI.Services
                 {
                     await _notifications.CreateNotificationAsync(e.OrganizerId.Value, userId,
                         "EventJoinRequest", "New join request",
-                        $"{username} requested to join {e.Title}.", "Event", eventId);
+                        $"{username} requested to join {e.Title}.", "EventJoinRequest", request.Id);
                 }
                 return await GetByIdAsync(eventId, userId);
             }
@@ -404,9 +411,11 @@ namespace MatchYourMatch.WebAPI.Services
             await _context.Notifications
                 .Where(notification => notification.UserId == organizerId &&
                     notification.Type == "EventJoinRequest" &&
-                    notification.RelatedEntityType == "Event" &&
-                    notification.RelatedEntityId == eventId &&
                     notification.ActorUserId == request.UserId &&
+                    ((notification.RelatedEntityType == "Event" &&
+                        notification.RelatedEntityId == eventId) ||
+                     (notification.RelatedEntityType == "EventJoinRequest" &&
+                        notification.RelatedEntityId == request.Id)) &&
                     !notification.IsRead)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(notification => notification.IsRead, true)
