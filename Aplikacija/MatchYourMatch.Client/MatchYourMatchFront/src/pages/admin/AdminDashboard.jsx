@@ -65,6 +65,8 @@ function AdminDashboard() {
   const [confirmError, setConfirmError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [adminStatus, setAdminStatus] = useState(readJwtPayload()?.role || 'User');
+  const [activeStatus, setActiveStatus] = useState(readJwtPayload()?.isActive);
+  console.log(activeStatus);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -368,10 +370,12 @@ function AdminDashboard() {
         await adminService.activateUser(confirmAction.target.id);
         await loadUsers();
         setNotice(t('admin.notices.userActivated', { username: confirmAction.target.username }));
+        setActiveStatus('Active');
       } else if (confirmAction.type === 'deactivate') {
         await adminService.deactivateUser(confirmAction.target.id);
         await loadUsers();
         setNotice(t('admin.notices.userDeactivated', { username: confirmAction.target.username }));
+        setActiveStatus('Inactive');
       } else if (confirmAction.type === 'deleteUser') {
         await adminService.deleteUser(confirmAction.target.id);
         await loadUsers();
@@ -614,6 +618,8 @@ function AdminDashboard() {
         t={t}
         role={adminStatus}
         promoteButtonText={adminStatus === 'Admin' ? t('admin.actions.demote') : t('admin.actions.promote')}
+        activity={activeStatus}
+        activityButtonText={activeStatus === "Active" ? t('admin.actions.deactivate') : t('admin.actions.activate')}
       />
 
       <ConfirmModal
@@ -1001,13 +1007,19 @@ function AdminReportsPanel({
 
 
 
-function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText }) {
+function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText, activity, activityButtonText }) {
   
   const self = isSelfUser(user, currentAdminId);
-  const [action, setAction] = useState("");
+  const [promoteDemoteAction, setPromoteDemoteAction] = useState("");
+  const [activateDeactivateAction, setActivateDeactivateAction] = useState("");
   useEffect(() => {
-  promoteButtonText === "Promote to admin" ? setAction('promoteToAdmin') : setAction('demoteToUser');
+  promoteButtonText === "Promote to admin" || promoteButtonText === "Unapredi na admina" ? setPromoteDemoteAction('promoteToAdmin') : setPromoteDemoteAction('demoteToUser');
   }, [promoteButtonText]);
+  useEffect(() => {
+    activityButtonText === "Activate" || activityButtonText === "Aktiviraj" ? setActivateDeactivateAction('activate') : setActivateDeactivateAction('deactivate');
+  }, [activityButtonText]);
+  console.log(activateDeactivateAction);
+
   if (!user) return null;
 
   return (
@@ -1043,7 +1055,7 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, pr
           </div>
           <div>
             <dt>{t('admin.table.status')}</dt>
-            <dd>{user.isActive ? t('admin.status.active') : t('admin.status.inactive')}</dd>
+            <dd>{activity || t('profileUi.notSet')}</dd>
           </div>
           <div>
             <dt>{t('admin.users.joinedDate')}</dt>
@@ -1061,26 +1073,26 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, pr
         {self && <p className='admin-modal__warning'>{t('admin.users.selfActionDisabled')}</p>}
         <div className='admin-row-actions admin-modal__actions'>
           {user.role === 'Admin' ? (
-            <button type='button' onClick={() => onAction(action, user)} disabled={self}>
+            <button type='button' onClick={() => onAction(promoteDemoteAction, user)} disabled={self}>
               <UserX size={15} aria-hidden='true' />
               {promoteButtonText}
             </button>
           ) : user.role === 'User' ?(
-            <button type='button' onClick={() => onAction(action, user)} disabled={self}>
+            <button type='button' onClick={() => onAction(promoteDemoteAction, user)} disabled={self}>
               <UserCheck size={15} aria-hidden='true' />
               {promoteButtonText}
             </button>
           ) : null}
 
           {user.isActive ? (
-            <button type='button' onClick={() => onAction('deactivate', user)} disabled={self}>
+            <button type='button' onClick={() => onAction(activateDeactivateAction, user)} disabled={self}>
               <UserX size={15} aria-hidden='true' />
-              {t('admin.actions.deactivate')}
+              {activityButtonText}
             </button>
           ) : (
-            <button type='button' onClick={() => onAction('activate', user)} disabled={self}>
+            <button type='button' onClick={() => onAction(activateDeactivateAction, user)} disabled={self}>
               <UserCheck size={15} aria-hidden='true' />
-              {t('admin.actions.activate')}
+              {activityButtonText}
             </button>
           )}
           <button
