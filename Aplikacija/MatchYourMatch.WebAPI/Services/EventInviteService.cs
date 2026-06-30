@@ -84,6 +84,7 @@ namespace MatchYourMatch.WebAPI.Services
 
             return await _context.Users.AsNoTracking()
                 .Where(u => u.IsActive && u.Id != inviterUserId &&
+                    u.Role != "Admin" && u.Role != "Administrator" &&
                     (u.Profile == null || u.Profile.ProfileVisibility != "Private") &&
                     ((u.AppSettings != null && u.AppSettings.AllowEventInvitesFrom == "Everyone") ||
                      ((u.AppSettings == null || u.AppSettings.AllowEventInvitesFrom == "PeopleIFollow") &&

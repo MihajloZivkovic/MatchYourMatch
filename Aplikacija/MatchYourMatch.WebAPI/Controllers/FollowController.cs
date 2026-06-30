@@ -44,6 +44,8 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
             catch(Exception ex)
             {
+                if (ex is UnauthorizedAccessException)
+                    return StatusCode(StatusCodes.Status403Forbidden, ex.Message);
                 return BadRequest(ex.Message);
             }
         }

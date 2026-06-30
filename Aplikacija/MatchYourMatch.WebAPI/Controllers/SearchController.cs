@@ -35,13 +35,31 @@ namespace MatchYourMatch.WebAPI.Controllers
 
             var normalizedQuery = trimmedQuery.ToLower();
             var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var eventsOnlySearch = IsOrganizer() || IsGuest();
 
-            response.People = await SearchCategory("people", () => SearchPeople(normalizedQuery, currentUserId));
             response.Events = await SearchCategory("events", () => SearchEvents(normalizedQuery));
-            response.Activities = await SearchCategory("activities", () => SearchActivities(normalizedQuery));
-            response.Interests = await SearchCategory("interests", () => SearchInterests(normalizedQuery));
+
+            if (!eventsOnlySearch)
+            {
+                response.People = await SearchCategory("people", () => SearchPeople(normalizedQuery, currentUserId));
+                response.Activities = await SearchCategory("activities", () => SearchActivities(normalizedQuery));
+                response.Interests = await SearchCategory("interests", () => SearchInterests(normalizedQuery));
+            }
 
             return Ok(response);
+        }
+
+        private bool IsOrganizer()
+        {
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role") ?? string.Empty;
+            return role.Equals("Organizer", StringComparison.OrdinalIgnoreCase) ||
+                   role.Equals("EventOrganizer", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool IsGuest()
+        {
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role") ?? string.Empty;
+            return role.Equals("Guest", StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task<List<T>> SearchCategory<T>(string category, Func<Task<List<T>>> search)
@@ -68,6 +86,7 @@ namespace MatchYourMatch.WebAPI.Controllers
                 .Include(u => u.UserInterests)
                     .ThenInclude(ui => ui.Interest)
                 .Where(u => u.IsActive && u.Id != currentUserId && !excluded.Contains(u.Id) &&
+                    u.Role != "Admin" && u.Role != "Administrator" &&
                     (u.Profile == null || u.Profile.ProfileVisibility != "Private"))
                 .ToListAsync();
 
@@ -81,7 +100,9 @@ namespace MatchYourMatch.WebAPI.Controllers
                 {
                     Id = x.User.Id,
                     Username = x.User.Username,
-                    DisplayName = x.User.Username,
+                    DisplayName = x.User.Role == "Organizer" && !string.IsNullOrWhiteSpace(x.User.Profile?.FullName)
+                        ? x.User.Profile!.FullName!
+                        : x.User.Username,
                     ProfilePicture = x.User.Profile?.ProfilePicture,
                     Role = x.User.Role,
                     LocationDisplayName = GetPublicLocation(x.User.Profile),
@@ -101,6 +122,7 @@ namespace MatchYourMatch.WebAPI.Controllers
                 .AsNoTracking()
                 .Include(e => e.Interest)
                 .Include(e => e.Organizer)
+                .Where(e => e.Organizer == null || (e.Organizer.Role != "Admin" && e.Organizer.Role != "Administrator"))
                 .ToListAsync();
 
             return events
@@ -184,6 +206,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             var score = 0;
             score = Math.Max(score, ScoreText(user.Username, query, 100, 80));
+            score = Math.Max(score, ScoreText(user.Profile?.FullName, query, 95, 75));
             score = Math.Max(score, ScoreText(user.Profile?.Bio, query, 0, 25));
             score = Math.Max(score, ScoreText(user.Profile?.LocationDisplayName, query, 0, 45));
             score = Math.Max(score, ScoreText(user.Profile?.LocationCity, query, 0, 35));

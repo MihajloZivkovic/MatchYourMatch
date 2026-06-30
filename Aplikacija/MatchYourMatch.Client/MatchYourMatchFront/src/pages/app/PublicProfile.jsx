@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  Bell,
+  BellRing,
+  CalendarDays,
   Check,
   Coffee,
   Compass,
@@ -21,6 +24,8 @@ import UserAvatar from '../../components/UserAvatar';
 import UserActionsMenu from '../../components/UserActionsMenu';
 import ProfileStats from '../../components/profile/ProfileStats';
 import FollowListModal from '../../components/profile/FollowListModal';
+import EventCard from '../../components/EventCard';
+import { getSessionRole, isGuestSession, isOrganizerSession } from '../../services/guestSession';
 import './Profile.css';
 
 function PublicProfile() {
@@ -53,6 +58,14 @@ function PublicProfile() {
   const [editingRatingValue, setEditingRatingValue] = useState(0);
   const [originalRatingValue, setOriginalRatingValue] = useState(0);
   const [followListType, setFollowListType] = useState(null);
+  const [subscriptionEnabled, setSubscriptionEnabled] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [organizerEvents, setOrganizerEvents] = useState({
+    upcoming: { items: [], page: 1, totalPages: 0 },
+    past: { items: [], page: 1, totalPages: 0 },
+  });
+  const [organizerEventsLoading, setOrganizerEventsLoading] = useState(false);
+  const [organizerEventsError, setOrganizerEventsError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -124,6 +137,12 @@ function PublicProfile() {
     const controller = new AbortController();
     async function loadRating() {
       if (!id) return;
+      if (!profile) return;
+      if (isGuestSession()) {
+        setRatingStatus(null);
+        setRatingLoading(false);
+        return;
+      }
       setRatingLoading(true);
       setRatingError('');
       try {
@@ -148,7 +167,7 @@ function PublicProfile() {
     }
     loadRating();
     return () => controller.abort();
-  }, [id, t]);
+  }, [id, profile?.role, t]);
 
   const handleFollow = async () => {
     if (followLoading) return;
@@ -279,6 +298,13 @@ function PublicProfile() {
     () => getInitials(profile?.username || ''),
     [profile?.username],
   );
+  const isOrganizerProfile = profile?.role?.toLowerCase() === 'organizer';
+  const currentRole = getSessionRole();
+  const isGuestViewer = currentRole.toLowerCase() === 'guest' || isGuestSession();
+  const canUseDirectMessages =
+    currentRole.toLowerCase() === 'user' && !isOrganizerSession() && !isOrganizerProfile;
+  const canUseOrganizerActions =
+    currentRole.toLowerCase() === 'user' && !isOrganizerSession();
   const currentUserId = useMemo(() => getCurrentUserId(), []);
   const selectedRatingEvent = ratingStatus?.eligibleEvents?.find(
     (event) => String(event.eventId) === selectedEventId,
@@ -286,6 +312,150 @@ function PublicProfile() {
   const unratedEligibleEvents =
     ratingStatus?.eligibleEvents?.filter((event) => event.myRating == null) ||
     [];
+
+  useEffect(() => {
+    if (!isOrganizerProfile || !id) return undefined;
+    const controller = new AbortController();
+
+    const loadOrganizerExtras = async () => {
+      setOrganizerEventsLoading(true);
+      setOrganizerEventsError('');
+      try {
+        const [subscriptionResponse, upcomingResponse, pastResponse] =
+          await Promise.all([
+            fetch(`/api/organizers/${id}/subscription`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+              signal: controller.signal,
+            }),
+            fetch(`/api/organizers/${id}/events?status=upcoming&page=1&pageSize=6`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+              signal: controller.signal,
+            }),
+            fetch(`/api/organizers/${id}/events?status=past&page=1&pageSize=6`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+              signal: controller.signal,
+            }),
+          ]);
+
+        if (subscriptionResponse.ok) {
+          const data = await subscriptionResponse.json();
+          setSubscriptionEnabled(Boolean(data.subscribed));
+        }
+        if (!upcomingResponse.ok || !pastResponse.ok)
+          throw new Error('Organizer events could not be loaded.');
+
+        setOrganizerEvents({
+          upcoming: mapOrganizerEventPage(await upcomingResponse.json()),
+          past: mapOrganizerEventPage(await pastResponse.json()),
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError')
+          setOrganizerEventsError(err.message || 'Organizer events could not be loaded.');
+      } finally {
+        setOrganizerEventsLoading(false);
+      }
+    };
+
+    loadOrganizerExtras();
+    return () => controller.abort();
+  }, [id, isOrganizerProfile]);
+
+  const toggleSubscription = async () => {
+    if (subscriptionLoading || !canUseOrganizerActions) return;
+    const previous = subscriptionEnabled;
+    setSubscriptionEnabled(!previous);
+    setSubscriptionLoading(true);
+    try {
+      const response = await fetch(`/api/organizers/${id}/subscription`, {
+        method: previous ? 'DELETE' : 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok)
+        throw new Error((await response.text()) || 'Subscription could not be updated.');
+      const data = await response.json();
+      setSubscriptionEnabled(Boolean(data.subscribed));
+    } catch (err) {
+      setSubscriptionEnabled(previous);
+      setFollowError(err.message || 'Subscription could not be updated.');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const loadOrganizerEventsPage = async (status, page) => {
+    setOrganizerEventsLoading(true);
+    setOrganizerEventsError('');
+    try {
+      const response = await fetch(`/api/organizers/${id}/events?status=${status}&page=${page}&pageSize=6`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || 'Organizer events could not be loaded.');
+      const nextPage = mapOrganizerEventPage(await response.json());
+      setOrganizerEvents((current) => ({
+        ...current,
+        [status]: nextPage,
+      }));
+    } catch (err) {
+      setOrganizerEventsError(err.message || 'Organizer events could not be loaded.');
+    } finally {
+      setOrganizerEventsLoading(false);
+    }
+  };
+
+  const handleOrganizerJoin = async (eventId) => {
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || 'Event could not be joined.');
+      const updated = mapApiEvent(await response.json());
+      replaceOrganizerEvent(updated);
+    } catch (err) {
+      setOrganizerEventsError(err.message || 'Event could not be joined.');
+    }
+  };
+
+  const handleOrganizerLeave = async (eventId) => {
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || 'Event could not be left.');
+      const updated = mapApiEvent(await response.json());
+      replaceOrganizerEvent(updated);
+    } catch (err) {
+      setOrganizerEventsError(err.message || 'Event could not be left.');
+    }
+  };
+
+  const handleCancelOrganizerRequest = async (eventId) => {
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join-request`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (!response.ok) throw new Error(await response.text() || 'Join request could not be canceled.');
+      const updated = mapApiEvent(await response.json());
+      replaceOrganizerEvent(updated);
+    } catch (err) {
+      setOrganizerEventsError(err.message || 'Join request could not be canceled.');
+    }
+  };
+
+  const replaceOrganizerEvent = (updated) => {
+    setOrganizerEvents((current) => ({
+      upcoming: {
+        ...current.upcoming,
+        items: current.upcoming.items.map((event) => event.id === updated.id ? { ...event, ...updated } : event),
+      },
+      past: {
+        ...current.past,
+        items: current.past.items.map((event) => event.id === updated.id ? { ...event, ...updated } : event),
+      },
+    }));
+  };
 
   if (loading) {
     return (
@@ -329,6 +499,176 @@ function PublicProfile() {
         <div className='public-profile__state public-profile__state--error'>
           Profile could not be loaded. Make sure the backend is running.
         </div>
+      </main>
+    );
+  }
+
+  if (isOrganizerProfile) {
+    const organizerName = profile.organizationName || profile.fullName || profile.username;
+
+    return (
+      <main className='public-profile public-profile--organizer page-fade-in'>
+        <button type='button' className='public-profile__back' onClick={() => navigate(-1)}>
+          <ArrowLeft size={16} />
+          Back
+        </button>
+
+        <header className='public-profile__hero public-profile__hero--organizer'>
+          <div className='public-profile__mesh' aria-hidden='true' />
+          <div className='public-profile__hero-inner'>
+            <UserAvatar
+              className='public-profile__avatar public-profile__avatar--organizer'
+              profilePicture={profile.profilePicture}
+              initials={getInitials(organizerName)}
+              alt={`${organizerName} organizer profile`}
+            />
+            <div className='public-profile__identity'>
+              <span className='public-profile__role-badge'>Organizer</span>
+              <h1>{organizerName}</h1>
+              <p>@{profile.username}</p>
+              <span>
+                <MapPin size={15} />
+                {profile.locationDisplayName || 'Location not shared'}
+              </span>
+              <div className='public-profile__social-counts'>
+                <button type='button' onClick={() => setFollowListType('followers')}>
+                  <strong>{profile.followersCount || 0}</strong> followers
+                </button>
+              </div>
+            </div>
+            <div className='public-profile__actions'>
+              <div className='public-profile__primary-actions'>
+                {canUseOrganizerActions ? (
+                  <>
+                    <button
+                      type='button'
+                      className={`public-profile__follow${isFollowing ? ' public-profile__follow--active' : ''}`}
+                      onClick={handleFollow}
+                      disabled={followLoading || isBlocked}
+                    >
+                      {isFollowing ? <Check size={16} /> : <UserPlus size={16} />}
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                    <button
+                      type='button'
+                      className={`public-profile__bell${subscriptionEnabled ? ' public-profile__bell--active' : ''}`}
+                      onClick={toggleSubscription}
+                      disabled={subscriptionLoading}
+                      title={subscriptionEnabled ? 'Notifications enabled for this organizer' : 'Notify me about new events'}
+                    >
+                      {subscriptionEnabled ? <BellRing size={16} /> : <Bell size={16} />}
+                      {subscriptionEnabled ? 'Notifications on' : 'Notify me'}
+                    </button>
+                  </>
+                ) : isGuestViewer ? (
+                  <button
+                    type='button'
+                    className='public-profile__connect'
+                    onClick={() => navigate('/login')}
+                  >
+                    Log in to follow
+                  </button>
+                ) : null}
+              </div>
+              {!isGuestViewer && (
+                <UserActionsMenu
+                  userId={profile.id}
+                  username={profile.username}
+                  context='profile'
+                  onBlocked={() => setIsBlocked(true)}
+                  onHidden={() => setIsHidden(true)}
+                />
+              )}
+            </div>
+            {followError && <p className='public-profile__action-error'>{followError}</p>}
+          </div>
+        </header>
+
+        {(isBlocked || isHidden) && (
+          <div className='public-profile__state'>
+            {isBlocked
+              ? 'You blocked this organizer.'
+              : 'This organizer profile is hidden from your suggestions.'}
+          </div>
+        )}
+
+        <section className='public-profile__grid public-profile__grid--organizer'>
+          <article className='public-profile__card public-profile__card--wide'>
+            <h2>
+              <Heart size={17} />
+              About organization
+            </h2>
+            <dl className='public-profile__org-details'>
+              <div>
+                <dt>Organization type</dt>
+                <dd>{profile.organizationType || 'Organization'}</dd>
+              </div>
+              {profile.contactEmail && (
+                <div>
+                  <dt>Contact email</dt>
+                  <dd>{profile.contactEmail}</dd>
+                </div>
+              )}
+              <div>
+                <dt>About organizer</dt>
+                <dd>{profile.bio || 'This organizer has not added a description yet.'}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <OrganizerRatingCard
+            ratingStatus={ratingStatus}
+            ratingLoading={ratingLoading}
+            ratingSaving={ratingSaving}
+            ratingError={ratingError}
+            ratingSuccess={ratingSuccess}
+            selectedRatingEvent={selectedRatingEvent}
+            unratedEligibleEvents={unratedEligibleEvents}
+            selectedEventId={selectedEventId}
+            setSelectedEventId={setSelectedEventId}
+            saveRating={saveRating}
+            isGuestViewer={isGuestViewer}
+            navigate={navigate}
+          />
+
+          <OrganizerEventSection
+            title='Upcoming events'
+            emptyMessage='No upcoming events from this organizer.'
+            page={organizerEvents.upcoming}
+            loading={organizerEventsLoading}
+            error={organizerEventsError}
+            guestMode={isGuestViewer}
+            onPage={(page) => loadOrganizerEventsPage('upcoming', page)}
+            onJoin={handleOrganizerJoin}
+            onLeave={handleOrganizerLeave}
+            onCancelJoinRequest={handleCancelOrganizerRequest}
+            onSavedChange={(eventId, isSaved) => replaceOrganizerEvent({ id: eventId, isSaved })}
+            onOpen={() => navigate('/app/events')}
+          />
+
+          <OrganizerEventSection
+            title='Past events'
+            emptyMessage='No past events from this organizer.'
+            page={organizerEvents.past}
+            loading={organizerEventsLoading}
+            error=''
+            guestMode={isGuestViewer}
+            onPage={(page) => loadOrganizerEventsPage('past', page)}
+            onJoin={handleOrganizerJoin}
+            onLeave={handleOrganizerLeave}
+            onCancelJoinRequest={handleCancelOrganizerRequest}
+            onSavedChange={(eventId, isSaved) => replaceOrganizerEvent({ id: eventId, isSaved })}
+            onOpen={() => navigate('/app/events')}
+          />
+        </section>
+        {followListType && (
+          <FollowListModal
+            userId={profile.id}
+            currentUserId={currentUserId}
+            type={followListType}
+            onClose={() => setFollowListType(null)}
+          />
+        )}
       </main>
     );
   }
@@ -396,7 +736,7 @@ function PublicProfile() {
                   ? t('publicProfile.following')
                   : t('publicProfile.follow')}
               </button>
-              {!isBlocked && profile.canMessage !== false && (
+              {canUseDirectMessages && !isBlocked && profile.canMessage !== false && (
                 <button
                   type='button'
                   className='public-profile__connect'
@@ -410,7 +750,7 @@ function PublicProfile() {
                   {t('publicProfile.sayHello')}
                 </button>
               )}
-              {!isBlocked && profile.canMessage === false && (
+              {canUseDirectMessages && !isBlocked && profile.canMessage === false && (
                 <span className='public-profile__connect-hint'>
                   {t('publicProfile.messageRestricted')}
                 </span>
@@ -764,6 +1104,168 @@ function PublicProfile() {
   );
 }
 
+function OrganizerEventSection({
+  title,
+  emptyMessage,
+  page,
+  loading,
+  error,
+  guestMode = false,
+  onPage,
+  onJoin,
+  onLeave,
+  onCancelJoinRequest,
+  onSavedChange,
+  onOpen,
+}) {
+  return (
+    <article className='public-profile__card public-profile__card--wide public-profile__organizer-events'>
+      <div className='public-profile__organizer-events-head'>
+        <h2>
+          <CalendarDays size={17} />
+          {title}
+        </h2>
+        {page.totalPages > 1 && (
+          <span>
+            Page {page.page} of {page.totalPages}
+          </span>
+        )}
+      </div>
+      {loading && <p className='public-profile__events-state'>Loading events...</p>}
+      {error && <p className='public-profile__events-state public-profile__events-state--error'>{error}</p>}
+      {!loading && !error && page.items.length === 0 && (
+        <p className='public-profile__events-state'>{emptyMessage || 'No events here yet.'}</p>
+      )}
+      {!loading && !error && page.items.length > 0 && (
+        <div className='public-profile__organizer-event-grid'>
+          {page.items.map((event, index) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              style={{ '--i': index }}
+              guestMode={guestMode}
+              onJoin={() => onJoin(event.id)}
+              onLeave={() => onLeave(event.id)}
+              onCancelJoinRequest={() => onCancelJoinRequest(event.id)}
+              onSavedChange={(isSaved) => onSavedChange(event.id, isSaved)}
+              onOpen={onOpen}
+            />
+          ))}
+        </div>
+      )}
+      {page.totalPages > 1 && (
+        <div className='public-profile__pager'>
+          <button type='button' disabled={page.page <= 1 || loading} onClick={() => onPage(page.page - 1)}>
+            Previous
+          </button>
+          <button type='button' disabled={page.page >= page.totalPages || loading} onClick={() => onPage(page.page + 1)}>
+            Next
+          </button>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function OrganizerRatingCard({
+  ratingStatus,
+  ratingLoading,
+  ratingSaving,
+  ratingError,
+  ratingSuccess,
+  selectedRatingEvent,
+  unratedEligibleEvents,
+  selectedEventId,
+  setSelectedEventId,
+  saveRating,
+  isGuestViewer,
+  navigate,
+}) {
+  return (
+    <article className='public-profile__card public-profile__card--wide public-profile__rating-card'>
+      <div className='public-profile__rating-head'>
+        <h2>
+          <Star size={17} />
+          Organizer rating
+        </h2>
+        <div>
+          <strong>
+            {ratingStatus?.averageRating != null
+              ? Number(ratingStatus.averageRating).toFixed(1)
+              : '-'}{' '}
+            / 5
+          </strong>
+          <span>{ratingStatus?.ratingsCount || 0} ratings</span>
+        </div>
+      </div>
+
+      {isGuestViewer ? (
+        <div className='public-profile__rating-guest'>
+          <p>Log in or register to rate this organizer.</p>
+          <button type='button' onClick={() => navigate('/login')}>
+            Log in
+          </button>
+        </div>
+      ) : (
+        <>
+          {ratingLoading && <p>Loading organizer rating...</p>}
+          {!ratingLoading && ratingStatus && (
+            <>
+              <RatingStars
+                value={Number(ratingStatus.averageRating || 0)}
+                label='Organizer rating'
+              />
+              {ratingStatus.canRate ? (
+                <div className='public-profile__rating-editor'>
+                  {unratedEligibleEvents.length > 1 && (
+                    <label>
+                      <span>Choose event</span>
+                      <select
+                        value={selectedEventId}
+                        onChange={(event) => setSelectedEventId(event.target.value)}
+                      >
+                        {unratedEligibleEvents.map((event) => (
+                          <option key={event.eventId} value={event.eventId}>
+                            {event.title} - {formatRatingEventDate(event.dateTime)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {selectedRatingEvent && unratedEligibleEvents.length === 1 && (
+                    <p className='public-profile__rating-event'>
+                      Based on <strong>{selectedRatingEvent.title}</strong>
+                    </p>
+                  )}
+                  <span className='public-profile__rating-label'>Rate this organizer</span>
+                  <div className='public-profile__rating-input'>
+                    <RatingStars
+                      value={Number(selectedRatingEvent?.myRating ?? ratingStatus.myRating ?? 0)}
+                      interactive
+                      disabled={ratingSaving}
+                      label='Rate this organizer'
+                      onChange={saveRating}
+                    />
+                    <button type='button' disabled={ratingSaving} onClick={() => saveRating(0)}>
+                      0
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className='public-profile__rating-hint'>
+                  You can rate this organizer after attending one of their events.
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
+      {ratingError && <p className='public-profile__rating-error'>{ratingError}</p>}
+      {ratingSuccess && <p className='public-profile__rating-success'>{ratingSuccess}</p>}
+    </article>
+  );
+}
+
 function RatingStars({
   value,
   interactive = false,
@@ -841,6 +1343,80 @@ function getInitials(value) {
       .map((part) => part[0]?.toUpperCase())
       .join('') || 'MY'
   );
+}
+
+function mapOrganizerEventPage(data) {
+  const items = Array.isArray(data?.items) ? data.items.map(mapApiEvent) : [];
+  return {
+    items,
+    page: Number(data?.page) || 1,
+    totalPages: Number(data?.totalPages) || 0,
+  };
+}
+
+function mapApiEvent(event) {
+  return {
+    id: event.id,
+    title: event.title || 'Untitled event',
+    category: normalizeCategory(event.category),
+    date: formatEventDate(event.date),
+    rawDate: event.date,
+    time: formatEventTime(event.time),
+    rawTime: event.time,
+    location: event.location || 'Location not shared',
+    description: event.description || '',
+    attendees: event.participantAvatars?.length
+      ? event.participantAvatars
+      : event.participantInitials || [],
+    attendeeCount: event.participantsCount || 0,
+    maxAttendees: event.maxAttendees || 0,
+    minAge: event.minAge ?? null,
+    maxAge: event.maxAge ?? null,
+    ageLabel: formatAgeLimit(event.minAge, event.maxAge),
+    isJoinedByCurrentUser: Boolean(event.isJoinedByCurrentUser),
+    requiresParticipantApproval: Boolean(event.requiresParticipantApproval),
+    joinRequestStatus: event.joinRequestStatus || null,
+    pendingJoinRequestsCount: event.pendingJoinRequestsCount || 0,
+    isSaved: Boolean(event.isSaved),
+    organizerUsername: event.organizerUsername,
+    createdByUserId: event.createdByUserId,
+    isOrganizer: Boolean(event.isOrganizer),
+    isCreator: Boolean(event.isCreator ?? event.isOrganizer),
+  };
+}
+
+function formatAgeLimit(minAge, maxAge) {
+  if (minAge != null && maxAge != null) return `Ages ${minAge}-${maxAge}`;
+  if (minAge != null) return `${minAge}+`;
+  if (maxAge != null) return `Up to ${maxAge}`;
+  return '';
+}
+
+function normalizeCategory(category) {
+  const value = (category || 'Social').trim().toUpperCase();
+  if (value === 'SPORTS') return 'SPORT';
+  return value;
+}
+
+function formatEventDate(value) {
+  if (!value) return 'Date TBA';
+  const date = new Date(`${value}T00:00:00`);
+  return date.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatEventTime(value) {
+  if (!value) return 'Time TBA';
+  const [hours = '00', minutes = '00'] = value.split(':');
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function getCurrentUserId() {

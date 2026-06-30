@@ -4,6 +4,7 @@ import { CheckCircle } from "lucide-react";
 import "./CreateEvent.css";
 import { useTranslation } from "../../hooks/useTranslation";
 import LocationAutocomplete from "../../components/LocationAutocomplete";
+import { isOrganizerSession } from "../../services/guestSession";
 
 const CATEGORIES = ["Study", "Gaming", "Coffee", "Social", "Sport"];
 const initialForm = {
@@ -23,6 +24,7 @@ function CreateEvent() {
   const navigate = useNavigate();
   const { id } = useParams();
   const editing = Boolean(id);
+  const organizerReturnPath = isOrganizerSession() ? "/app/organizer" : "/app/events";
   const { t } = useTranslation();
   const [category, setCategory] = useState("Study");
   const [form, setForm] = useState(initialForm);
@@ -145,7 +147,7 @@ function CreateEvent() {
           <CheckCircle size={56} className="create-event__check" />
           <h2>{t(editing ? "events.updated" : "events.created")}</h2>
           <p>{t(editing ? "events.updatedText" : "events.live")}</p>
-          <Link to="/app/events" className="app-btn-pill">
+          <Link to={organizerReturnPath} className="app-btn-pill">
             {t("events.viewEvents").toUpperCase()}
           </Link>
         </div>
@@ -326,7 +328,7 @@ function CreateEvent() {
               <button
                 type="button"
                 className="create-event__cancel"
-                onClick={() => navigate("/app/events")}
+                onClick={() => navigate(organizerReturnPath)}
               >
                 {t("common.cancel")}
               </button>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getProfileImageUrl } from '../utils/profileImage';
 
 function UserAvatar({
@@ -11,10 +11,21 @@ function UserAvatar({
   const imageUrl = getProfileImageUrl(profilePicture);
   const [failedUrl, setFailedUrl] = useState(null);
 
+  useEffect(() => {
+    setFailedUrl(null);
+  }, [imageUrl]);
+
   return (
     <span className={className} style={style}>
       {imageUrl && imageUrl !== failedUrl ? (
-        <img src={imageUrl} alt={alt} onError={() => setFailedUrl(imageUrl)} />
+        <img
+          src={imageUrl}
+          alt={alt}
+          onError={() => {
+            console.warn('[UserAvatar] Failed to load profile image:', imageUrl);
+            setFailedUrl(imageUrl);
+          }}
+        />
       ) : (
         initials
       )}

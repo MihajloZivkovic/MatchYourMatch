@@ -188,18 +188,26 @@ namespace MatchYourMatch.WebAPI.Services
             if (user == null)
                 throw new Exception("Korisnik nije pronadjen");
 
-            var visibility = user.Profile?.ProfileVisibility ?? "Standard";
             var viewerRole = await _context.Users.AsNoTracking()
                 .Where(u => u.Id == currentUserId)
                 .Select(u => u.Role)
                 .FirstOrDefaultAsync();
-            var canViewFullProfile = userId == currentUserId || string.Equals(viewerRole, "Admin", StringComparison.OrdinalIgnoreCase);
+            var isAdminProfile = string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(user.Role, "Administrator", StringComparison.OrdinalIgnoreCase);
+            if (isAdminProfile)
+                throw new Exception("Profile not found.");
+
+            var visibility = user.Profile?.ProfileVisibility ?? "Standard";
+            var canViewFullProfile = userId == currentUserId ||
+                string.Equals(viewerRole, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(viewerRole, "Administrator", StringComparison.OrdinalIgnoreCase);
             if (visibility == "Private" && !canViewFullProfile)
             {
                 return new PublicUserProfileDto
                 {
                     Id = user.Id,
                     Username = user.Username,
+                    Role = user.Role,
                     ProfilePicture = user.Profile?.ProfilePicture,
                     ProfileVisibility = visibility,
                     IsPrivate = true,
@@ -217,33 +225,38 @@ namespace MatchYourMatch.WebAPI.Services
             var isFollowing = await _context.Follows.AnyAsync(f =>
                 f.FollowerId == currentUserId && f.FollowingId == userId);
             var canMessage = await CanMessageAsync(currentUserId, userId);
+            var isOrganizer = string.Equals(user.Role, "Organizer", StringComparison.OrdinalIgnoreCase);
 
             return new PublicUserProfileDto
             {
                 Id = user.Id,
                 Username = user.Username,
+                Role = user.Role,
                 Bio = user.Profile?.Bio,
                 ProfilePicture = user.Profile?.ProfilePicture,
+                OrganizationName = isOrganizer ? user.Profile?.FullName ?? user.Username : null,
+                OrganizationType = isOrganizer ? user.Profile?.Bio : null,
+                ContactEmail = isOrganizer ? user.Email : null,
                 LocationDisplayName = GetPublicLocation(user.Profile),
                 ProfileVisibility = visibility,
                 IsPrivate = false,
-                MatchesCount = matchesCount,
-                EventsJoinedCount = eventsJoinedCount,
-                ProfileScorePercent = profileScorePercent,
-                ResponseRatePercent = responseRatePercent,
+                MatchesCount = isOrganizer ? 0 : matchesCount,
+                EventsJoinedCount = isOrganizer ? 0 : eventsJoinedCount,
+                ProfileScorePercent = isOrganizer ? 0 : profileScorePercent,
+                ResponseRatePercent = isOrganizer ? null : responseRatePercent,
                 IsFollowing = isFollowing,
                 FollowersCount = followersCount,
-                FollowingCount = followingCount,
-                AverageRating = rating.Average,
-                RatingsCount = rating.Count,
-                FullName = user.Profile?.ShowFullName == true ? user.Profile.FullName : null,
-                Age = user.Profile?.ShowAge == true ? CalculateAge(user.Profile.DateOfBirth) : null,
-                LittleThings = DeserializeTags(user.Profile?.LittleThingsJson, 10),
-                CurrentlyExploring = DeserializeTags(user.Profile?.ExploringTagsJson, 5),
-                FavoriteActivities = DeserializeTags(user.Profile?.FavoriteActivitiesJson, 10),
-                SocialEnergy = user.Profile?.SocialEnergy,
-                ConversationStyle = user.Profile?.ConversationStyle,
-                LookingFor = DeserializeTags(user.Profile?.LookingForJson, 10),
+                FollowingCount = isOrganizer ? 0 : followingCount,
+                AverageRating = isOrganizer ? null : rating.Average,
+                RatingsCount = isOrganizer ? 0 : rating.Count,
+                FullName = isOrganizer ? user.Profile?.FullName : user.Profile?.ShowFullName == true ? user.Profile.FullName : null,
+                Age = isOrganizer ? null : user.Profile?.ShowAge == true ? CalculateAge(user.Profile.DateOfBirth) : null,
+                LittleThings = isOrganizer ? new List<string>() : DeserializeTags(user.Profile?.LittleThingsJson, 10),
+                CurrentlyExploring = isOrganizer ? new List<string>() : DeserializeTags(user.Profile?.ExploringTagsJson, 5),
+                FavoriteActivities = isOrganizer ? new List<string>() : DeserializeTags(user.Profile?.FavoriteActivitiesJson, 10),
+                SocialEnergy = isOrganizer ? null : user.Profile?.SocialEnergy,
+                ConversationStyle = isOrganizer ? null : user.Profile?.ConversationStyle,
+                LookingFor = isOrganizer ? new List<string>() : DeserializeTags(user.Profile?.LookingForJson, 10),
                 CanMessage = canMessage,
                 Interests = user.UserInterests
                     .Where(ui => ui.Interest != null)
@@ -281,7 +294,8 @@ namespace MatchYourMatch.WebAPI.Services
                 .Select(match =>
                 {
                     var otherUser = match.UserAId == userId ? match.UserB : match.UserA;
-                    if (otherUser == null || otherUser.Id == userId || !otherUser.IsActive)
+                    if (otherUser == null || otherUser.Id == userId || !otherUser.IsActive ||
+                        !string.Equals(otherUser.Role, "User", StringComparison.OrdinalIgnoreCase))
                         return null;
 
                     return new UserMatchDto

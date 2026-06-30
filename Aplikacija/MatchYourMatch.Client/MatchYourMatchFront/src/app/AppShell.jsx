@@ -3,7 +3,7 @@ import AppNavbar from './AppNavbar';
 import AppFooter from './AppFooter';
 import FloatingChat from '../components/chat/FloatingChat';
 import { ChatProvider } from '../context/ChatContext';
-import { isGuestSession } from '../services/guestSession';
+import { isGuestSession, isOrganizerSession } from '../services/guestSession';
 import './app-global.css';
 import './app-polish.css';
 
@@ -11,6 +11,7 @@ function AppShell(props) {
   const location = useLocation();
   const isChatRoute = location.pathname === '/app/chat';
   const isGuest = isGuestSession();
+  const isOrganizer = !isGuest && isOrganizerSession();
 
   return (
     <div className="app-shell">
@@ -25,7 +26,7 @@ function AppShell(props) {
           <Outlet />
           {!isChatRoute && <AppFooter />}
         </main>
-        {!isGuest && !isChatRoute && <FloatingChat />}
+        {!isGuest && !isOrganizer && !isChatRoute && <FloatingChat />}
       </ChatProvider>
     </div>
   );

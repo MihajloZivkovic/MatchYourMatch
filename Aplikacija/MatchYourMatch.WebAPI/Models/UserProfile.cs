@@ -6,6 +6,10 @@
         public int UserId { get; set; }
         public string? Bio { get; set; }
         public string? ProfilePicture { get; set; }
+        public byte[]? ProfilePictureContent { get; set; }
+        public string? ProfilePictureContentType { get; set; }
+        public string? ProfilePictureFileName { get; set; }
+        public DateTime? ProfilePictureUpdatedAt { get; set; }
         public string? Location { get; set; }
         public string? LocationRawInput { get; set; }
         public string? LocationDisplayName { get; set; }

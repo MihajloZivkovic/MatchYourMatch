@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Menu, ShieldCheck, X } from "lucide-react";
+import { LogOut, Menu, ShieldCheck, X } from "lucide-react";
 import GlobalSearch from "../components/GlobalSearch";
 import NotificationsDropdown from "../components/notifications/NotificationsDropdown";
 import { useTranslation } from "../hooks/useTranslation";
@@ -19,7 +19,7 @@ function AppNavbar(props) {
   const { t } = useTranslation();
   const isGuest = props.currentUser?.role === "Guest" || isGuestSession();
   const isAdmin = isAdminSession();
-  const canCreateEvents = !isGuest && isOrganizerSession();
+  const isOrganizer = !isGuest && isOrganizerSession();
 
   const loadUnreadNotifications = useCallback(async () => {
     if (isGuest) {
@@ -77,7 +77,7 @@ function AppNavbar(props) {
   return (
     <header className="app-navbar">
       <nav className="app-navbar__inner">
-        <Link to={isGuest ? "/app/events" : "/app/dashboard"} className="app-navbar__logo">
+        <Link to={isGuest ? "/app/events" : isOrganizer ? "/app/organizer" : "/app/dashboard"} className="app-navbar__logo">
           <span className="app-navbar__logo-m">M</span>
           <span className="app-navbar__logo-accent">Y</span>
           <span className="app-navbar__logo-m">M</span>
@@ -88,16 +88,19 @@ function AppNavbar(props) {
         </div>}
 
         <div className="app-navbar__center">
-          {!isGuest && <NavLink to="/app/quick-match" className={navLinkClass}>
+          {isOrganizer && <NavLink to="/app/organizer" className={navLinkClass}>
+            ORGANIZER
+          </NavLink>}
+          {!isGuest && !isOrganizer && <NavLink to="/app/quick-match" className={navLinkClass}>
             {t('nav.quickMatch').toUpperCase()}
           </NavLink>}
-          {!isGuest && <NavLink to="/app/deep-match" className={navLinkClass}>
+          {!isGuest && !isOrganizer && <NavLink to="/app/deep-match" className={navLinkClass}>
             {t('nav.deepMatch').toUpperCase()}
           </NavLink>}
           <NavLink to="/app/events" className={navLinkClass}>
             {t('nav.events').toUpperCase()}
           </NavLink>
-          {!isGuest && <NavLink to="/app/chat" className={navLinkClass}>
+          {!isGuest && !isOrganizer && <NavLink to="/app/chat" className={navLinkClass}>
             {t('nav.chat').toUpperCase()}
           </NavLink>}
         </div>
@@ -110,14 +113,17 @@ function AppNavbar(props) {
             ADMIN
           </Link>}
 
-          {canCreateEvents && <Link to="/app/events/create" className="app-navbar__create">
-            + {t('nav.createEvent').toUpperCase()}
-          </Link>}
-
           {!isGuest && <NotificationsDropdown unread={notificationUnread} onUnreadChange={setNotificationUnread}
-            onRefreshUnread={loadUnreadNotifications} />}
+            onRefreshUnread={loadUnreadNotifications} organizerOnly={isOrganizer} />}
 
-          {!isGuest && <div className="app-navbar__profile-wrap" ref={dropdownRef}>
+          {isOrganizer && (
+            <button type="button" className="app-navbar__top-logout" onClick={handleLogout}>
+              <LogOut size={15} aria-hidden="true" />
+              {t('nav.logout')}
+            </button>
+          )}
+
+          {!isGuest && !isOrganizer && <div className="app-navbar__profile-wrap" ref={dropdownRef}>
             <button
               type="button"
               className="app-navbar__avatar"
@@ -129,7 +135,7 @@ function AppNavbar(props) {
             </button>
             {dropdownOpen && (
               <div className="app-navbar__dropdown">
-                <Link to="/app/profile" onClick={() => setDropdownOpen(false)}>
+                <Link to={isOrganizer ? "/app/organizer" : "/app/profile"} onClick={() => setDropdownOpen(false)}>
                   {t('nav.myProfile')}
                 </Link>
                 <Link to="/app/settings" onClick={() => setDropdownOpen(false)}>
@@ -167,16 +173,23 @@ function AppNavbar(props) {
         </div>}
 
         {!isGuest && <NotificationsDropdown mobile unread={notificationUnread} onUnreadChange={setNotificationUnread}
-          onRefreshUnread={loadUnreadNotifications} onNavigate={() => setMenuOpen(false)} />}
+          onRefreshUnread={loadUnreadNotifications} onNavigate={() => setMenuOpen(false)} organizerOnly={isOrganizer} />}
 
-        {!isGuest && <NavLink
+        {isOrganizer && <NavLink
+          to="/app/organizer"
+          className={navLinkClass}
+          onClick={() => setMenuOpen(false)}
+        >
+          ORGANIZER
+        </NavLink>}
+        {!isGuest && !isOrganizer && <NavLink
           to="/app/quick-match"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.quickMatch').toUpperCase()}
         </NavLink>}
-        {!isGuest && <NavLink
+        {!isGuest && !isOrganizer && <NavLink
           to="/app/deep-match"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
@@ -190,28 +203,21 @@ function AppNavbar(props) {
         >
           {t('nav.events').toUpperCase()}
         </NavLink>
-        {!isGuest && <NavLink
+        {!isGuest && !isOrganizer && <NavLink
           to="/app/chat"
           className={navLinkClass}
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.chat').toUpperCase()}
         </NavLink>}
-        {canCreateEvents && <Link
-          to="/app/events/create"
-          className="app-navbar__drawer-create"
-          onClick={() => setMenuOpen(false)}
-        >
-          + {t('nav.createEvent').toUpperCase()}
-        </Link>}
-        {!isGuest && <Link
-          to="/app/profile"
+        {!isGuest && !isOrganizer && <Link
+          to={isOrganizer ? "/app/organizer" : "/app/profile"}
           className="app-navbar__drawer-link"
           onClick={() => setMenuOpen(false)}
         >
           {t('nav.myProfile')}
         </Link>}
-        {!isGuest && <Link
+        {!isGuest && !isOrganizer && <Link
           to="/app/settings"
           className="app-navbar__drawer-link"
           onClick={() => setMenuOpen(false)}

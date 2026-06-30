@@ -16,6 +16,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
 import ReportHistoryModal from '../../components/ReportHistoryModal';
 import { safetyService } from '../../services/safetyService';
+import { isOrganizerSession } from '../../services/guestSession';
 import './Settings.css';
 
 const defaults = {
@@ -71,6 +72,7 @@ function Card({ icon: Icon, title, subtitle, children }) {
 function Settings() {
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useTranslation();
+  const isOrganizer = isOrganizerSession();
   const [settings, setSettings] = useState(defaults);
   const [numberDrafts, setNumberDrafts] = useState(numberDraftsFrom(defaults));
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,10 @@ function Settings() {
   const [safety, setSafety] = useState(null);
   const [reportHistoryOpen, setReportHistoryOpen] = useState(false);
   useEffect(() => {
+    if (isOrganizer) {
+      setLoading(false);
+      return;
+    }
     fetch('/api/Settings/me', {
       headers: { Authorization: `Bearer ${token()}` },
     })
@@ -88,7 +94,7 @@ function Settings() {
       })
       .catch(() => setMessage('Settings could not be loaded.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isOrganizer]);
   const save = async (next) => {
     const previous = settings;
     setSettings(next);
@@ -260,6 +266,7 @@ function Settings() {
             ))}
           </div>
         </Card>
+        {!isOrganizer && <>
         <Card
           icon={SlidersHorizontal}
           title='Matching preferences'
@@ -418,11 +425,12 @@ function Settings() {
             </div>
           )}
         </Card>
+        </>}
       </div>
-      <ReportHistoryModal
+      {!isOrganizer && <ReportHistoryModal
         open={reportHistoryOpen}
         onClose={() => setReportHistoryOpen(false)}
-      />
+      />}
     </div>
   );
 }

@@ -106,10 +106,12 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserProfilesService, UserProfilesService>();
 builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IEventReminderService, EventReminderService>();
 builder.Services.AddSingleton<IMessageAttachmentStorage, MessageAttachmentStorage>();
 builder.Services.AddScoped<IQuickMatchService, QuickMatchService>();
 builder.Services.AddScoped<IQuickMatchExpirationService, QuickMatchExpirationService>();
 builder.Services.AddHostedService<QuickMatchExpirationWorker>();
+builder.Services.AddHostedService<EventReminderWorker>();
 builder.Services.AddScoped<IDeepMatchService, DeepMatchService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient<IGeocodingService, GeocodingService>();
@@ -238,6 +240,19 @@ using (var scope = app.Services.CreateScope())
         ) CHARACTER SET=utf8mb4;
         """);
     db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS `OrganizerSubscriptions` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `UserId` int NOT NULL,
+            `OrganizerId` int NOT NULL,
+            `CreatedAt` datetime(6) NOT NULL,
+            CONSTRAINT `PK_OrganizerSubscriptions` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_OrganizerSubscriptions_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_OrganizerSubscriptions_Users_OrganizerId` FOREIGN KEY (`OrganizerId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            UNIQUE INDEX `IX_OrganizerSubscriptions_UserId_OrganizerId` (`UserId`, `OrganizerId`),
+            INDEX `IX_OrganizerSubscriptions_OrganizerId` (`OrganizerId`)
+        ) CHARACTER SET=utf8mb4;
+        """);
+    db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `ExternalLogins` (
             `Id` int NOT NULL AUTO_INCREMENT, `UserId` int NOT NULL,
             `Provider` varchar(30) NOT NULL, `ProviderUserId` varchar(200) NOT NULL,
@@ -359,6 +374,10 @@ using (var scope = app.Services.CreateScope())
         ,(Name: "ConversationStyle", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ConversationStyle` varchar(80) NULL")
         ,(Name: "LookingForJson", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `LookingForJson` longtext NULL")
         ,(Name: "ProfileVisibility", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ProfileVisibility` varchar(30) NOT NULL DEFAULT \"Standard\"")
+        ,(Name: "ProfilePictureContent", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ProfilePictureContent` longblob NULL")
+        ,(Name: "ProfilePictureContentType", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ProfilePictureContentType` varchar(100) NULL")
+        ,(Name: "ProfilePictureFileName", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ProfilePictureFileName` varchar(255) NULL")
+        ,(Name: "ProfilePictureUpdatedAt", Sql: "ALTER TABLE `UserProfiles` ADD COLUMN `ProfilePictureUpdatedAt` datetime(6) NULL")
     })
     {
         db.Database.ExecuteSqlRaw($"""
@@ -796,6 +815,20 @@ using (var scope = app.Services.CreateScope())
             CONSTRAINT `PK_EventParticipants` PRIMARY KEY (`EventId`, `UserId`),
             INDEX `IX_EventParticipants_UserId` (`UserId`)
         ) CHARACTER SET=utf8mb4;
+        CREATE TABLE IF NOT EXISTS `EventReminders` (
+            `Id` int NOT NULL AUTO_INCREMENT,
+            `EventId` int NOT NULL,
+            `UserId` int NOT NULL,
+            `ReminderAt` datetime(6) NOT NULL,
+            `SentAt` datetime(6) NULL,
+            `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+            CONSTRAINT `PK_EventReminders` PRIMARY KEY (`Id`),
+            CONSTRAINT `FK_EventReminders_Events_EventId` FOREIGN KEY (`EventId`) REFERENCES `Events` (`Id`) ON DELETE CASCADE,
+            CONSTRAINT `FK_EventReminders_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`) ON DELETE CASCADE,
+            UNIQUE INDEX `IX_EventReminders_EventId_UserId` (`EventId`, `UserId`),
+            INDEX `IX_EventReminders_ReminderAt_SentAt` (`ReminderAt`, `SentAt`),
+            INDEX `IX_EventReminders_UserId` (`UserId`)
+        ) CHARACTER SET=utf8mb4;
         CREATE TABLE IF NOT EXISTS `EventJoinRequests` (
             `Id` int NOT NULL AUTO_INCREMENT,
             `EventId` int NOT NULL,
@@ -994,6 +1027,7 @@ using (var scope = app.Services.CreateScope())
             `ContentType` varchar(100) CHARACTER SET utf8mb4 NULL,
             `Size` bigint NOT NULL DEFAULT 0,
             `StoragePath` varchar(500) CHARACTER SET utf8mb4 NULL,
+            `Content` longblob NULL,
             `Provider` varchar(30) CHARACTER SET utf8mb4 NULL,
             `ProviderMediaId` varchar(100) CHARACTER SET utf8mb4 NULL,
             `OriginalUrl` varchar(1000) CHARACTER SET utf8mb4 NULL,
@@ -1012,6 +1046,21 @@ using (var scope = app.Services.CreateScope())
             UNIQUE INDEX `IX_MessageAttachments_EventDiscussionMessageId` (`EventDiscussionMessageId`)
         ) CHARACTER SET=utf8mb4;
         """);
+#pragma warning disable EF1002 // The interpolated identifiers and DDL below come only from this fixed local list.
+    foreach (var attachmentColumn in new[]
+    {
+        (Name: "Content", Sql: "ALTER TABLE `MessageAttachments` ADD COLUMN `Content` longblob NULL")
+    })
+    {
+        db.Database.ExecuteSqlRaw($"""
+            SET @columnExists := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'MessageAttachments' AND COLUMN_NAME = '{attachmentColumn.Name}');
+            SET @statement := IF(@columnExists = 0, '{attachmentColumn.Sql}', 'SELECT 1');
+            PREPARE stmt FROM @statement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+            """);
+    }
+#pragma warning restore EF1002
+    await BackfillDatabaseStoredFilesAsync(db, app.Environment);
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS `EventInvites` (
             `Id` int NOT NULL AUTO_INCREMENT,
@@ -1448,6 +1497,91 @@ static bool IsAddressAlreadyInUse(Exception exception)
     return false;
 }
 
+static async Task BackfillDatabaseStoredFilesAsync(AppDbContext db, IWebHostEnvironment environment)
+{
+    const long maxProfileImageSize = 5 * 1024 * 1024;
+
+    var profileUploadsRoot = Path.GetFullPath(Path.Combine(
+        environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot"),
+        "uploads",
+        "profile-images"));
+
+    var profiles = await db.UserProfiles
+        .Where(profile => profile.ProfilePictureContent == null &&
+            profile.ProfilePicture != null &&
+            profile.ProfilePicture.StartsWith("/uploads/profile-images/"))
+        .ToListAsync();
+
+    foreach (var profile in profiles)
+    {
+        var relativePath = profile.ProfilePicture!["/uploads/profile-images/".Length..].Split('?', '#')[0];
+        if (!TryResolveSafePath(profileUploadsRoot, relativePath, out var path) ||
+            !File.Exists(path))
+            continue;
+
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.Length <= 0 || fileInfo.Length > maxProfileImageSize)
+            continue;
+
+        profile.ProfilePictureContent = await File.ReadAllBytesAsync(path);
+        profile.ProfilePictureContentType = GetProfileImageContentType(path);
+        profile.ProfilePictureFileName = Path.GetFileName(path);
+        profile.ProfilePictureUpdatedAt = fileInfo.LastWriteTimeUtc;
+        profile.ProfilePicture = $"/api/UserProfile/{profile.UserId}/profile-picture";
+    }
+
+    var attachmentRoot = Path.GetFullPath(Path.Combine(environment.ContentRootPath, "App_Data", "ChatAttachments"));
+    var attachments = await db.MessageAttachments
+        .Where(attachment => attachment.Kind == "File" &&
+            attachment.Content == null &&
+            attachment.StoragePath != null &&
+            attachment.StoragePath != "database")
+        .ToListAsync();
+
+    foreach (var attachment in attachments)
+    {
+        if (!TryResolveSafePath(attachmentRoot, attachment.StoragePath!, out var path) ||
+            !File.Exists(path))
+            continue;
+
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.Length <= 0 || fileInfo.Length > MessageAttachmentStorage.MaxFileSize)
+            continue;
+
+        attachment.Content = await File.ReadAllBytesAsync(path);
+        attachment.Size = fileInfo.Length;
+    }
+
+    if (db.ChangeTracker.HasChanges())
+        await db.SaveChangesAsync();
+}
+
+static bool TryResolveSafePath(string root, string relativePath, out string fullPath)
+{
+    fullPath = string.Empty;
+    if (string.IsNullOrWhiteSpace(relativePath))
+        return false;
+
+    var normalizedRoot = Path.GetFullPath(root);
+    var candidate = Path.GetFullPath(Path.Combine(normalizedRoot, relativePath));
+    if (!candidate.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        return false;
+
+    fullPath = candidate;
+    return true;
+}
+
+static string GetProfileImageContentType(string path)
+{
+    return Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".png" => "image/png",
+        ".webp" => "image/webp",
+        _ => "application/octet-stream"
+    };
+}
+
 static bool IsGuestAllowedRequest(HttpRequest request)
 {
     if (!HttpMethods.IsGet(request.Method)) return false;
@@ -1457,6 +1591,9 @@ static bool IsGuestAllowedRequest(HttpRequest request)
         path.Equals("/api/Events", StringComparison.OrdinalIgnoreCase) ||
         path.Equals("/api/Event/cities", StringComparison.OrdinalIgnoreCase) ||
         path.Equals("/api/Events/cities", StringComparison.OrdinalIgnoreCase))
+        return true;
+    if (path.StartsWith("/api/UserProfile/public/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/api/organizers/", StringComparison.OrdinalIgnoreCase))
         return true;
 
     return IsGuestEventDetailsPath(path, "/api/Event/") ||

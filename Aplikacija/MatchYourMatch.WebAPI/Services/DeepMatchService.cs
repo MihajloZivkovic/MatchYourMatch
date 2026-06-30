@@ -33,6 +33,8 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (currentUser == null)
                 throw new Exception("User does not exist.");
+            if (!string.Equals(currentUser.Role, "User", StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Only regular users can use Deep Match.");
 
             var candidates = await _context.Users
                 .Include(u => u.Profile)
@@ -43,7 +45,7 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(ui => ui.Interest)
                 .Include(u => u.QuickMatchPosts)
                     .ThenInclude(p => p.Activity)
-                .Where(u => u.Id != userId && u.IsActive &&
+                .Where(u => u.Id != userId && u.IsActive && u.Role == "User" &&
                     (u.Profile == null || u.Profile.ProfileVisibility != "Private") &&
                     (u.AppSettings == null || u.AppSettings.ShowMeInDeepMatch))
                 .ToListAsync();

@@ -148,6 +148,20 @@
   font-weight: 700;
 }
 
+.global-search__role-badge {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  background: rgba(244, 163, 0, 0.16);
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .global-search__item-meta,
 .global-search__tags,
 .global-search__state {

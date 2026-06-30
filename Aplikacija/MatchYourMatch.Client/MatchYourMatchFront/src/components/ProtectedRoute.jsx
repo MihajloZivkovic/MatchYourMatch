@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { clearAuthSession } from '../services/authSession';
-import { isAdminSession, isGuestSession } from '../services/guestSession';
+import { isAdminSession, isGuestSession, isOrganizerSession } from '../services/guestSession';
 import { isSessionExpired } from '../services/sessionExpiry';
 
 function ProtectedRoute({ children }) {
@@ -42,6 +42,13 @@ function ProtectedRoute({ children }) {
 
   if (isAdminSession()) {
     return <Navigate to='/admin/dashboard' replace />;
+  }
+
+  if (isOrganizerSession()) {
+    if (location.pathname === '/app' || location.pathname === '/app/dashboard') {
+      return <Navigate to='/app/organizer' replace />;
+    }
+    return children;
   }
 
   if (!hasCompletedProfile(localStorage.getItem('token'))) {

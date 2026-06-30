@@ -40,7 +40,14 @@ namespace MatchYourMatch.WebAPI.Services
                 throw new Exception("You cannot follow yourself.");
             var follower = await _context.Users.FindAsync(followerId)
                 ?? throw new Exception("Follower does not exist.");
-            if (!await _context.Users.AnyAsync(u => u.Id == followingId && u.IsActive))
+            if (string.Equals(follower.Role, "Organizer", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(follower.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(follower.Role, "Administrator", StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Organizer and administrator accounts cannot follow users.");
+            var target = await _context.Users.FirstOrDefaultAsync(u => u.Id == followingId && u.IsActive)
+                ?? throw new Exception("User does not exist.");
+            if (string.Equals(target.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(target.Role, "Administrator", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("User does not exist.");
             var exists = await _context.Follows.AnyAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
             if (exists)
@@ -89,7 +96,8 @@ namespace MatchYourMatch.WebAPI.Services
 
             var filtered = users
                 .AsNoTracking()
-                .Where(user => user.IsActive && !user.IsDeactivated && !excluded.Contains(user.Id));
+                .Where(user => user.IsActive && !user.IsDeactivated && !excluded.Contains(user.Id) &&
+                    user.Role != "Admin" && user.Role != "Administrator");
 
             var totalCount = await filtered.CountAsync();
             var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);

@@ -35,6 +35,8 @@
         public List<QuickMatchRequest> QuickMatchRequests { get; set; } = new();
         public List<Follow> Followers { get; set; } = new();
         public List<Follow> Following { get; set; } = new();
+        public List<OrganizerSubscription> OrganizerSubscriptions { get; set; } = new();
+        public List<OrganizerSubscription> EventSubscriberLinks { get; set; } = new();
         public List<Notification> Notifications { get; set; } = new();
         public List<Notification> TriggeredNotifications { get; set; } = new();
         public List<EventInvite> SentEventInvites { get; set; } = new();

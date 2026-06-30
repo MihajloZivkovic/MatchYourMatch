@@ -16,6 +16,7 @@ function NotificationsDropdown({
   unread = 0,
   onUnreadChange,
   onRefreshUnread,
+  organizerOnly = false,
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -31,7 +32,8 @@ function NotificationsDropdown({
     setError('');
     try {
       const data = await notificationService.list();
-      setItems(Array.isArray(data) ? data : []);
+      const nextItems = Array.isArray(data) ? data : [];
+      setItems(organizerOnly ? nextItems.filter(isOrganizerNotification) : nextItems);
       onRefreshUnread?.();
     } catch (err) {
       setError(
@@ -42,7 +44,7 @@ function NotificationsDropdown({
     } finally {
       setLoading(false);
     }
-  }, [onRefreshUnread, t]);
+  }, [onRefreshUnread, organizerOnly, t]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -435,6 +437,17 @@ function formatTime(value) {
   return Number.isNaN(date.getTime())
     ? ''
     : date.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function isOrganizerNotification(item) {
+  return [
+    'EventJoinRequest',
+    'EventParticipantJoined',
+    'EventCapacityReached',
+    'EventDiscussionReply',
+    'EventUpdated',
+    'EventCancelled',
+  ].includes(item?.type);
 }
 
 export default NotificationsDropdown;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
+import { isOrganizerSession } from '../services/guestSession';
 
 function CompleteProfile() {
   const { t } = useTranslation();
@@ -16,6 +17,10 @@ function CompleteProfile() {
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login', { replace: true });
+      return;
+    }
+    if (isOrganizerSession(token)) {
+      navigate('/app/organizer', { replace: true });
       return;
     }
     fetch('/api/UserProfile/me', {

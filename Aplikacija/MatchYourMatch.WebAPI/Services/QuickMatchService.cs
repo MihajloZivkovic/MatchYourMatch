@@ -40,10 +40,13 @@ namespace MatchYourMatch.WebAPI.Services
                 throw new InvalidOperationException("This Quick Match post is no longer available.");
             if (post.UserId == userId)
                 throw new InvalidOperationException("You cannot match with yourself.");
-            if (!post.User.IsActive || post.User.IsDeactivated || post.User.Profile?.ProfileVisibility == "Private" || await IsExcludedAsync(userId, post.UserId))
+            if (!string.Equals(post.User.Role, "User", StringComparison.OrdinalIgnoreCase) ||
+                !post.User.IsActive || post.User.IsDeactivated || post.User.Profile?.ProfileVisibility == "Private" || await IsExcludedAsync(userId, post.UserId))
                 throw new InvalidOperationException("This Quick Match post is no longer available.");
             var requester = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeactivated)
                 ?? throw new UnauthorizedAccessException("Your account cannot use Quick Match.");
+            if (!string.Equals(requester.Role, "User", StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Only regular users can use Quick Match.");
             if (!IsWithinAge(CalculateAge(requester.Profile?.DateOfBirth), post.PreferredMinAge, post.PreferredMaxAge))
                 throw new InvalidOperationException("This Quick Match post is no longer available.");
             if (await _context.QuickMatchRequests.AnyAsync(r => r.QuickMatchPostId == postId && r.RequesterUserId == userId))
@@ -121,6 +124,9 @@ namespace MatchYourMatch.WebAPI.Services
         {
             ValidateRequest(request);
             await _expiration.ExpireDuePostsAsync(userId);
+
+            if (!await _context.Users.AnyAsync(u => u.Id == userId && u.IsActive && !u.IsDeactivated && u.Role == "User"))
+                throw new UnauthorizedAccessException("Only regular users can use Quick Match.");
 
             var activityExists = await _context.Activities
                 .AnyAsync(a => a.Id == request.ActivityId);
@@ -231,7 +237,8 @@ namespace MatchYourMatch.WebAPI.Services
                 .Include(u => u.AppSettings)
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
-            if (currentUser == null || !currentUser.IsActive || currentUser.IsDeactivated)
+            if (currentUser == null || !currentUser.IsActive || currentUser.IsDeactivated ||
+                !string.Equals(currentUser.Role, "User", StringComparison.OrdinalIgnoreCase))
                 throw new UnauthorizedAccessException("Your account cannot use Quick Match.");
 
             var requestedActivity = await _context.Activities
@@ -250,6 +257,7 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(a => a.ActivityCategory)
                 .Where(p =>
                     p.UserId != userId &&
+                    p.User.Role == "User" &&
                     p.User.IsActive && !p.User.IsDeactivated &&
                     (p.User.Profile == null || p.User.Profile.ProfileVisibility != "Private") &&
                     p.IsActive && p.EndsAtUtc > DateTime.UtcNow)
@@ -319,6 +327,7 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(a => a.ActivityCategory)
                 .Where(p =>
                     p.UserId != userId &&
+                    p.User.Role == "User" &&
                     p.User.IsActive && !p.User.IsDeactivated &&
                     (p.User.Profile == null || p.User.Profile.ProfileVisibility != "Private") &&
                     (p.User.AppSettings == null || p.User.AppSettings.ShowMeInQuickMatch) &&
