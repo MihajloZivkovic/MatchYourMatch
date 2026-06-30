@@ -9,12 +9,22 @@ function ThemeLang({ variant = 'public', layout = 'dropdown' }) {
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const close = (event) => {
+      if (event.type === 'keydown') {
+        if (event.key !== 'Escape') return;
+        setMenuOpen(false);
+        buttonRef.current?.focus();
+        return;
+      }
       if (menuRef.current && !menuRef.current.contains(event.target) && buttonRef.current && !buttonRef.current.contains(event.target)) {
         setMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', close);
+    };
   }, []);
 
   return (
@@ -24,6 +34,7 @@ function ThemeLang({ variant = 'public', layout = 'dropdown' }) {
         className='language-switcher__button adjust'
         aria-expanded={menuOpen}
         aria-haspopup='menu'
+        aria-label='Quick settings'
         ref={buttonRef}
         onClick={() => setMenuOpen((value) => !value)}
       >

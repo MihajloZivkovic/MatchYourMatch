@@ -12,6 +12,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<UserInterest> UserInterests { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<EventParticipant> EventParticipants { get; set; }
+        public DbSet<EventReminder> EventReminders { get; set; }
         public DbSet<EventJoinRequest> EventJoinRequests { get; set; }
         public DbSet<SavedEvent> SavedEvents { get; set; }
         public DbSet<EventDiscussionMessage> EventDiscussionMessages { get; set; }
@@ -21,6 +22,7 @@ namespace MatchYourMatch.WebAPI.Data
         public DbSet<Activity> Activities { get; set; }
         public DbSet<UserDeepMatchPreference> UserDeepMatchPreferences { get; set; }
         public DbSet<Follow> Follows { get; set; }
+        public DbSet<OrganizerSubscription> OrganizerSubscriptions { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<EventInvite> EventInvites { get; set; }
         public DbSet<UserRating> UserRatings { get; set; }
@@ -106,6 +108,9 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasDefaultValue("Standard");
             modelBuilder.Entity<UserProfile>().Property(p => p.FullName).HasMaxLength(160);
             modelBuilder.Entity<UserProfile>().Property(p => p.ConversationStyle).HasMaxLength(80);
+            modelBuilder.Entity<UserProfile>().Property(p => p.ProfilePictureContent).HasColumnType("longblob");
+            modelBuilder.Entity<UserProfile>().Property(p => p.ProfilePictureContentType).HasMaxLength(100);
+            modelBuilder.Entity<UserProfile>().Property(p => p.ProfilePictureFileName).HasMaxLength(255);
             
             // UserInterest
             modelBuilder.Entity<UserInterest>()
@@ -130,6 +135,13 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(p => p.Event).WithMany(e => e.Participants).HasForeignKey(p => p.EventId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<EventParticipant>()
                 .HasOne(p => p.User).WithMany(u => u.EventParticipations).HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventReminder>().ToTable("EventReminders");
+            modelBuilder.Entity<EventReminder>().HasIndex(r => new { r.EventId, r.UserId }).IsUnique();
+            modelBuilder.Entity<EventReminder>().HasIndex(r => new { r.ReminderAt, r.SentAt });
+            modelBuilder.Entity<EventReminder>()
+                .HasOne(r => r.Event).WithMany().HasForeignKey(r => r.EventId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<EventReminder>()
+                .HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<EventJoinRequest>().Property(request => request.Status).HasMaxLength(20).IsRequired();
             modelBuilder.Entity<EventJoinRequest>()
                 .HasIndex(request => new { request.EventId, request.UserId }).IsUnique();
@@ -182,6 +194,16 @@ namespace MatchYourMatch.WebAPI.Data
                 .HasOne(u => u.Following).WithMany(u => u.Followers).HasForeignKey(f => f.FollowingId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<Follow>()
                 .HasIndex(f => new { f.FollowerId, f.FollowingId }).IsUnique();
+
+            modelBuilder.Entity<OrganizerSubscription>().ToTable("OrganizerSubscriptions");
+            modelBuilder.Entity<OrganizerSubscription>()
+                .HasOne(s => s.User).WithMany(u => u.OrganizerSubscriptions)
+                .HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<OrganizerSubscription>()
+                .HasOne(s => s.Organizer).WithMany(u => u.EventSubscriberLinks)
+                .HasForeignKey(s => s.OrganizerId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<OrganizerSubscription>()
+                .HasIndex(s => new { s.UserId, s.OrganizerId }).IsUnique();
 
             // Notifications
             modelBuilder.Entity<Notification>().Property(n => n.Type).HasMaxLength(50).IsRequired();
@@ -294,6 +316,7 @@ namespace MatchYourMatch.WebAPI.Data
             modelBuilder.Entity<MessageAttachment>().Property(a => a.StoredFileName).HasMaxLength(80);
             modelBuilder.Entity<MessageAttachment>().Property(a => a.ContentType).HasMaxLength(100);
             modelBuilder.Entity<MessageAttachment>().Property(a => a.StoragePath).HasMaxLength(500);
+            modelBuilder.Entity<MessageAttachment>().Property(a => a.Content).HasColumnType("longblob");
             modelBuilder.Entity<MessageAttachment>().Property(a => a.Provider).HasMaxLength(30);
             modelBuilder.Entity<MessageAttachment>().Property(a => a.ProviderMediaId).HasMaxLength(100);
             modelBuilder.Entity<MessageAttachment>().Property(a => a.OriginalUrl).HasMaxLength(1000);

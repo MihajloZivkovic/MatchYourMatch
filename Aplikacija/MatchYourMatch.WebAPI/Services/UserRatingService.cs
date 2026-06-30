@@ -8,14 +8,19 @@ namespace MatchYourMatch.WebAPI.Services
 {
     public class UserRatingService : IUserRatingService
     {
+        private const string RegularRatingEligibilityReason = "You can rate this user after matching through Quick Match or attending a past event together.";
+        private const string OrganizerRatingEligibilityReason = "You can rate this organizer after attending one of their events.";
         private readonly AppDbContext _context;
         public UserRatingService(AppDbContext context) => _context = context;
 
         public async Task<UserRatingStatusDto> GetStatusAsync(int raterUserId, int ratedUserId)
         {
-            await EnsureUsersAsync(raterUserId, ratedUserId);
-            var matched = await AreUsersMatchedAsync(raterUserId, ratedUserId);
-            var eligibleEvents = await GetEligibleEventsAsync(raterUserId, ratedUserId);
+            var ratedRole = await EnsureUsersAsync(raterUserId, ratedUserId);
+            var isOrganizerRating = IsOrganizer(ratedRole);
+            var matched = !isOrganizerRating && await AreUsersMatchedAsync(raterUserId, ratedUserId);
+            var eligibleEvents = isOrganizerRating
+                ? await GetEligibleOrganizerEventsAsync(raterUserId, ratedUserId)
+                : await GetEligibleEventsAsync(raterUserId, ratedUserId);
             var myRating = await _context.UserRatings.AsNoTracking()
                 .Include(r => r.Event)
                 .Where(r => r.RaterUserId == raterUserId && r.RatedUserId == ratedUserId)
@@ -44,8 +49,8 @@ namespace MatchYourMatch.WebAPI.Services
                 CanRate = canRate,
                 HasRated = myRating != null,
                 Reason = !isEligible
-                    ? "You can rate this user after matching through Quick Match or attending a past event together."
-                    : myRating != null ? "You have already rated this user. Use edit instead." : null,
+                    ? isOrganizerRating ? OrganizerRatingEligibilityReason : RegularRatingEligibilityReason
+                    : myRating != null ? isOrganizerRating ? "You have already rated this organizer. Use edit instead." : "You have already rated this user. Use edit instead." : null,
                 AverageRating = average.HasValue ? decimal.Round(average.Value, 1) : null,
                 RatingsCount = ratingsCount,
                 MyRating = myRatingDto,
@@ -57,15 +62,20 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task<UserRatingStatusDto> SaveAsync(int raterUserId, int ratedUserId, SaveUserRatingDto dto)
         {
             ValidateRating(dto.Rating);
-            await EnsureUsersAsync(raterUserId, ratedUserId);
-            var matched = await AreUsersMatchedAsync(raterUserId, ratedUserId);
-            var eligibleEvents = await GetEligibleEventsAsync(raterUserId, ratedUserId);
+            var ratedRole = await EnsureUsersAsync(raterUserId, ratedUserId);
+            var isOrganizerRating = IsOrganizer(ratedRole);
+            var matched = !isOrganizerRating && await AreUsersMatchedAsync(raterUserId, ratedUserId);
+            var eligibleEvents = isOrganizerRating
+                ? await GetEligibleOrganizerEventsAsync(raterUserId, ratedUserId)
+                : await GetEligibleEventsAsync(raterUserId, ratedUserId);
             var eligibleEvent = dto.EventId.HasValue
                 ? eligibleEvents.FirstOrDefault(e => e.Id == dto.EventId.Value)
                 : eligibleEvents.OrderByDescending(e => e.Date.ToDateTime(e.Time)).FirstOrDefault();
             if (!matched && eligibleEvent == null)
                 throw new UnauthorizedAccessException(
-                    "Users must have an active Quick Match match or have attended a past event together.");
+                    isOrganizerRating
+                        ? OrganizerRatingEligibilityReason
+                        : "Users must have an active Quick Match match or have attended a past event together.");
 
             var existing = await _context.UserRatings.FirstOrDefaultAsync(r =>
                 r.RaterUserId == raterUserId && r.RatedUserId == ratedUserId);
@@ -86,7 +96,9 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task<UserRatingStatusDto> UpdateAsync(int raterUserId, int ratedUserId, UpdateUserRatingDto dto)
         {
             ValidateRating(dto.Score);
-            await EnsureUsersAsync(raterUserId, ratedUserId);
+            var ratedRole = await EnsureUsersAsync(raterUserId, ratedUserId);
+            if (IsOrganizer(ratedRole) && !(await GetEligibleOrganizerEventsAsync(raterUserId, ratedUserId)).Any())
+                throw new UnauthorizedAccessException(OrganizerRatingEligibilityReason);
             var rating = await _context.UserRatings.FirstOrDefaultAsync(value =>
                     value.RaterUserId == raterUserId && value.RatedUserId == ratedUserId)
                 ?? throw new KeyNotFoundException("You have not rated this user yet.");
@@ -97,12 +109,19 @@ namespace MatchYourMatch.WebAPI.Services
             return await GetStatusAsync(raterUserId, ratedUserId);
         }
 
-        private async Task EnsureUsersAsync(int raterUserId, int ratedUserId)
+        private async Task<string> EnsureUsersAsync(int raterUserId, int ratedUserId)
         {
             if (raterUserId == ratedUserId)
                 throw new InvalidOperationException("You cannot rate yourself.");
-            if (!await _context.Users.AnyAsync(u => u.Id == ratedUserId && u.IsActive))
+            var ratedRole = await _context.Users
+                .Where(u => u.Id == ratedUserId && u.IsActive)
+                .Select(u => u.Role)
+                .FirstOrDefaultAsync();
+            if (ratedRole == null)
                 throw new KeyNotFoundException("User does not exist.");
+            if (IsAdmin(ratedRole))
+                throw new UnauthorizedAccessException("Admin profiles cannot be rated.");
+            return ratedRole;
         }
 
         private Task<bool> AreUsersMatchedAsync(int currentUserId, int otherUserId)
@@ -124,6 +143,26 @@ namespace MatchYourMatch.WebAPI.Services
             var now = DateTime.Now;
             return events.Where(e => e.Date.ToDateTime(e.Time) < now).ToList();
         }
+
+        private async Task<List<Event>> GetEligibleOrganizerEventsAsync(int raterUserId, int organizerId)
+        {
+            var now = DateTime.Now;
+            var today = DateOnly.FromDateTime(now);
+            var currentTime = TimeOnly.FromDateTime(now);
+            return await _context.Events.AsNoTracking()
+                .Where(e => e.OrganizerId == organizerId &&
+                    (e.Date < today || (e.Date == today && e.Time < currentTime)) &&
+                    e.Participants.Any(p => p.UserId == raterUserId))
+                .ToListAsync();
+        }
+
+        private static bool IsOrganizer(string role) =>
+            string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "EventOrganizer", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsAdmin(string role) =>
+            string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "Administrator", StringComparison.OrdinalIgnoreCase);
 
         private static void ValidateRating(decimal rating)
         {

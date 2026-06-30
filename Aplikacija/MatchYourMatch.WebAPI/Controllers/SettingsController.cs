@@ -15,11 +15,18 @@ namespace MatchYourMatch.WebAPI.Controllers
         public SettingsController(AppDbContext context) => _context = context;
 
         [HttpGet("me")]
-        public async Task<ActionResult<UserAppSettingsDto>> Get() => Ok(Map(await GetOrCreate(CurrentUserId())));
+        public async Task<ActionResult<UserAppSettingsDto>> Get()
+        {
+            if (IsOrganizer())
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer settings are limited to appearance and language.");
+            return Ok(Map(await GetOrCreate(CurrentUserId())));
+        }
 
         [HttpPut("me")]
         public async Task<ActionResult<UserAppSettingsDto>> Put(UserAppSettingsDto dto)
         {
+            if (IsOrganizer())
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer settings are limited to appearance and language.");
             if (dto.MaximumDistanceKm is < 1 or > 200 || dto.MinAge is < 16 or > 100 ||
                 dto.MaxAge is < 16 or > 100 || dto.MinAge > dto.MaxAge)
                 return BadRequest("Distance or age range is invalid.");
@@ -47,21 +54,33 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         [HttpGet("blocked-users")]
-        public Task<List<SafetyUserDto>> Blocked() => SafetyList(_context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId()).Select(x => x.BlockedUserId));
+        public async Task<ActionResult<List<SafetyUserDto>>> Blocked()
+        {
+            if (IsOrganizer())
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available.");
+            return Ok(await SafetyList(_context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId()).Select(x => x.BlockedUserId)));
+        }
         [HttpPost("blocked-users/{userId:int}")]
         public async Task<IActionResult> Block(int userId) => await AddSafety(userId, true);
         [HttpDelete("blocked-users/{userId:int}")]
-        public async Task<IActionResult> Unblock(int userId) { await _context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId() && x.BlockedUserId == userId).ExecuteDeleteAsync(); return NoContent(); }
+        public async Task<IActionResult> Unblock(int userId) { if (IsOrganizer()) return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available."); await _context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId() && x.BlockedUserId == userId).ExecuteDeleteAsync(); return NoContent(); }
 
         [HttpGet("hidden-profiles")]
-        public Task<List<SafetyUserDto>> Hidden() => SafetyList(_context.HiddenProfiles.Where(x => x.UserId == CurrentUserId()).Select(x => x.HiddenUserId));
+        public async Task<ActionResult<List<SafetyUserDto>>> Hidden()
+        {
+            if (IsOrganizer())
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available.");
+            return Ok(await SafetyList(_context.HiddenProfiles.Where(x => x.UserId == CurrentUserId()).Select(x => x.HiddenUserId)));
+        }
         [HttpPost("hidden-profiles/{userId:int}")]
         public async Task<IActionResult> Hide(int userId) => await AddSafety(userId, false);
         [HttpDelete("hidden-profiles/{userId:int}")]
-        public async Task<IActionResult> Unhide(int userId) { await _context.HiddenProfiles.Where(x => x.UserId == CurrentUserId() && x.HiddenUserId == userId).ExecuteDeleteAsync(); return NoContent(); }
+        public async Task<IActionResult> Unhide(int userId) { if (IsOrganizer()) return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available."); await _context.HiddenProfiles.Where(x => x.UserId == CurrentUserId() && x.HiddenUserId == userId).ExecuteDeleteAsync(); return NoContent(); }
 
         private async Task<IActionResult> AddSafety(int targetId, bool block)
         {
+            if (IsOrganizer())
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available.");
             var me = CurrentUserId();
             if (targetId == me || !await _context.Users.AnyAsync(u => u.Id == targetId && u.IsActive)) return BadRequest();
             if (block && !await _context.BlockedUsers.AnyAsync(x => x.BlockerUserId == me && x.BlockedUserId == targetId))
@@ -81,6 +100,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
         private static string Normalize(string value, params string[] allowed) => allowed.Contains(value) ? value : allowed[0];
         private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private bool IsOrganizer() => string.Equals(User.FindFirstValue(ClaimTypes.Role), "Organizer", StringComparison.OrdinalIgnoreCase);
         private static UserAppSettingsDto Map(UserAppSettings x) => new() {
             MaximumDistanceKm=x.MaximumDistanceKm, ShowMeInQuickMatch=x.ShowMeInQuickMatch, ShowMeInDeepMatch=x.ShowMeInDeepMatch, PreferPeopleNearby=x.PreferPeopleNearby,
             MinAge=x.MinAge, MaxAge=x.MaxAge, WhoCanMessageMe=x.WhoCanMessageMe, AllowEventInvitesFrom=x.AllowEventInvitesFrom, AllowGroupChatInvitesFrom=x.AllowGroupChatInvitesFrom,

@@ -11,6 +11,7 @@ import {
 import './GlobalSearch.css';
 import { useTranslation } from '../hooks/useTranslation';
 import UserAvatar from './UserAvatar';
+import { isGuestSession, isOrganizerSession } from '../services/guestSession';
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
@@ -31,15 +32,16 @@ function GlobalSearch({ onNavigate }) {
   const searchRef = useRef(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const eventsOnlySearch = isOrganizerSession() || isGuestSession();
 
   const trimmedQuery = query.trim();
   const hasResults = useMemo(
     () =>
-      results.people.length > 0 ||
+      (!eventsOnlySearch && results.people.length > 0) ||
       results.events.length > 0 ||
-      results.activities.length > 0 ||
-      results.interests.length > 0,
-    [results],
+      (!eventsOnlySearch && results.activities.length > 0) ||
+      (!eventsOnlySearch && results.interests.length > 0),
+    [eventsOnlySearch, results],
   );
 
   useEffect(() => {
@@ -110,10 +112,10 @@ function GlobalSearch({ onNavigate }) {
 
         const body = await response.json();
         setResults({
-          people: Array.isArray(body.people) ? body.people : [],
+          people: !eventsOnlySearch && Array.isArray(body.people) ? body.people : [],
           events: Array.isArray(body.events) ? body.events : [],
-          activities: Array.isArray(body.activities) ? body.activities : [],
-          interests: Array.isArray(body.interests) ? body.interests : [],
+          activities: !eventsOnlySearch && Array.isArray(body.activities) ? body.activities : [],
+          interests: !eventsOnlySearch && Array.isArray(body.interests) ? body.interests : [],
         });
       } catch (err) {
         if (err.name !== 'AbortError') {
@@ -130,7 +132,7 @@ function GlobalSearch({ onNavigate }) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [t, trimmedQuery]);
+  }, [eventsOnlySearch, t, trimmedQuery]);
 
   const handleNavigate = (path) => {
     setOpen(false);
@@ -172,7 +174,7 @@ function GlobalSearch({ onNavigate }) {
         <input
           type='search'
           value={query}
-          placeholder={t('search.placeholder')}
+          placeholder={eventsOnlySearch ? 'Search events...' : t('search.placeholder')}
           aria-label={t('search.label')}
           onFocus={() => {
             if (trimmedQuery.length >= MIN_QUERY_LENGTH) {
@@ -208,6 +210,7 @@ function GlobalSearch({ onNavigate }) {
 
           {!loading &&
             !error &&
+            !eventsOnlySearch &&
             renderSection(
               t('search.people'),
               results.people,
@@ -229,6 +232,9 @@ function GlobalSearch({ onNavigate }) {
                   />
                   <span className='global-search__item-main'>
                     {person.displayName || person.username}
+                    {person.role?.toLowerCase() === 'organizer' && (
+                      <span className='global-search__role-badge'>Organizer</span>
+                    )}
                   </span>
                   <span className='global-search__item-meta'>
                     @{person.username}
@@ -271,6 +277,7 @@ function GlobalSearch({ onNavigate }) {
 
           {!loading &&
             !error &&
+            !eventsOnlySearch &&
             renderSection(
               t('search.activities'),
               results.activities,
@@ -294,6 +301,7 @@ function GlobalSearch({ onNavigate }) {
 
           {!loading &&
             !error &&
+            !eventsOnlySearch &&
             renderSection(
               t('search.interests'),
               results.interests,

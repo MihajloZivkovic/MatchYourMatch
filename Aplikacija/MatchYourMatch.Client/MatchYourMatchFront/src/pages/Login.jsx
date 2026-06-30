@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import GuestEntryButton from '../components/GuestEntryButton';
-import { isAdminSession } from '../services/guestSession';
+import { isAdminSession, isOrganizerSession } from '../services/guestSession';
 
 function Login() {
   const navigate = useNavigate();
@@ -13,6 +13,9 @@ function Login() {
   const loginDestination = requestedReturnUrl?.startsWith('/app')
     ? requestedReturnUrl
     : '/app/dashboard';
+  const organizerDestination = requestedReturnUrl?.startsWith('/app')
+    ? requestedReturnUrl
+    : '/app/organizer';
   const adminDestination = requestedReturnUrl?.startsWith('/admin')
     ? requestedReturnUrl
     : '/admin/dashboard';
@@ -84,7 +87,13 @@ function Login() {
     localStorage.setItem("token", data.accessToken);
     localStorage.setItem('mym_authed', 'true');
     window.dispatchEvent(new Event('tokenChanged'));
-    navigate(isAdminSession(data.accessToken) ? adminDestination : loginDestination, { replace: true });
+    navigate(getPostLoginDestination(data.accessToken), { replace: true });
+  }
+
+  function getPostLoginDestination(token) {
+    if (isAdminSession(token)) return adminDestination;
+    if (isOrganizerSession(token)) return organizerDestination;
+    return loginDestination;
   }
 
   const updateResetPanel = (patch) => {
@@ -176,7 +185,7 @@ function Login() {
             {vrstaGreske === 'deactivated' && reactivationCredentials && <button type="button" className="btn btn--primary auth__submit" onClick={async () => {
               const response = await fetch('/api/account/reactivate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(reactivationCredentials) });
               if (!response.ok) return;
-              const data = await response.json(); localStorage.setItem('token', data.accessToken); localStorage.setItem('mym_authed','true'); window.dispatchEvent(new Event('tokenChanged')); navigate('/app/dashboard', {replace:true});
+              const data = await response.json(); localStorage.setItem('token', data.accessToken); localStorage.setItem('mym_authed','true'); window.dispatchEvent(new Event('tokenChanged')); navigate(getPostLoginDestination(data.accessToken), {replace:true});
             }}>Reactivate account</button>}
 
             <SocialAuthButtons />

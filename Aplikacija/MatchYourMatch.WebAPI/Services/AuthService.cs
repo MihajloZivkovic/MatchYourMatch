@@ -177,7 +177,7 @@ namespace MatchYourMatch.WebAPI.Services
         public AuthInfoDto CreateAuthResponse(User user)
         {
             var expiry = DateTime.UtcNow.AddMinutes(_expires);
-            var requiresCompletion = user.Profile?.DateOfBirth == null;
+            var requiresCompletion = user.Role == "User" && user.Profile?.DateOfBirth == null;
 
             return new AuthInfoDto
             {
@@ -217,7 +217,7 @@ namespace MatchYourMatch.WebAPI.Services
 
         private string GenerateToken(User user, DateTime expiry)
         {
-            var profileComplete = user.Profile?.DateOfBirth != null;
+            var profileComplete = user.Role != "User" || user.Profile?.DateOfBirth != null;
             var _claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -370,6 +370,19 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var user = await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) throw new Exception("User does not exist.");
+            if (!string.Equals(user.Role, "User", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.IsNullOrWhiteSpace(dto.Username) && !string.Equals(dto.Username.Trim(), user.Username, StringComparison.OrdinalIgnoreCase))
+                {
+                    var username = dto.Username.Trim();
+                    if (await _context.Users.AnyAsync(x => x.Id != userId && x.Username == username)) throw new Exception("Username is already in use.");
+                    user.Username = username;
+                }
+                user.Profile ??= new UserProfile { UserId = userId };
+                if (!string.IsNullOrWhiteSpace(dto.FullName)) user.Profile.FullName = dto.FullName.Trim();
+                await _context.SaveChangesAsync();
+                return CreateAuthResponse(user);
+            }
             if (!dto.DateOfBirth.HasValue || dto.DateOfBirth > DateOnly.FromDateTime(DateTime.Today).AddYears(-16))
                 throw new Exception("You must be at least 16 years old.");
             if (!string.IsNullOrWhiteSpace(dto.Username) && !string.Equals(dto.Username.Trim(), user.Username, StringComparison.OrdinalIgnoreCase))

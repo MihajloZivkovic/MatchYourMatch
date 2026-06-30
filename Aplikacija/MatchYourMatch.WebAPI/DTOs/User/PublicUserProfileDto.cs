@@ -6,6 +6,10 @@ namespace MatchYourMatch.WebAPI.DTOs.User
         public string Username { get; set; } = string.Empty;
         public string? Bio { get; set; }
         public string? ProfilePicture { get; set; }
+        public string Role { get; set; } = "User";
+        public string? OrganizationName { get; set; }
+        public string? OrganizationType { get; set; }
+        public string? ContactEmail { get; set; }
         public string? LocationDisplayName { get; set; }
         public string ProfileVisibility { get; set; } = "Standard";
         public bool IsPrivate { get; set; }

@@ -16,13 +16,15 @@ namespace MatchYourMatch.WebAPI.Services
         private readonly IGeocodingService _geocodingService;
         private readonly INotificationService _notifications;
         private readonly IMessageAttachmentStorage _attachmentStorage;
+        private readonly IEventReminderService _eventReminders;
 
-        public EventService(AppDbContext context, IGeocodingService geocodingService, INotificationService notifications, IMessageAttachmentStorage attachmentStorage)
+        public EventService(AppDbContext context, IGeocodingService geocodingService, INotificationService notifications, IMessageAttachmentStorage attachmentStorage, IEventReminderService eventReminders)
         {
             _context = context;
             _geocodingService = geocodingService;
             _notifications = notifications;
             _attachmentStorage = attachmentStorage;
+            _eventReminders = eventReminders;
         }
 
         public async Task<List<EventDto>> GetByQueryAsync(
@@ -262,6 +264,29 @@ namespace MatchYourMatch.WebAPI.Services
             });
             await _context.SaveChangesAsync();
 
+            var organizerName = await _context.UserProfiles.AsNoTracking()
+                .Where(profile => profile.UserId == userId)
+                .Select(profile => profile.FullName)
+                .FirstOrDefaultAsync();
+            if (string.IsNullOrWhiteSpace(organizerName))
+            {
+                organizerName = await _context.Users.AsNoTracking()
+                    .Where(user => user.Id == userId)
+                    .Select(user => user.Username)
+                    .FirstAsync();
+            }
+            var subscriberIds = await _context.OrganizerSubscriptions.AsNoTracking()
+                .Where(subscription => subscription.OrganizerId == userId)
+                .Select(subscription => subscription.UserId)
+                .ToListAsync();
+            foreach (var subscriberId in subscriberIds)
+            {
+                await _notifications.CreateNotificationAsync(subscriberId, userId,
+                    "OrganizerNewEvent", "New organizer event",
+                    $"New event from {organizerName}: {e.Title}",
+                    "Event", e.Id, true);
+            }
+
             return await GetByIdAsync(e.Id, userId);
         }
 
@@ -312,11 +337,13 @@ namespace MatchYourMatch.WebAPI.Services
 
             _context.EventParticipants.Add(new EventParticipant { EventId = eventId, UserId = userId });
             await _context.SaveChangesAsync();
+            await _eventReminders.ScheduleForParticipantAsync(eventId, userId);
             if (e.OrganizerId.HasValue)
             {
                 await _notifications.CreateNotificationAsync(e.OrganizerId.Value, userId,
                     "EventParticipantJoined", "New event participant",
                     $"{username} joined {e.Title}.", "Event", eventId);
+                await NotifyOrganizerIfEventFullAsync(e, userId);
             }
 
             return await GetByIdAsync(eventId, userId);
@@ -343,6 +370,7 @@ namespace MatchYourMatch.WebAPI.Services
 
             _context.EventParticipants.Remove(participant);
             await _context.SaveChangesAsync();
+            await _eventReminders.CancelForParticipantAsync(eventId, userId);
 
             return await GetByIdAsync(eventId, userId);
         }
@@ -428,6 +456,11 @@ namespace MatchYourMatch.WebAPI.Services
                     ? $"Your request to join {e.Title} was accepted."
                     : $"Your request to join {e.Title} was rejected.",
                 "Event", eventId);
+            if (accept)
+            {
+                await _eventReminders.ScheduleForParticipantAsync(eventId, request.UserId);
+                await NotifyOrganizerIfEventFullAsync(e, request.UserId);
+            }
             await transaction.CommitAsync();
             return await GetByIdAsync(eventId, organizerId);
         }
@@ -529,6 +562,7 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (e.OrganizerId != organizerId)
                 throw new Exception("Niste organizator ovog eventa");
+            var dateTimeChanged = e.Date != dto.Date || e.Time != dto.Time;
 
             var interest = await _context.Interests.FirstOrDefaultAsync(i => i.Name == NormalizeCategory(dto.Category));
             if (interest == null)
@@ -554,6 +588,8 @@ namespace MatchYourMatch.WebAPI.Services
             e.ImageUrl = dto.ImageUrl;
 
             await _context.SaveChangesAsync();
+            if (dateTimeChanged)
+                await _eventReminders.RescheduleForEventAsync(eventId);
         }
 
         public async Task DeleteAsync(int organizerId, int eventId)
@@ -565,6 +601,7 @@ namespace MatchYourMatch.WebAPI.Services
             if (e.OrganizerId != organizerId)
                 throw new Exception("Niste organizator ovog eventa");
 
+            await _eventReminders.CancelForEventAsync(eventId);
             _context.Events.Remove(e);
             await _context.SaveChangesAsync();
         }
@@ -636,6 +673,21 @@ namespace MatchYourMatch.WebAPI.Services
                 (block.BlockerUserId == e.OrganizerId.Value && block.BlockedUserId == userId)))
                 throw new UnauthorizedAccessException("You cannot join this event.");
             await EnsureUserCanJoinByAgeAsync(e, userId);
+        }
+
+        private async Task NotifyOrganizerIfEventFullAsync(Event e, int actorUserId)
+        {
+            if (!e.OrganizerId.HasValue || e.MaxAttendees <= 0)
+                return;
+
+            var participantCount = await _context.EventParticipants.AsNoTracking()
+                .CountAsync(participant => participant.EventId == e.Id);
+            if (participantCount < e.MaxAttendees)
+                return;
+
+            await _notifications.CreateNotificationAsync(e.OrganizerId.Value, actorUserId,
+                "EventCapacityReached", "Event is full",
+                $"{e.Title} reached its attendee capacity.", "Event", e.Id, preventDuplicate: true);
         }
 
         private async Task EnsureOrganizerAsync(int eventId, int organizerId)

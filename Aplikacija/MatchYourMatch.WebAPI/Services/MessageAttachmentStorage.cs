@@ -41,22 +41,9 @@ namespace MatchYourMatch.WebAPI.Services
             var contentType = await DetectAndValidateTypeAsync(source, extension, cancellationToken);
             source.Position = 0;
 
-            var directory = DateTime.UtcNow.ToString("yyyy/MM");
             var storedName = $"{Guid.NewGuid():N}{extension}";
-            var relativePath = Path.Combine(directory, storedName).Replace('\\', '/');
-            var destinationPath = ResolveSafePath(relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-
-            try
-            {
-                await using var destination = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true);
-                await source.CopyToAsync(destination, cancellationToken);
-            }
-            catch
-            {
-                if (File.Exists(destinationPath)) File.Delete(destinationPath);
-                throw;
-            }
+            using var buffer = new MemoryStream((int)file.Length);
+            await source.CopyToAsync(buffer, cancellationToken);
 
             return new MessageAttachment
             {
@@ -65,13 +52,18 @@ namespace MatchYourMatch.WebAPI.Services
                 StoredFileName = storedName,
                 ContentType = contentType,
                 Size = file.Length,
-                StoragePath = relativePath
+                StoragePath = "database",
+                Content = buffer.ToArray()
             };
         }
 
         public Task<Stream> OpenReadAsync(MessageAttachment attachment, CancellationToken cancellationToken = default)
         {
-            if (attachment.Kind != "File" || string.IsNullOrWhiteSpace(attachment.StoragePath))
+            if (attachment.Kind != "File")
+                throw new KeyNotFoundException("Attachment file does not exist.");
+            if (attachment.Content is { Length: > 0 })
+                return Task.FromResult<Stream>(new MemoryStream(attachment.Content, writable: false));
+            if (string.IsNullOrWhiteSpace(attachment.StoragePath))
                 throw new KeyNotFoundException("Attachment file does not exist.");
             var path = ResolveSafePath(attachment.StoragePath);
             if (!File.Exists(path)) throw new KeyNotFoundException("Attachment file does not exist.");

@@ -10,6 +10,7 @@ import { jwtDecode } from "jwt-decode";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import OrganizerRoute from "./components/OrganizerRoute";
 import AppShell from "./app/AppShell";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -22,6 +23,7 @@ import QuickMatch from "./pages/app/QuickMatch";
 import DeepMatch from "./pages/app/DeepMatch";
 import Events from "./pages/app/Events";
 import CreateEvent from "./pages/app/CreateEvent";
+import OrganizerDashboard from "./pages/app/OrganizerDashboard";
 import Profile from "./pages/app/Profile";
 import SearchResults from "./pages/app/SearchResults";
 import PublicProfile from "./pages/app/PublicProfile";
@@ -303,10 +305,18 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to={isGuestSession() ? "events" : "dashboard"} replace />} />
+          <Route index element={<Navigate to={getAppIndexDestination()} replace />} />
           <Route
             path="dashboard"
             element={<Dashboard currentUser={currentUser} />}
+          />
+          <Route
+            path="organizer"
+            element={
+              <OrganizerRoute>
+                <OrganizerDashboard currentUser={currentUser} userProfile={userProfile} />
+              </OrganizerRoute>
+            }
           />
           <Route path="quick-match" element={<QuickMatch />} />
           <Route path="deep-match" element={<DeepMatch />} />
@@ -314,19 +324,32 @@ function App() {
           <Route
             path="events/create"
             element={
-              <OrganizerEventRoute>
+              <OrganizerRoute>
                 <CreateEvent />
-              </OrganizerEventRoute>
+              </OrganizerRoute>
             }
           />
-          <Route path="events/:id/edit" element={<CreateEvent />} />
+          <Route
+            path="events/:id/edit"
+            element={
+              <OrganizerRoute>
+                <CreateEvent />
+              </OrganizerRoute>
+            }
+          />
           <Route path="search" element={<SearchResults />} />
           <Route path="users/:id" element={<PublicProfile />} />
-          <Route path="chat" element={<Chat />} />
+          <Route path="chat" element={isOrganizerSession() ? <Navigate to="/app/organizer" replace /> : <Chat />} />
           <Route path="settings" element={<Settings />} />
           <Route
             path="profile"
-            element={<Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>}
+            element={
+              isOrganizerSession() ? (
+                <Navigate to="/app/organizer" replace />
+              ) : (
+                <Profile currentUser={currentUser} userProfile = {userProfile} setUserProfile = {setUserProfile}/>
+              )
+            }
           />
         </Route>
       </Routes><SessionExpiredModal /></>
@@ -370,20 +393,10 @@ function App() {
   );
 }
 
-function OrganizerEventRoute({ children }) {
-  const location = useLocation();
-
-  if (!isOrganizerSession()) {
-    return (
-      <Navigate
-        to="/app/events"
-        replace
-        state={{ organizerOnly: true, from: location.pathname }}
-      />
-    );
-  }
-
-  return children;
+function getAppIndexDestination() {
+  if (isGuestSession()) return "events";
+  if (isOrganizerSession()) return "organizer";
+  return "dashboard";
 }
 
 export default App;

@@ -5,6 +5,7 @@ import './SearchResults.css';
 import { useTranslation } from '../../hooks/useTranslation';
 import UserAvatar from '../../components/UserAvatar';
 import UserActionsMenu from '../../components/UserActionsMenu';
+import { isGuestSession, isOrganizerSession } from '../../services/guestSession';
 
 const emptyResults = {
   people: [],
@@ -22,14 +23,15 @@ function SearchResults() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const query = (searchParams.get('q') || '').trim();
+  const eventsOnlySearch = isOrganizerSession() || isGuestSession();
 
   const hasResults = useMemo(
     () =>
-      results.people.length > 0 ||
+      (!eventsOnlySearch && results.people.length > 0) ||
       results.events.length > 0 ||
-      results.activities.length > 0 ||
-      results.interests.length > 0,
-    [results],
+      (!eventsOnlySearch && results.activities.length > 0) ||
+      (!eventsOnlySearch && results.interests.length > 0),
+    [eventsOnlySearch, results],
   );
 
   useEffect(() => {
@@ -77,7 +79,7 @@ function SearchResults() {
         }
 
         const body = await response.json();
-        setResults(normalizeResults(body));
+        setResults(normalizeResults(body, eventsOnlySearch));
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.error('[SearchResults] request error', err);
@@ -92,7 +94,7 @@ function SearchResults() {
     loadResults();
 
     return () => controller.abort();
-  }, [query]);
+  }, [eventsOnlySearch, query]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -113,7 +115,7 @@ function SearchResults() {
           <input
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
-            placeholder='Search people, events, activities...'
+            placeholder={eventsOnlySearch ? 'Search events...' : 'Search people, events, activities...'}
             aria-label='Search query'
           />
           <button type='submit'>{t('searchPage.action')}</button>
@@ -142,62 +144,64 @@ function SearchResults() {
 
       {query.length >= 2 && !loading && !error && hasResults && (
         <div className='search-results__grid'>
-          <ResultSection
-            title='People'
-            icon={<User size={17} />}
-            items={results.people}
-          >
-            {(person) => (
-              <div
-                className='search-results__person-wrap'
-                key={`person-${person.id}`}
-              >
-                <button
-                  type='button'
-                  className='search-results__card'
-                  onClick={() => navigate(`/app/users/${person.id}`)}
+          {!eventsOnlySearch && (
+            <ResultSection
+              title='People'
+              icon={<User size={17} />}
+              items={results.people}
+            >
+              {(person) => (
+                <div
+                  className='search-results__person-wrap'
+                  key={`person-${person.id}`}
                 >
-                  <UserAvatar
-                    className='search-results__avatar'
-                    profilePicture={person.profilePicture}
-                    initials={getInitials(
-                      person.displayName || person.username,
-                    )}
-                    alt=''
+                  <button
+                    type='button'
+                    className='search-results__card'
+                    onClick={() => navigate(`/app/users/${person.id}`)}
+                  >
+                    <UserAvatar
+                      className='search-results__avatar'
+                      profilePicture={person.profilePicture}
+                      initials={getInitials(
+                        person.displayName || person.username,
+                      )}
+                      alt=''
+                    />
+                    <span className='search-results__content'>
+                      <strong>{person.displayName || person.username}</strong>
+                      <small>
+                        @{person.username}
+                        {person.locationDisplayName
+                          ? ` - ${person.locationDisplayName}`
+                          : ''}
+                      </small>
+                      {person.tags?.length > 0 && (
+                        <em>{person.tags.slice(0, 3).join(' - ')}</em>
+                      )}
+                    </span>
+                  </button>
+                  <UserActionsMenu
+                    userId={person.id}
+                    username={person.username}
+                    context='matchCard'
+                    onHidden={(id) =>
+                      setResults((current) => ({
+                        ...current,
+                        people: current.people.filter((item) => item.id !== id),
+                      }))
+                    }
+                    onBlocked={(id) =>
+                      setResults((current) => ({
+                        ...current,
+                        people: current.people.filter((item) => item.id !== id),
+                      }))
+                    }
                   />
-                  <span className='search-results__content'>
-                    <strong>{person.displayName || person.username}</strong>
-                    <small>
-                      @{person.username}
-                      {person.locationDisplayName
-                        ? ` - ${person.locationDisplayName}`
-                        : ''}
-                    </small>
-                    {person.tags?.length > 0 && (
-                      <em>{person.tags.slice(0, 3).join(' - ')}</em>
-                    )}
-                  </span>
-                </button>
-                <UserActionsMenu
-                  userId={person.id}
-                  username={person.username}
-                  context='matchCard'
-                  onHidden={(id) =>
-                    setResults((current) => ({
-                      ...current,
-                      people: current.people.filter((item) => item.id !== id),
-                    }))
-                  }
-                  onBlocked={(id) =>
-                    setResults((current) => ({
-                      ...current,
-                      people: current.people.filter((item) => item.id !== id),
-                    }))
-                  }
-                />
-              </div>
-            )}
-          </ResultSection>
+                </div>
+              )}
+            </ResultSection>
+          )}
 
           <ResultSection
             title='Events'
@@ -223,47 +227,51 @@ function SearchResults() {
             )}
           </ResultSection>
 
-          <ResultSection
-            title='Activities'
-            icon={<Sparkles size={17} />}
-            items={results.activities}
-          >
-            {(activity) => (
-              <button
-                type='button'
-                className='search-results__card'
-                key={`activity-${activity.id}`}
-                onClick={() => navigate('/app/quick-match')}
-              >
-                <span className='search-results__icon'>AC</span>
-                <span className='search-results__content'>
-                  <strong>{activity.displayName}</strong>
-                  <small>{activity.categoryName}</small>
-                </span>
-              </button>
-            )}
-          </ResultSection>
+          {!eventsOnlySearch && (
+            <ResultSection
+              title='Activities'
+              icon={<Sparkles size={17} />}
+              items={results.activities}
+            >
+              {(activity) => (
+                <button
+                  type='button'
+                  className='search-results__card'
+                  key={`activity-${activity.id}`}
+                  onClick={() => navigate('/app/quick-match')}
+                >
+                  <span className='search-results__icon'>AC</span>
+                  <span className='search-results__content'>
+                    <strong>{activity.displayName}</strong>
+                    <small>{activity.categoryName}</small>
+                  </span>
+                </button>
+              )}
+            </ResultSection>
+          )}
 
-          <ResultSection
-            title='Interests'
-            icon={<Hash size={17} />}
-            items={results.interests}
-          >
-            {(interest) => (
-              <article
-                className='search-results__card'
-                key={`interest-${interest.id}`}
-              >
-                <span className='search-results__icon'>#</span>
-                <span className='search-results__content'>
-                  <strong>{interest.name}</strong>
-                  <small>
-                    {interest.category || 'Interest'} - {interest.count} people
-                  </small>
-                </span>
-              </article>
-            )}
-          </ResultSection>
+          {!eventsOnlySearch && (
+            <ResultSection
+              title='Interests'
+              icon={<Hash size={17} />}
+              items={results.interests}
+            >
+              {(interest) => (
+                <article
+                  className='search-results__card'
+                  key={`interest-${interest.id}`}
+                >
+                  <span className='search-results__icon'>#</span>
+                  <span className='search-results__content'>
+                    <strong>{interest.name}</strong>
+                    <small>
+                      {interest.category || 'Interest'} - {interest.count} people
+                    </small>
+                  </span>
+                </article>
+              )}
+            </ResultSection>
+          )}
         </div>
       )}
     </main>
@@ -287,12 +295,12 @@ function ResultSection({ title, icon, items, children }) {
   );
 }
 
-function normalizeResults(body) {
+function normalizeResults(body, eventsOnlySearch) {
   return {
-    people: Array.isArray(body.people) ? body.people : [],
+    people: !eventsOnlySearch && Array.isArray(body.people) ? body.people : [],
     events: Array.isArray(body.events) ? body.events : [],
-    activities: Array.isArray(body.activities) ? body.activities : [],
-    interests: Array.isArray(body.interests) ? body.interests : [],
+    activities: !eventsOnlySearch && Array.isArray(body.activities) ? body.activities : [],
+    interests: !eventsOnlySearch && Array.isArray(body.interests) ? body.interests : [],
   };
 }
 

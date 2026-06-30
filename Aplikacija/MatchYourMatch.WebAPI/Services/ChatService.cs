@@ -39,6 +39,10 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(m => m.DeletedForUsers)
                 .Where(c =>
                     !c.IsGroup &&
+                    c.UserA != null &&
+                    c.UserA.Role == "User" &&
+                    c.UserB != null &&
+                    c.UserB.Role == "User" &&
                     ((c.UserAId == userId && !c.IsHiddenForUserA) ||
                      (c.UserBId == userId && !c.IsHiddenForUserB)))
                 .ToListAsync();
@@ -52,7 +56,9 @@ namespace MatchYourMatch.WebAPI.Services
                     .ThenInclude(m => m.Sender)
                 .Include(c => c.Messages)
                     .ThenInclude(m => m.DeletedForUsers)
-                .Where(c => c.IsGroup && c.Members.Any(member => member.UserId == userId && member.LeftAt == null && !member.IsHidden))
+                .Where(c => c.IsGroup &&
+                    c.Members.Any(member => member.UserId == userId && member.LeftAt == null && !member.IsHidden) &&
+                    c.Members.All(member => member.LeftAt != null || (member.User != null && member.User.Role == "User")))
                 .ToListAsync();
 
             return privateConversations
@@ -96,8 +102,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (otherUser == null)
                 throw new KeyNotFoundException("User does not exist.");
 
-            if (!IsUserOrOrganizer(otherUser))
-                throw new UnauthorizedAccessException("You can only message user or organizer accounts.");
+            if (!IsRegularUser(otherUser))
+                throw new UnauthorizedAccessException("Private chat is available only between regular user accounts.");
             if (!await CanContactAsync(userId, otherUserId))
                 throw new UnauthorizedAccessException("This user does not accept messages from you.");
 
@@ -165,8 +171,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (users.Count != memberIds.Count)
                 throw new KeyNotFoundException("One or more selected users do not exist.");
 
-            if (users.Any(user => !IsUserOrOrganizer(user)))
-                throw new UnauthorizedAccessException("Groups can include only user or organizer accounts.");
+            if (users.Any(user => !IsRegularUser(user)))
+                throw new UnauthorizedAccessException("Groups can include only regular user accounts.");
             foreach (var memberId in memberIds)
                 if (!await CanAddToGroupAsync(userId, memberId))
                     throw new UnauthorizedAccessException("One or more users do not accept group chat invitations from you.");
@@ -307,8 +313,8 @@ namespace MatchYourMatch.WebAPI.Services
                 if (receiver == null)
                     throw new KeyNotFoundException("Receiver does not exist.");
 
-                if (!IsUserOrOrganizer(receiver))
-                    throw new UnauthorizedAccessException("You can only message user or organizer accounts.");
+                if (!IsRegularUser(receiver))
+                    throw new UnauthorizedAccessException("Private chat is available only between regular user accounts.");
                 if (!await CanContactAsync(userId, receiverId!.Value))
                     throw new UnauthorizedAccessException("This user does not accept messages from you, or one of you blocked the other.");
             }
@@ -419,6 +425,8 @@ namespace MatchYourMatch.WebAPI.Services
 
         private async Task<bool> CanContactAsync(int senderId, int receiverId)
         {
+            if (!await IsRegularUserAsync(senderId) || !await IsRegularUserAsync(receiverId))
+                return false;
             if (await _context.BlockedUsers.AnyAsync(x =>
                 (x.BlockerUserId == senderId && x.BlockedUserId == receiverId) ||
                 (x.BlockerUserId == receiverId && x.BlockedUserId == senderId))) return false;
@@ -433,6 +441,8 @@ namespace MatchYourMatch.WebAPI.Services
 
         private async Task<bool> CanAddToGroupAsync(int inviterId, int inviteeId)
         {
+            if (!await IsRegularUserAsync(inviterId) || !await IsRegularUserAsync(inviteeId))
+                return false;
             if (await _context.BlockedUsers.AnyAsync(x =>
                 (x.BlockerUserId == inviterId && x.BlockedUserId == inviteeId) ||
                 (x.BlockerUserId == inviteeId && x.BlockedUserId == inviterId))) return false;
@@ -697,14 +707,17 @@ namespace MatchYourMatch.WebAPI.Services
             if (user == null)
                 throw new KeyNotFoundException("User does not exist.");
 
-            if (!IsUserOrOrganizer(user))
-                throw new UnauthorizedAccessException("Only user and organizer accounts can send messages.");
+            if (!IsRegularUser(user))
+                throw new UnauthorizedAccessException("Private chat is available only to regular user accounts.");
         }
 
         private async Task<ChatConversation> GetConversationForUser(int conversationId, int userId)
         {
             var conversation = await _context.ChatConversations
+                .Include(c => c.UserA)
+                .Include(c => c.UserB)
                 .Include(c => c.Members)
+                    .ThenInclude(m => m.User)
                 .FirstOrDefaultAsync(c =>
                     c.Id == conversationId &&
                     ((!c.IsGroup && (c.UserAId == userId || c.UserBId == userId)) ||
@@ -712,6 +725,9 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (conversation == null)
                 throw new UnauthorizedAccessException("Conversation is not available.");
+
+            if (!CanOpenPrivateChatConversation(conversation))
+                throw new UnauthorizedAccessException("Private chat is available only between regular user accounts.");
 
             return conversation;
         }
@@ -782,10 +798,24 @@ namespace MatchYourMatch.WebAPI.Services
             return message;
         }
 
-        private static bool IsUserOrOrganizer(User user)
+        private static bool IsRegularUser(User user)
         {
-            return string.Equals(user.Role, "User", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(user.Role, "Organizer", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(user.Role, "User", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<bool> IsRegularUserAsync(int userId)
+        {
+            return await _context.Users.AsNoTracking()
+                .AnyAsync(user => user.Id == userId && user.IsActive && user.Role == "User");
+        }
+
+        private static bool CanOpenPrivateChatConversation(ChatConversation conversation)
+        {
+            if (!conversation.IsGroup)
+                return conversation.UserA?.Role == "User" && conversation.UserB?.Role == "User";
+            return conversation.Members
+                .Where(member => member.LeftAt == null)
+                .All(member => member.User?.Role == "User");
         }
 
         private static void SetHiddenForUser(ChatConversation conversation, int userId, bool isHidden)

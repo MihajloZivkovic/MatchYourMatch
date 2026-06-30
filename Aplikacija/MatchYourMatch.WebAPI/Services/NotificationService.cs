@@ -19,6 +19,9 @@ namespace MatchYourMatch.WebAPI.Services
             if (actorUserId == userId)
                 return;
 
+            if (await IsOrganizerAsync(userId) && !IsOrganizerNotificationAllowed(type))
+                return;
+
             var settings = await _context.UserAppSettings.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
             if (settings != null && !ShouldSend(settings, type))
                 return;
@@ -61,13 +64,41 @@ namespace MatchYourMatch.WebAPI.Services
             _ => true
         };
 
+        private static readonly string[] OrganizerNotificationTypes =
+        {
+            "EventJoinRequest",
+            "EventParticipantJoined",
+            "EventCapacityReached",
+            "EventDiscussionReply",
+            "EventUpdated",
+            "EventCancelled"
+        };
+
+        private static bool IsOrganizerNotificationAllowed(string type) =>
+            OrganizerNotificationTypes.Contains(type);
+
+        private async Task<bool> IsOrganizerAsync(int userId)
+        {
+            var role = await _context.Users.AsNoTracking()
+                .Where(user => user.Id == userId)
+                .Select(user => user.Role)
+                .FirstOrDefaultAsync();
+            return string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase);
+        }
+
         public async Task<List<NotificationDto>> GetNotificationsForUserAsync(int userId, int limit = 50)
         {
-            var notifications = await _context.Notifications
+            var organizerOnly = await IsOrganizerAsync(userId);
+            var query = _context.Notifications
                 .AsNoTracking()
                 .Include(n => n.ActorUser)
                     .ThenInclude(u => u!.Profile)
-                .Where(n => n.UserId == userId)
+                .Where(n => n.UserId == userId);
+
+            if (organizerOnly)
+                query = query.Where(n => OrganizerNotificationTypes.Contains(n.Type));
+
+            var notifications = await query
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(Math.Clamp(limit, 1, 50))
                 .ToListAsync();
@@ -164,8 +195,13 @@ namespace MatchYourMatch.WebAPI.Services
             }).ToList();
         }
 
-        public Task<int> GetUnreadCountAsync(int userId) =>
-            _context.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
+        public async Task<int> GetUnreadCountAsync(int userId)
+        {
+            var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsRead);
+            if (await IsOrganizerAsync(userId))
+                query = query.Where(n => OrganizerNotificationTypes.Contains(n.Type));
+            return await query.CountAsync();
+        }
 
         public async Task<bool> MarkAsReadAsync(int userId, int notificationId)
         {
@@ -185,8 +221,10 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task MarkAllAsReadAsync(int userId)
         {
             var now = DateTime.UtcNow;
-            await _context.Notifications
-                .Where(n => n.UserId == userId && !n.IsRead)
+            var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsRead);
+            if (await IsOrganizerAsync(userId))
+                query = query.Where(n => OrganizerNotificationTypes.Contains(n.Type));
+            await query
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(n => n.IsRead, true)
                     .SetProperty(n => n.ReadAt, now));

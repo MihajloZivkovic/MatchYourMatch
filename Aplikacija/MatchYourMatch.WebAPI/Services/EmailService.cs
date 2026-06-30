@@ -26,6 +26,17 @@ namespace MatchYourMatch.WebAPI.Services
             $"<h2>Verify your email</h2><p>Your verification code is:</p><h1 style='letter-spacing:6px'>{code}</h1><p>The code expires in 15 minutes.</p>",
             $"Email verification code: {code}");
 
+        public Task SendEventReminderAsync(string email, string eventTitle, DateTime startsAt, string location) => SendAsync(
+            email,
+            $"Reminder: {eventTitle} is tomorrow",
+            $"""
+            <h2>Event reminder</h2>
+            <p><strong>{System.Net.WebUtility.HtmlEncode(eventTitle)}</strong> starts at {startsAt:yyyy-MM-dd HH:mm}.</p>
+            <p>Location: {System.Net.WebUtility.HtmlEncode(location)}</p>
+            <p>Open MYM to view the event details.</p>
+            """,
+            $"Reminder: {eventTitle} starts at {startsAt:yyyy-MM-dd HH:mm}. Location: {location}. Open MYM to view the event details.");
+
         private async Task SendAsync(string email, string subject, string html, string developmentMessage)
         {
             var apiKey = Environment.GetEnvironmentVariable("API_KEY");

@@ -11,6 +11,7 @@ namespace MatchYourMatch.WebAPI.Models
         public string? ContentType { get; set; }
         public long Size { get; set; }
         public string? StoragePath { get; set; }
+        public byte[]? Content { get; set; }
         public string? Provider { get; set; }
         public string? ProviderMediaId { get; set; }
         public string? OriginalUrl { get; set; }
