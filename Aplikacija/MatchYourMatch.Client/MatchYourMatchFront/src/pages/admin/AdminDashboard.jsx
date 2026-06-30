@@ -64,6 +64,7 @@ function AdminDashboard() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmError, setConfirmError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [adminStatus, setAdminStatus] = useState(readJwtPayload()?.role || 'User');
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -390,10 +391,12 @@ function AdminDashboard() {
         await adminService.demoteToUser(confirmAction.target.id);
         await loadUsers();
         setNotice(t('admin.notices.userDemoted', { username: confirmAction.target.username }));
+        setAdminStatus('User');
       }else if (confirmAction.type === 'promoteToAdmin') {
         await adminService.promoteToAdmin(confirmAction.target.id);
         await loadUsers();
         setNotice(t('admin.notices.userPromoted', { username: confirmAction.target.username }));
+        setAdminStatus('Admin');
       }
       setConfirmAction(null);
     } catch (error) {
@@ -609,6 +612,8 @@ function AdminDashboard() {
         onClose={() => setSelectedUser(null)}
         onAction={requestUserAction}
         t={t}
+        role={adminStatus}
+        promoteButtonText={adminStatus === 'Admin' ? t('admin.actions.demote') : t('admin.actions.promote')}
       />
 
       <ConfirmModal
@@ -994,10 +999,16 @@ function AdminReportsPanel({
   );
 }
 
-function UserDetailsModal({ user, currentAdminId, onClose, onAction, t }) {
-  if (!user) return null;
 
+
+function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText }) {
+  
   const self = isSelfUser(user, currentAdminId);
+  const [action, setAction] = useState("");
+  useEffect(() => {
+  promoteButtonText === "Promote to admin" ? setAction('promoteToAdmin') : setAction('demoteToUser');
+  }, [promoteButtonText]);
+  if (!user) return null;
 
   return (
     <div className='admin-modal' role='presentation' onMouseDown={onClose}>
@@ -1028,7 +1039,7 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t }) {
           </div>
           <div>
             <dt>{t('admin.table.role')}</dt>
-            <dd>{user.role || t('profileUi.notSet')}</dd>
+            <dd>{role || t('profileUi.notSet')}</dd>
           </div>
           <div>
             <dt>{t('admin.table.status')}</dt>
@@ -1050,14 +1061,14 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t }) {
         {self && <p className='admin-modal__warning'>{t('admin.users.selfActionDisabled')}</p>}
         <div className='admin-row-actions admin-modal__actions'>
           {user.role === 'Admin' ? (
-            <button type='button' onClick={() => onAction('demoteToUser', user)} disabled={self}>
+            <button type='button' onClick={() => onAction(action, user)} disabled={self}>
               <UserX size={15} aria-hidden='true' />
-              {t('admin.actions.demote')}
+              {promoteButtonText}
             </button>
           ) : user.role === 'User' ?(
-            <button type='button' onClick={() => onAction('promoteToAdmin', user)} disabled={self}>
+            <button type='button' onClick={() => onAction(action, user)} disabled={self}>
               <UserCheck size={15} aria-hidden='true' />
-              {t('admin.actions.promote')}
+              {promoteButtonText}
             </button>
           ) : null}
 
