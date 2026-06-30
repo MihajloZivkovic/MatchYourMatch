@@ -4,7 +4,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import UserAvatar from './UserAvatar';
 import EventSaveButton from './events/EventSaveButton';
 
-function EventCard({ event, style, mini = false, guestMode = false, onJoin, onLeave, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
+function EventCard({ event, style, mini = false, guestMode = false, organizerMode = false, onJoin, onLeave, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
   const { t } = useTranslation();
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const {
@@ -136,7 +136,8 @@ function EventCard({ event, style, mini = false, guestMode = false, onJoin, onLe
                 {t('events.leave').toUpperCase()}
               </button>
             )
-          ) : <button
+          ) : organizerMode ? <span className="event-card__desc">{t('events.joinOrganizer')}</span> 
+          : <button
             type="button"
             className={`event-card__join${isJoinedByCurrentUser ? ' event-card__join--joined' : ''}`}
             onClick={(clickEvent) => {
@@ -148,8 +149,8 @@ function EventCard({ event, style, mini = false, guestMode = false, onJoin, onLe
             {isJoinedByCurrentUser
               ? t('events.joined').toUpperCase()
               : joinRequestStatus === 'Pending'
-                ? t('events.requestPending').toUpperCase()
-                : t('events.join').toUpperCase()}
+               ? t('events.requestPending').toUpperCase()
+               : t('events.join').toUpperCase()}
           </button>}
           {!guestMode && joinRequestStatus === 'Pending' && onCancelJoinRequest && (
             <button type="button" className="event-card__cancel-request"
