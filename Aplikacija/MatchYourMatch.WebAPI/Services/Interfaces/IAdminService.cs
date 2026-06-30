@@ -9,5 +9,7 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task ActivateUserAsync(int userId);
         Task DeleteUserAsync(int userId);
         Task DeleteEventAsync(int eventId);
+        Task DemoteToUserAsync(int userId);
+        Task PromoteToAdminAsync(int userId);
     }
 }

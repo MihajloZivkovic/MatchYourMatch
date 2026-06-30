@@ -44,6 +44,21 @@ export const adminService = {
     return readResponse(response, 'User could not be deleted.');
   },
 
+  async demoteToUser(userId) {
+    const response = await fetch(`/api/Admin/users/demote/${userId}`, {
+      headers: authHeaders(),
+    });
+    return readResponse(response, 'User could not be demoted.');
+  },
+
+  async promoteToAdmin(userId) {
+    const response = await fetch(`/api/Admin/users/promote/${userId}`, {
+      headers: authHeaders(),
+    });
+    console.log(response);
+    return readResponse(response, 'User could not be promoted.');
+  },
+
   async events() {
     const response = await fetch('/api/Events?includePast=true', {
       headers: authHeaders(),

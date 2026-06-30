@@ -89,5 +89,35 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("users/demote/{userId}")]
+        public async Task<IActionResult> DemoteToUser(int userId)
+        {
+            try
+            {
+                await _service.DemoteToUserAsync(userId);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("users/promote/{userId}")]
+        public async Task<IActionResult> PromoteToAdmin(int userId)
+        {
+            try
+            {
+                await _service.PromoteToAdminAsync(userId);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

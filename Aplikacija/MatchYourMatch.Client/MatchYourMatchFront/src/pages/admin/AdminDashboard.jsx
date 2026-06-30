@@ -303,6 +303,16 @@ function AdminDashboard() {
         message: t('admin.confirm.deleteUserMessage', { username: user.username }),
         confirmText: t('admin.actions.deleteUser'),
       },
+      demoteToUser: {
+        title: t('admin.confirm.demoteTitle'),
+        message: t('admin.confirm.demoteMessage', { username: user.username }),
+        confirmText: t('admin.actions.demote'),
+      },
+      promoteToAdmin: {
+        title: t('admin.confirm.promoteTitle'),
+        message: t('admin.confirm.promoteMessage', { username: user.username }),
+        confirmText: t('admin.actions.promote'),
+      },
     };
     setConfirmError('');
     setConfirmAction({ type, target: user, ...copy[type] });
@@ -376,6 +386,14 @@ function AdminDashboard() {
         await loadReports();
         await loadUnreadNotifications();
         setNotice(t('admin.notices.reportedUserBanned', { username: confirmAction.target.reportedUsername }));
+      }else if (confirmAction.type === 'demoteToUser') {
+        await adminService.demoteToUser(confirmAction.target.id);
+        await loadUsers();
+        setNotice(t('admin.notices.userDemoted', { username: confirmAction.target.username }));
+      }else if (confirmAction.type === 'promoteToAdmin') {
+        await adminService.promoteToAdmin(confirmAction.target.id);
+        await loadUsers();
+        setNotice(t('admin.notices.userPromoted', { username: confirmAction.target.username }));
       }
       setConfirmAction(null);
     } catch (error) {
@@ -1031,6 +1049,18 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t }) {
         </dl>
         {self && <p className='admin-modal__warning'>{t('admin.users.selfActionDisabled')}</p>}
         <div className='admin-row-actions admin-modal__actions'>
+          {user.role === 'Admin' ? (
+            <button type='button' onClick={() => onAction('demoteToUser', user)} disabled={self}>
+              <UserX size={15} aria-hidden='true' />
+              {t('admin.actions.demote')}
+            </button>
+          ) : user.role === 'User' ?(
+            <button type='button' onClick={() => onAction('promoteToAdmin', user)} disabled={self}>
+              <UserCheck size={15} aria-hidden='true' />
+              {t('admin.actions.promote')}
+            </button>
+          ) : null}
+
           {user.isActive ? (
             <button type='button' onClick={() => onAction('deactivate', user)} disabled={self}>
               <UserX size={15} aria-hidden='true' />
