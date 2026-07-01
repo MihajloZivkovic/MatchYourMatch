@@ -207,10 +207,14 @@ namespace MatchYourMatch.WebAPI.Controllers
 
         private static string? NormalizeAdminReportStatus(string? status)
         {
-            if (status == null) return null;
-            if (status.Equals("Reviewed", StringComparison.OrdinalIgnoreCase)) return "Reviewed";
-            if (status.Equals("Dismissed", StringComparison.OrdinalIgnoreCase)) return "Dismissed";
-            if (status.Equals("Action taken", StringComparison.OrdinalIgnoreCase)) return "Action taken";
+            if (status == null) 
+                return null;
+            if (status.Equals("Reviewed", StringComparison.OrdinalIgnoreCase)) 
+                return "Reviewed";
+            if (status.Equals("Dismissed", StringComparison.OrdinalIgnoreCase)) 
+                return "Dismissed";
+            if (status.Equals("Action taken", StringComparison.OrdinalIgnoreCase)) 
+                return "Action taken";
             return null;
         }
     }

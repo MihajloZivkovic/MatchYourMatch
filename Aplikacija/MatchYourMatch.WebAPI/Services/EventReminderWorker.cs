@@ -6,12 +6,10 @@ namespace MatchYourMatch.WebAPI.Services
     {
         private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(1);
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<EventReminderWorker> _logger;
 
-        public EventReminderWorker(IServiceScopeFactory scopeFactory, ILogger<EventReminderWorker> logger)
+        public EventReminderWorker(IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
-            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -27,10 +25,6 @@ namespace MatchYourMatch.WebAPI.Services
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
                     return;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Event reminder worker failed while processing due reminders.");
                 }
 
                 await Task.Delay(PollInterval, stoppingToken);

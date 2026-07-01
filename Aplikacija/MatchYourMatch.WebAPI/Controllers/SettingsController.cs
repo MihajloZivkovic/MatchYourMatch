@@ -12,7 +12,8 @@ namespace MatchYourMatch.WebAPI.Controllers
     public class SettingsController : ControllerBase
     {
         private readonly AppDbContext _context;
-        public SettingsController(AppDbContext context) => _context = context;
+        public SettingsController(AppDbContext context) 
+            => _context = context;
 
         [HttpGet("me")]
         public async Task<ActionResult<UserAppSettingsDto>> Get()
@@ -60,10 +61,19 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available.");
             return Ok(await SafetyList(_context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId()).Select(x => x.BlockedUserId)));
         }
+
         [HttpPost("blocked-users/{userId:int}")]
-        public async Task<IActionResult> Block(int userId) => await AddSafety(userId, true);
+        public async Task<IActionResult> Block(int userId) 
+            => await AddSafety(userId, true);
+
         [HttpDelete("blocked-users/{userId:int}")]
-        public async Task<IActionResult> Unblock(int userId) { if (IsOrganizer()) return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available."); await _context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId() && x.BlockedUserId == userId).ExecuteDeleteAsync(); return NoContent(); }
+        public async Task<IActionResult> Unblock(int userId) 
+        { 
+            if (IsOrganizer()) 
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available."); 
+            await _context.BlockedUsers.Where(x => x.BlockerUserId == CurrentUserId() && x.BlockedUserId == userId).ExecuteDeleteAsync(); 
+            return NoContent(); 
+        }
 
         [HttpGet("hidden-profiles")]
         public async Task<ActionResult<List<SafetyUserDto>>> Hidden()
@@ -72,22 +82,37 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available.");
             return Ok(await SafetyList(_context.HiddenProfiles.Where(x => x.UserId == CurrentUserId()).Select(x => x.HiddenUserId)));
         }
+
         [HttpPost("hidden-profiles/{userId:int}")]
-        public async Task<IActionResult> Hide(int userId) => await AddSafety(userId, false);
+        public async Task<IActionResult> Hide(int userId) 
+            => await AddSafety(userId, false);
+
         [HttpDelete("hidden-profiles/{userId:int}")]
-        public async Task<IActionResult> Unhide(int userId) { if (IsOrganizer()) return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available."); await _context.HiddenProfiles.Where(x => x.UserId == CurrentUserId() && x.HiddenUserId == userId).ExecuteDeleteAsync(); return NoContent(); }
+        public async Task<IActionResult> Unhide(int userId) 
+        { 
+            if (IsOrganizer()) 
+                return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available."); 
+            await _context.HiddenProfiles.Where(x => x.UserId == CurrentUserId() && x.HiddenUserId == userId).ExecuteDeleteAsync(); 
+            return NoContent(); 
+        }
 
         private async Task<IActionResult> AddSafety(int targetId, bool block)
         {
             if (IsOrganizer())
                 return StatusCode(StatusCodes.Status403Forbidden, "Organizer safety settings are not available.");
             var me = CurrentUserId();
-            if (targetId == me || !await _context.Users.AnyAsync(u => u.Id == targetId && u.IsActive)) return BadRequest();
+
+            if (targetId == me || !await _context.Users.AnyAsync(u => u.Id == targetId && u.IsActive)) 
+                return BadRequest();
+
             if (block && !await _context.BlockedUsers.AnyAsync(x => x.BlockerUserId == me && x.BlockedUserId == targetId))
                 _context.BlockedUsers.Add(new BlockedUser { BlockerUserId = me, BlockedUserId = targetId });
+
             if (!block && !await _context.HiddenProfiles.AnyAsync(x => x.UserId == me && x.HiddenUserId == targetId))
                 _context.HiddenProfiles.Add(new HiddenProfile { UserId = me, HiddenUserId = targetId });
-            await _context.SaveChangesAsync(); return NoContent();
+
+            await _context.SaveChangesAsync(); 
+            return NoContent();
         }
 
         private async Task<List<SafetyUserDto>> SafetyList(IQueryable<int> ids) => await _context.Users.AsNoTracking()
@@ -98,14 +123,37 @@ namespace MatchYourMatch.WebAPI.Controllers
             if (value != null) return value;
             value = new UserAppSettings { UserId = userId }; _context.UserAppSettings.Add(value); await _context.SaveChangesAsync(); return value;
         }
-        private static string Normalize(string value, params string[] allowed) => allowed.Contains(value) ? value : allowed[0];
-        private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        private bool IsOrganizer() => string.Equals(User.FindFirstValue(ClaimTypes.Role), "Organizer", StringComparison.OrdinalIgnoreCase);
-        private static UserAppSettingsDto Map(UserAppSettings x) => new() {
-            MaximumDistanceKm=x.MaximumDistanceKm, ShowMeInQuickMatch=x.ShowMeInQuickMatch, ShowMeInDeepMatch=x.ShowMeInDeepMatch, PreferPeopleNearby=x.PreferPeopleNearby,
-            MinAge=x.MinAge, MaxAge=x.MaxAge, WhoCanMessageMe=x.WhoCanMessageMe, AllowEventInvitesFrom=x.AllowEventInvitesFrom, AllowGroupChatInvitesFrom=x.AllowGroupChatInvitesFrom,
-            NotifyEventInvites=x.NotifyEventInvites, NotifyNewFollowers=x.NotifyNewFollowers, NotifyQuickMatches=x.NotifyQuickMatches, NotifyChatMessages=x.NotifyChatMessages,
-            NotifyGroupMessages=x.NotifyGroupMessages, NotifyEventDiscussionReplies=x.NotifyEventDiscussionReplies, NotifyNewEventNearby=x.NotifyNewEventNearby,
-            NotifyEventStartingSoon=x.NotifyEventStartingSoon, NotifyNewMatchNearby=x.NotifyNewMatchNearby };
+
+        private static string Normalize(string value, params string[] allowed) 
+            => allowed.Contains(value) ? value : allowed[0];
+
+        private int CurrentUserId() 
+            => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        private bool IsOrganizer() 
+            => string.Equals(User.FindFirstValue(ClaimTypes.Role), "Organizer", StringComparison.OrdinalIgnoreCase);
+        
+        private static UserAppSettingsDto Map(UserAppSettings x) 
+            => new() 
+            {
+                MaximumDistanceKm=x.MaximumDistanceKm, 
+                ShowMeInQuickMatch=x.ShowMeInQuickMatch, 
+                ShowMeInDeepMatch=x.ShowMeInDeepMatch, 
+                PreferPeopleNearby=x.PreferPeopleNearby,
+                MinAge=x.MinAge, 
+                MaxAge=x.MaxAge, 
+                WhoCanMessageMe=x.WhoCanMessageMe, 
+                AllowEventInvitesFrom=x.AllowEventInvitesFrom, 
+                AllowGroupChatInvitesFrom=x.AllowGroupChatInvitesFrom,
+                NotifyEventInvites=x.NotifyEventInvites, 
+                NotifyNewFollowers=x.NotifyNewFollowers, 
+                NotifyQuickMatches=x.NotifyQuickMatches, 
+                NotifyChatMessages=x.NotifyChatMessages,
+                NotifyGroupMessages=x.NotifyGroupMessages, 
+                NotifyEventDiscussionReplies=x.NotifyEventDiscussionReplies, 
+                NotifyNewEventNearby=x.NotifyNewEventNearby,
+                NotifyEventStartingSoon=x.NotifyEventStartingSoon, 
+                NotifyNewMatchNearby=x.NotifyNewMatchNearby 
+            };
     }
 }

@@ -24,23 +24,32 @@ namespace MatchYourMatch.WebAPI.Services
 
             var eventItem = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId)
                 ?? throw new KeyNotFoundException("Event does not exist.");
+
             var inviter = await _context.Users.FirstOrDefaultAsync(u => u.Id == inviterUserId && u.IsActive)
                 ?? throw new KeyNotFoundException("Inviter does not exist.");
+
             if (!CanUseUserEventInvites(inviter.Role))
                 throw new UnauthorizedAccessException("Only user and organizer accounts can invite people.");
+
             if (!await _context.EventParticipants.AnyAsync(p => p.EventId == eventId && p.UserId == inviterUserId))
                 throw new UnauthorizedAccessException("Join the event before inviting people.");
+
             var invitee = await _context.Users.FirstOrDefaultAsync(u => u.Id == inviteeUserId && u.IsActive)
                 ?? throw new KeyNotFoundException("User does not exist.");
+
             if (await _context.EventParticipants.AnyAsync(p => p.EventId == eventId && p.UserId == inviteeUserId))
                 throw new InvalidOperationException("This user already joined the event.");
+
             var inviteSetting = await _context.UserAppSettings.Where(x => x.UserId == inviteeUserId)
                 .Select(x => x.AllowEventInvitesFrom).FirstOrDefaultAsync() ?? "PeopleIFollow";
+
             var allowed = inviteSetting == "Everyone" ||
                 (inviteSetting == "PeopleIFollow" && await _context.Follows.AnyAsync(f => f.FollowerId == inviteeUserId && f.FollowingId == inviterUserId)) ||
                 (inviteSetting == "MatchesOnly" && await _context.UserMatches.AnyAsync(m => m.IsActive && m.Source == "QuickMatch" &&
                     ((m.UserAId == inviterUserId && m.UserBId == inviteeUserId) || (m.UserBId == inviterUserId && m.UserAId == inviteeUserId))));
-            if (!allowed) throw new UnauthorizedAccessException("This user does not accept event invites from you.");
+            if (!allowed) 
+                throw new UnauthorizedAccessException("This user does not accept event invites from you.");
+
             if (await _context.EventInvites.AnyAsync(i => i.EventId == eventId &&
                 i.InviteeUserId == inviteeUserId && i.Status == "Pending"))
                 throw new InvalidOperationException("This user already has a pending invitation.");
@@ -132,8 +141,10 @@ namespace MatchYourMatch.WebAPI.Services
                 string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase);
         }
 
-        public Task<EventInviteDto> AcceptAsync(int inviteId, int userId) => RespondAsync(inviteId, userId, true);
-        public Task<EventInviteDto> DeclineAsync(int inviteId, int userId) => RespondAsync(inviteId, userId, false);
+        public Task<EventInviteDto> AcceptAsync(int inviteId, int userId) 
+            => RespondAsync(inviteId, userId, true);
+        public Task<EventInviteDto> DeclineAsync(int inviteId, int userId) 
+            => RespondAsync(inviteId, userId, false);
 
         private async Task<EventInviteDto> RespondAsync(int inviteId, int userId, bool accept)
         {

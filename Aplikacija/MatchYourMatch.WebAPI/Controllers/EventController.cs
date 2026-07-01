@@ -82,16 +82,29 @@ namespace MatchYourMatch.WebAPI.Controllers
         [HttpPost("{id:int}/save")]
         public async Task<IActionResult> SaveEvent(int id)
         {
-            try { return Ok(await _service.SaveEventAsync(id, CurrentUserId())); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            try 
+            { 
+                return Ok(await _service.SaveEventAsync(id, CurrentUserId())); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
         }
 
         [Authorize]
         [HttpDelete("{id:int}/save")]
         public async Task<IActionResult> UnsaveEvent(int id)
         {
-            try { await _service.UnsaveEventAsync(id, CurrentUserId()); return NoContent(); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            try 
+            { 
+                await _service.UnsaveEventAsync(id, CurrentUserId()); 
+                return NoContent(); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
         }
 
         [Authorize]
@@ -107,7 +120,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var e = await _service.GetByIdAsync(id, userId);
                 return Ok(e);
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
@@ -118,9 +134,18 @@ namespace MatchYourMatch.WebAPI.Controllers
         [HttpGet("{id:int}/edit")]
         public async Task<IActionResult> GetForEdit(int id)
         {
-            try { return Ok(await _service.GetForEditAsync(id, int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value))); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            try 
+            { 
+                return Ok(await _service.GetForEditAsync(id, int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value))); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
         }
 
         [Authorize]
@@ -135,7 +160,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var e = await _service.CreateAsync(userId, dto);
                 return Ok(e);
             }
-            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message); 
+            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
@@ -154,9 +182,18 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var e = await _service.JoinAsync(id, userId);
                 return Ok(e);
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize]
@@ -169,26 +206,50 @@ namespace MatchYourMatch.WebAPI.Controllers
                     return StatusCode(StatusCodes.Status403Forbidden, "Create an account to manage event participation.");
                 return Ok(await _service.LeaveAsync(id, CurrentUserId()));
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize]
         [HttpDelete("{id:int}/join-request")]
         public async Task<IActionResult> CancelJoinRequest(int id)
         {
-            try { return Ok(await _service.CancelJoinRequestAsync(id, CurrentUserId())); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            try 
+            { 
+                return Ok(await _service.CancelJoinRequestAsync(id, CurrentUserId())); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
         }
 
         [Authorize]
         [HttpGet("{id:int}/join-requests")]
         public async Task<IActionResult> GetJoinRequests(int id)
         {
-            try { return Ok(await _service.GetJoinRequestsAsync(id, CurrentUserId())); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
+            try 
+            { 
+                return Ok(await _service.GetJoinRequestsAsync(id, CurrentUserId())); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message); 
+            }
         }
 
         [Authorize]
@@ -215,9 +276,18 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 return Ok(await invites.CreateAsync(id, userId, dto.InviteeUserId));
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize]
@@ -230,8 +300,14 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 return Ok(await invites.SearchCandidatesAsync(id, userId, query));
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
         }
 
         [Authorize]
@@ -331,20 +407,44 @@ namespace MatchYourMatch.WebAPI.Controllers
         [RequestSizeLimit(10 * 1024 * 1024 + 64 * 1024)]
         public async Task<IActionResult> AddDiscussionAttachment(int id, [FromForm] IFormFile file, [FromForm] string? body, CancellationToken cancellationToken)
         {
-            try { return Ok(await _service.AddDiscussionAttachmentAsync(id, GetCurrentUserId(), body, file, cancellationToken)); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            try 
+            { 
+                return Ok(await _service.AddDiscussionAttachmentAsync(id, GetCurrentUserId(), body, file, cancellationToken)); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            {
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize]
         [HttpPost("{id:int}/discussion/gifs")]
         public async Task<IActionResult> AddDiscussionGif(int id, MatchYourMatch.WebAPI.DTOs.Chat.SendGifMessageDto dto)
         {
-            try { return Ok(await _service.AddDiscussionGifAsync(id, GetCurrentUserId(), dto)); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            try 
+            { 
+                return Ok(await _service.AddDiscussionGifAsync(id, GetCurrentUserId(), dto)); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize]
@@ -358,8 +458,14 @@ namespace MatchYourMatch.WebAPI.Controllers
                 Response.Headers.XContentTypeOptions = "nosniff";
                 return File(result.Stream, result.ContentType, result.FileName, enableRangeProcessing: true);
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
         }
 
         private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -371,9 +477,18 @@ namespace MatchYourMatch.WebAPI.Controllers
                 return Ok(await _service.RespondToJoinRequestAsync(
                     eventId, requestId, CurrentUserId(), accept));
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

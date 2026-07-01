@@ -244,20 +244,41 @@ namespace MatchYourMatch.WebAPI.Controllers
         [RequestSizeLimit(MessageAttachmentStorage.MaxFileSize + 64 * 1024)]
         public async Task<ActionResult<ChatMessageDto>> SendAttachment(int conversationId, [FromForm] IFormFile file, [FromForm] string? body, CancellationToken cancellationToken)
         {
-            try { return Ok(await _chatService.SendAttachmentAsync(GetCurrentUserId(), conversationId, body, file, cancellationToken)); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            try { 
+                return Ok(await _chatService.SendAttachmentAsync(GetCurrentUserId(), conversationId, body, file, cancellationToken)); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize(Roles = "User,Organizer")]
         [HttpPost("conversations/{conversationId:int}/gifs")]
         public async Task<ActionResult<ChatMessageDto>> SendGif(int conversationId, SendGifMessageDto request)
         {
-            try { return Ok(await _chatService.SendGifAsync(GetCurrentUserId(), conversationId, request)); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            try { 
+                return Ok(await _chatService.SendGifAsync(GetCurrentUserId(), conversationId, request)); 
+            }
+            catch (KeyNotFoundException ex) { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [HttpGet("attachments/{attachmentId:int}")]
@@ -270,8 +291,14 @@ namespace MatchYourMatch.WebAPI.Controllers
                 Response.Headers.XContentTypeOptions = "nosniff";
                 return File(result.Stream, result.ContentType, result.FileName, enableRangeProcessing: true);
             }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
         }
 
         [HttpPut("conversations/{conversationId:int}/read")]

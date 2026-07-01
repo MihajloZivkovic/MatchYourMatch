@@ -29,16 +29,29 @@ namespace MatchYourMatch.WebAPI.Controllers
 
         private async Task<IActionResult> Execute(Func<Task<UserRatingStatusDto>> action)
         {
-            try { return Ok(await action()); }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return StatusCode(403, ex.Message); }
+            try 
+            { 
+                return Ok(await action()); 
+            }
+            catch (KeyNotFoundException ex) 
+            { 
+                return NotFound(ex.Message); 
+            }
+            catch (UnauthorizedAccessException ex) 
+            { 
+                return StatusCode(403, ex.Message); 
+            }
             catch (InvalidOperationException ex) when (ex.Message.Contains("already rated", StringComparison.OrdinalIgnoreCase))
             {
                 return Conflict(ex.Message);
             }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
-        private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        private int CurrentUserId() 
+            => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 }

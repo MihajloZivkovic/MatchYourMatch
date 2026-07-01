@@ -73,7 +73,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 await _authService.VerifyEmailAsync(dto);
                 return Ok(new { message = "Email verified. You can now log in." });
             }
-            catch (Exception ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [HttpPost("resend-verification")]
@@ -84,16 +87,31 @@ namespace MatchYourMatch.WebAPI.Controllers
                 await _authService.ResendVerificationAsync(dto);
                 return Ok(new { message = "If the account exists and is unverified, a new code has been sent." });
             }
-            catch (Exception ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [HttpPost("external-login/google")]
         public async Task<IActionResult> GoogleLogin(ExternalLoginDto dto)
         {
-            try { return Ok(await _authService.GoogleLoginAsync(dto)); }
-            catch (AccountDeactivatedException ex) { return Conflict(new { requiresReactivation = true, message = ex.Message }); }
-            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
-            catch (Exception ex) { return BadRequest(ex.Message); }
+            try 
+            { 
+                return Ok(await _authService.GoogleLoginAsync(dto)); 
+            }
+            catch (AccountDeactivatedException ex) 
+            { 
+                return Conflict(new { requiresReactivation = true, message = ex.Message }); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); 
+            }
+            catch (Exception ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [HttpPost("external-login/facebook")]
@@ -105,10 +123,22 @@ namespace MatchYourMatch.WebAPI.Controllers
         [HttpPost("external-login/microsoft")]
         public async Task<IActionResult> MicrosoftLogin(ExternalLoginDto dto)
         {
-            try { return Ok(await _authService.MicrosoftLoginAsync(dto)); }
-            catch (AccountDeactivatedException ex) { return Conflict(new { requiresReactivation = true, message = ex.Message }); }
-            catch (InvalidOperationException ex) { return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); }
-            catch (Exception ex) { return BadRequest(ex.Message); }
+            try 
+            { 
+                return Ok(await _authService.MicrosoftLoginAsync(dto)); 
+            }
+            catch (AccountDeactivatedException ex) 
+            { 
+                return Conflict(new { requiresReactivation = true, message = ex.Message }); 
+            }
+            catch (InvalidOperationException ex) 
+            { 
+                return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); 
+            }
+            catch (Exception ex) 
+            { 
+                return BadRequest(ex.Message); 
+            }
         }
 
         [Authorize]
