@@ -30,6 +30,7 @@ import {
 import '../../app/app-global.css';
 import '../../app/app-polish.css';
 import './AdminDashboard.css';
+import { reportService } from '../../services/reportService';
 
 const USERS_PAGE_SIZE = 8;
 const EVENTS_PAGE_SIZE = 6;
@@ -345,6 +346,7 @@ function AdminDashboard() {
       setActionLoading(false);
     }
   };
+  console.log(reports);
 
   const requestBanReportedUser = (report) => {
     setConfirmError('');
@@ -358,6 +360,10 @@ function AdminDashboard() {
       confirmText: t('admin.actions.banReportedUser'),
     });
   };
+
+  const matchingReport = reports.find(r => r.reportedUserId === selectedUser?.id);
+  const lifetimeCount = matchingReport ? matchingReport.reportedUserLifetimeReportCount : 0;
+
 
   const runConfirmedAction = async () => {
     if (!confirmAction) return;
@@ -410,7 +416,6 @@ function AdminDashboard() {
       setActionLoading(false);
     }
   };
-
   const closeConfirm = () => {
     if (actionLoading) return;
     setConfirmAction(null);
@@ -620,6 +625,7 @@ function AdminDashboard() {
         role={adminStatus}
         promoteButtonText={selectedUser?.role === 'Admin' ? t('admin.actions.demote') : t('admin.actions.promote')}
         activityButtonText={selectedUser?.isActive === true ? t('admin.actions.deactivate') : t('admin.actions.activate')}
+        reportedCount={lifetimeCount}
       />
 
       <ConfirmModal
@@ -1007,12 +1013,10 @@ function AdminReportsPanel({
 
 
 
-function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText, activityButtonText }) {
-  console.log(user);
+function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText, activityButtonText, reportedCount }) {
   const self = isSelfUser(user, currentAdminId);
   const promoteDemoteAction = user?.role === 'Admin' ? 'demoteToUser' : 'promoteToAdmin';
   const activateDeactivateAction = user?.isActive ? 'deactivate' : 'activate';
-
   if (!user) return null;
 
   return (
@@ -1056,7 +1060,7 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, pr
           </div>
           <div>
             <dt>{t('admin.users.reportsCount')}</dt>
-            <dd>{t('admin.unavailable.long')}</dd>
+            <dd>{reportedCount !== undefined ? reportedCount : t('admin.unavailable.long')}</dd>
           </div>
         </dl>
         {self && <p className='admin-modal__warning'>{t('admin.users.selfActionDisabled')}</p>}
