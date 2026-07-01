@@ -65,8 +65,7 @@ function AdminDashboard() {
   const [confirmError, setConfirmError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [adminStatus, setAdminStatus] = useState(readJwtPayload()?.role || 'User');
-  const [activeStatus, setActiveStatus] = useState(readJwtPayload()?.isActive);
-  console.log(activeStatus);
+
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -369,13 +368,13 @@ function AdminDashboard() {
       if (confirmAction.type === 'activate') {
         await adminService.activateUser(confirmAction.target.id);
         await loadUsers();
+        setSelectedUser((current) => current?.id === confirmAction.target.id ? { ...current, isActive: true } : current);
         setNotice(t('admin.notices.userActivated', { username: confirmAction.target.username }));
-        setActiveStatus('Active');
       } else if (confirmAction.type === 'deactivate') {
         await adminService.deactivateUser(confirmAction.target.id);
         await loadUsers();
+        setSelectedUser((current) => current?.id === confirmAction.target.id ? { ...current, isActive: false } : current);
         setNotice(t('admin.notices.userDeactivated', { username: confirmAction.target.username }));
-        setActiveStatus('Inactive');
       } else if (confirmAction.type === 'deleteUser') {
         await adminService.deleteUser(confirmAction.target.id);
         await loadUsers();
@@ -394,11 +393,13 @@ function AdminDashboard() {
       }else if (confirmAction.type === 'demoteToUser') {
         await adminService.demoteToUser(confirmAction.target.id);
         await loadUsers();
+        setSelectedUser((current) => current?.id === confirmAction.target.id ? { ...current, role: 'User' } : current);
         setNotice(t('admin.notices.userDemoted', { username: confirmAction.target.username }));
         setAdminStatus('User');
       }else if (confirmAction.type === 'promoteToAdmin') {
         await adminService.promoteToAdmin(confirmAction.target.id);
         await loadUsers();
+        setSelectedUser((current) => current?.id === confirmAction.target.id ? { ...current, role: 'Admin' } : current);
         setNotice(t('admin.notices.userPromoted', { username: confirmAction.target.username }));
         setAdminStatus('Admin');
       }
@@ -617,9 +618,8 @@ function AdminDashboard() {
         onAction={requestUserAction}
         t={t}
         role={adminStatus}
-        promoteButtonText={adminStatus === 'Admin' ? t('admin.actions.demote') : t('admin.actions.promote')}
-        activity={activeStatus}
-        activityButtonText={activeStatus === "Active" ? t('admin.actions.deactivate') : t('admin.actions.activate')}
+        promoteButtonText={selectedUser?.role === 'Admin' ? t('admin.actions.demote') : t('admin.actions.promote')}
+        activityButtonText={selectedUser?.isActive === true ? t('admin.actions.deactivate') : t('admin.actions.activate')}
       />
 
       <ConfirmModal
@@ -1007,18 +1007,11 @@ function AdminReportsPanel({
 
 
 
-function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText, activity, activityButtonText }) {
-  
+function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, promoteButtonText, activityButtonText }) {
+  console.log(user);
   const self = isSelfUser(user, currentAdminId);
-  const [promoteDemoteAction, setPromoteDemoteAction] = useState("");
-  const [activateDeactivateAction, setActivateDeactivateAction] = useState("");
-  useEffect(() => {
-  promoteButtonText === "Promote to admin" || promoteButtonText === "Unapredi na admina" ? setPromoteDemoteAction('promoteToAdmin') : setPromoteDemoteAction('demoteToUser');
-  }, [promoteButtonText]);
-  useEffect(() => {
-    activityButtonText === "Activate" || activityButtonText === "Aktiviraj" ? setActivateDeactivateAction('activate') : setActivateDeactivateAction('deactivate');
-  }, [activityButtonText]);
-  console.log(activateDeactivateAction);
+  const promoteDemoteAction = user?.role === 'Admin' ? 'demoteToUser' : 'promoteToAdmin';
+  const activateDeactivateAction = user?.isActive ? 'deactivate' : 'activate';
 
   if (!user) return null;
 
@@ -1055,7 +1048,7 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, pr
           </div>
           <div>
             <dt>{t('admin.table.status')}</dt>
-            <dd>{activity || t('profileUi.notSet')}</dd>
+            <dd>{user.isActive !== undefined ? (user.isActive ? t('admin.status.active') : t('admin.status.inactive')) : t('profileUi.notSet')}</dd>
           </div>
           <div>
             <dt>{t('admin.users.joinedDate')}</dt>
@@ -1064,10 +1057,6 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, pr
           <div>
             <dt>{t('admin.users.reportsCount')}</dt>
             <dd>{t('admin.unavailable.long')}</dd>
-          </div>
-          <div>
-            <dt>{t('admin.users.profileInfo')}</dt>
-            <dd>{t('admin.users.profileInfoUnavailable')}</dd>
           </div>
         </dl>
         {self && <p className='admin-modal__warning'>{t('admin.users.selfActionDisabled')}</p>}
