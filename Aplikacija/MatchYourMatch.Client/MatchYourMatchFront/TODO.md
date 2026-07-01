@@ -1,16 +1,13 @@
-TBD - [ + ] Dodati paginaciju za deep i quick match(i svugde gde ima smisla)
-TBD - [ X ] Osposobi prikaz followera klikom na "followers" tekst u profilu(i ovde paginacija treba)
-TBD - [ + jana ce i ovo ] Osposobiti dugme "View details" na deep match-u
-TBD - [ x] Dodati opciju da se izadje iz nekog dogadjaja
-TBD - [ X ] Onemoguci da se isti time slot dva puta unese u jedan dan(ovo je malo optional tbh ako ima vreme)
-TBD - [ x, ovo je uradjeno, samo ima uslov za rejtovanje, korisnik mora da ima jedan match ili da je bio na isti event s nekog da bi mogo da ga rejtuje ] Osposobiti rejtovanje korisnika
-TBD - [ x ovo ima ] Dodati mogucnost da se promeni jezik na svakoj stranici
-TBD - [  ] Dodati mogucnost za promenu lozinke/mejla(takodje forgot password na login page)
-TBD - [ X ] ADMIN pogled
-TBD - [  ] ORGANIZATOR pogled
-mihajlo - [ X ] dodaj following dugme na profilu za pregled korisnika koje pratis
-
-
+TBD - [ ] View details kod admina neke stvari nisu povezane sa endpointima
+TBD - [ ] Hide event kod admina da se osposobi
+TBD - [ ] password check opravi
+TBD - [ ] datum prosli da se zablokira kod create event kod organizatora
+TBD - [ ] osposobiti Details kod organizatora
+TBD - [ ] account deactivated
+TBD - [ ] brisanje nekad nece
+TBD - [ ] kod eventi ukloniti type
+TBD - [ ] stagod kaze search u report
+TBD - [ ] kada korisnik pokusa da brise account "Account action could not be completed."
 
 ------------------------
 GENERALNO DOBRO(ne gleda se na odbranu)

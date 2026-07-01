@@ -24,7 +24,8 @@ function Events({ currentUser }) {
   const [page, setPage] = useState(1);
   const { t } = useTranslation();
   const isGuest = isGuestSession();
-  const canCreateEvents = !isGuest && isOrganizerSession();
+  const isOrganizer = isOrganizerSession();
+  const canCreateEvents = !isGuest && isOrganizer;
   const guestCity = getGuestCity();
   const filterLabels = { ALL: t('events.all'), NEARBY: t('events.nearby'), 'THIS WEEK': t('events.thisWeek'), STUDY: t('events.study'), GAMING: t('events.gaming'), COFFEE: t('events.coffee'), SOCIAL: t('events.social'), SPORT: t('events.sport') };
 
@@ -248,6 +249,7 @@ function Events({ currentUser }) {
                 event={event}
                 style={{ '--i': i }}
                 guestMode={isGuest}
+                organizerMode={isOrganizer}
                 onJoin={() => handleJoin(event.id)}
                 onLeave={() => handleLeave(event.id)}
                 onCancelJoinRequest={() => handleCancelJoinRequest(event.id)}
