@@ -531,10 +531,10 @@ Object.assign(translations.sr.admin.nav, {
   reports: 'Prijave',
 });
 Object.assign(translations.en.admin.search, {
-  reports: 'Reports moderation endpoint is not available yet',
+  reports: 'Search reports',
 });
 Object.assign(translations.sr.admin.search, {
-  reports: 'Admin endpoint za prijave jos nije dostupan',
+  reports: 'Pretrazi prijave',
 });
 Object.assign(translations.en.admin.stats, {
   totalEvents: 'Total events',
