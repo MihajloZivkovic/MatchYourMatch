@@ -1,6 +1,5 @@
 using MatchYourMatch.WebAPI.Data;
 using MatchYourMatch.WebAPI.DTOs.Admin;
-using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 

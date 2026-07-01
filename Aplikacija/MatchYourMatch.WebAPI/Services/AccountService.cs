@@ -20,7 +20,6 @@ public class AccountService : IAccountService
     private readonly EmailService _emailService;
     private readonly GoogleTokenValidator _google;
     private readonly MicrosoftTokenValidator _microsoft;
-    private readonly ILogger<AccountService> _logger;
 
     public AccountService(AppDbContext context, IAuthService authService, IUserProfilesService profiles, EmailService emailService, GoogleTokenValidator google,
         MicrosoftTokenValidator microsoft, ILogger<AccountService> logger)
@@ -31,13 +30,12 @@ public class AccountService : IAccountService
         _emailService = emailService;
         _google = google;
         _microsoft = microsoft;
-        _logger = logger;
     }
 
     public async Task<AccountStatusDto> GetStatusAsync(int userId)
     {
         var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId)
-            ?? throw new KeyNotFoundException("Account does not exist.");
+            ?? throw new KeyNotFoundException("Nalog ne postoji.");
         return new AccountStatusDto
         {
             HasPassword = user.HasPassword,
@@ -48,11 +46,11 @@ public class AccountService : IAccountService
     public async Task<UserProfileDto> UpdateUsernameAsync(int userId, UpdateUsernameDto dto)
     {
         var username = NormalizeUsername(dto.Username);
-        var normalizedUsername = username.ToLowerInvariant();
         var user = await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Id == userId)
-            ?? throw new KeyNotFoundException("Account does not exist.");
-        if (await _context.Users.AnyAsync(x => x.Id != userId && x.Username.ToLower() == normalizedUsername))
-            throw new InvalidOperationException("Username is already in use.");
+            ?? throw new KeyNotFoundException("Nalog ne postoji.");
+            
+        if (await _context.Users.AnyAsync(x => x.Id != userId && x.Username.ToLower() == username.ToLowerInvariant()))
+            throw new InvalidOperationException("Username se vec koristi.");
 
         user.Username = username;
         await _context.SaveChangesAsync();
@@ -67,11 +65,11 @@ public class AccountService : IAccountService
         EnsurePassword(user, dto.Password);
 
         if (string.Equals(user.Email, newEmail, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("This email is already active on your account.");
+            throw new InvalidOperationException("Email vec aktivan na ovog nalogu.");
         if (await _context.Users.AnyAsync(x => x.Id != userId && x.Email == newEmail))
-            throw new InvalidOperationException("Email is already in use.");
+            throw new InvalidOperationException("Email je vec u upotrebi.");
         if (await _context.Users.AnyAsync(x => x.Id != userId && x.PendingEmail == newEmail))
-            throw new InvalidOperationException("Email is already pending verification.");
+            throw new InvalidOperationException("Email ceka verifikaciju.");
 
         var code = GenerateVerificationCode();
         user.PendingEmail = newEmail;
@@ -93,11 +91,13 @@ public class AccountService : IAccountService
     public async Task ChangePasswordAsync(int userId, UpdatePasswordDto dto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
-            ?? throw new KeyNotFoundException("Account does not exist.");
+            ?? throw new KeyNotFoundException("Nalog ne postoji.");
         EnsurePassword(user, dto.CurrentPassword);
+
         if (dto.NewPassword != dto.ConfirmNewPassword)
-            throw new InvalidOperationException("New password and confirmation do not match.");
+            throw new InvalidOperationException("Lozinke se ne poklapaju.");
         ValidatePassword(dto.NewPassword);
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         user.HasPassword = true;
         user.TokenVersion++;
@@ -108,8 +108,11 @@ public class AccountService : IAccountService
     {
         var visibility = NormalizeProfileVisibility(dto.ProfileVisibility);
         var user = await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Id == userId)
-            ?? throw new KeyNotFoundException("Account does not exist.");
-        user.Profile ??= new UserProfile { UserId = userId };
+            ?? throw new KeyNotFoundException("Nalog ne postoji.");
+        user.Profile ??= new UserProfile 
+        { 
+            UserId = userId 
+        };
         user.Profile.ProfileVisibility = visibility;
         await _context.SaveChangesAsync();
         return await _profiles.GetProfileAsync(userId);
@@ -118,20 +121,24 @@ public class AccountService : IAccountService
     public async Task DeactivateAsync(int userId, DeactivateAccountDto dto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
-            ?? throw new KeyNotFoundException("Account does not exist.");
+            ?? throw new KeyNotFoundException("Nalog ne postoji.");
         EnsureAccountConfirmation(user, dto.Password, dto.Confirmation, "DEACTIVATE");
 
-        if (user.IsDeactivated) return;
+        if (user.IsDeactivated) 
+            return;
+
         user.IsDeactivated = true;
         user.IsActive = false;
         user.DeactivatedAt = DateTime.UtcNow;
         user.TokenVersion++;
+
+        // Deaktivacija meceva i postova korisnika
         await _context.QuickMatchPosts.Where(x => x.UserId == userId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.IsActive, false));
         await _context.UserMatches.Where(x => x.UserAId == userId || x.UserBId == userId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.IsActive, false));
+
         await _context.SaveChangesAsync();
-        _logger.LogInformation("Account {UserId} was deactivated.", userId);
     }
 
     public async Task<AuthInfoDto> ReactivateAsync(ReactivateAccountDto dto)
@@ -139,34 +146,50 @@ public class AccountService : IAccountService
         User user;
         if (string.IsNullOrWhiteSpace(dto.Provider))
         {
-            var identifier = dto.Email?.Trim();
-            var normalizedIdentifier = identifier?.ToLowerInvariant();
-            var matchedUser = !string.IsNullOrWhiteSpace(identifier) && identifier.Contains('@')
-                ? await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Email == normalizedIdentifier)
-                : await _context.Users.Include(x => x.Profile).FirstOrDefaultAsync(x => x.Username == identifier);
-            user = matchedUser ?? throw new UnauthorizedAccessException("Email or password is incorrect.");
+            var val = dto.Email?.Trim();
+            User? found;
+           
+            // proveravamo da li je korisnik identifikovan mejlom ili sa username
+            if (!string.IsNullOrWhiteSpace(val) && val.Contains('@'))
+            {
+                found = await _context.Users
+                    .Include(x => x.Profile).FirstOrDefaultAsync(x => x.Email == val.ToLowerInvariant());
+            }
+            else
+            {
+                found = await _context.Users
+                    .Include(x => x.Profile).FirstOrDefaultAsync(x => x.Username == val);
+            }
+            
+            user = found 
+                ?? throw new UnauthorizedAccessException("Email ili password su netacni.");
+
             if (!user.HasPassword || string.IsNullOrWhiteSpace(dto.Password) ||
                 !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                throw new UnauthorizedAccessException("Email or password is incorrect.");
+                throw new UnauthorizedAccessException("Email ili password su netacni.");
         }
         else
         {
             var identity = await ValidateExternalIdentityAsync(dto);
             var external = await _context.ExternalLogins.Include(x => x.User).ThenInclude(x => x.Profile)
                 .FirstOrDefaultAsync(x => x.Provider == identity.Provider && x.ProviderUserId == identity.Subject)
-                ?? throw new UnauthorizedAccessException("This external account is not linked to MYM.");
-            if (!identity.EmailVerified || !string.Equals(external.ProviderEmail ?? external.User.Email, identity.Email, StringComparison.OrdinalIgnoreCase))
-                throw new UnauthorizedAccessException("External account verification failed.");
+                ?? throw new UnauthorizedAccessException("Nalog nije povezan sa MatchYourMatch.");
+
+            if (!identity.EmailVerified || !string.Equals(
+                    external.ProviderEmail ?? external.User.Email, identity.Email, StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Eksterna verifikacija neuspesna.");
+
             user = external.User;
         }
 
-        if (!user.IsDeactivated) throw new InvalidOperationException("This account is not deactivated.");
+        if (!user.IsDeactivated) 
+            throw new InvalidOperationException("Nalog je vec aktivan.");
         user.IsDeactivated = false;
         user.IsActive = true;
         user.DeactivatedAt = null;
         user.TokenVersion++;
+
         await _context.SaveChangesAsync();
-        _logger.LogInformation("Account {UserId} was reactivated.", user.Id);
         return _authService.CreateAuthResponse(user);
     }
 
@@ -176,12 +199,17 @@ public class AccountService : IAccountService
             throw new InvalidOperationException("Type DELETE to permanently delete the account.");
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
+
         var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
             ?? throw new KeyNotFoundException("Account does not exist.");
-        if (user.Role == "System") throw new UnauthorizedAccessException("System accounts cannot be deleted.");
+
+        if (user.Role == "System") 
+            throw new UnauthorizedAccessException("Nalog ne moze biti obrisan.");
+
         EnsureAccountConfirmation(user, dto.Password, dto.Confirmation, "DELETE");
 
         var deletedUser = await GetOrCreateDeletedUserAsync();
+        // trazi konverzacije korisnika da obrise
         var conversationIdsToDelete = await _context.ChatConversations
             .Where(c => (!c.IsGroup && (c.UserAId == userId || c.UserBId == userId)) ||
                 (c.IsGroup && c.Members.Any(m => m.UserId == userId) && !c.Members.Any(m => m.UserId != userId)))
@@ -208,6 +236,7 @@ public class AccountService : IAccountService
         await _context.Events.Where(x => x.OrganizerId == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.OrganizerId, (int?)null));
 
+        // sve poveznice se uklanjaju
         await _context.ChatMessageReactions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.ChatMessageUserDeletions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.ChatConversationMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync();
@@ -230,7 +259,6 @@ public class AccountService : IAccountService
         await _context.Users.Where(x => x.Id == userId).ExecuteDeleteAsync();
 
         await transaction.CommitAsync();
-        _logger.LogInformation("Account {UserId} was permanently deleted.", userId);
     }
 
     private void EnsureAccountConfirmation(User user, string? password, string? confirmation, string requiredConfirmation)
@@ -238,7 +266,7 @@ public class AccountService : IAccountService
         if (user.HasPassword)
         {
             if (string.IsNullOrWhiteSpace(password) || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-                throw new UnauthorizedAccessException("Current password is incorrect.");
+                throw new UnauthorizedAccessException("Trenutna lozinka netacna.");
         }
         else if (!string.Equals(confirmation?.Trim(), requiredConfirmation, StringComparison.Ordinal))
         {
@@ -251,7 +279,7 @@ public class AccountService : IAccountService
         if (!user.HasPassword)
             throw new UnauthorizedAccessException("Password sign-in is not enabled for this account.");
         if (string.IsNullOrWhiteSpace(password) || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-            throw new UnauthorizedAccessException("Current password is incorrect.");
+            throw new UnauthorizedAccessException("Trenutna lozinka netacna.");
     }
 
     private static string NormalizeUsername(string? username)
@@ -288,23 +316,27 @@ public class AccountService : IAccountService
     private static string NormalizeProfileVisibility(string? visibility)
     {
         var value = visibility?.Trim();
-        if (string.Equals(value, "Public", StringComparison.OrdinalIgnoreCase)) return "Public";
-        if (string.Equals(value, "Standard", StringComparison.OrdinalIgnoreCase)) return "Standard";
-        if (string.Equals(value, "Private", StringComparison.OrdinalIgnoreCase)) return "Private";
-        throw new InvalidOperationException("Profile visibility must be Public, Standard or Private.");
+        if (string.Equals(value, "Public", StringComparison.OrdinalIgnoreCase)) 
+            return "Public";
+        if (string.Equals(value, "Standard", StringComparison.OrdinalIgnoreCase)) 
+            return "Standard";
+        if (string.Equals(value, "Private", StringComparison.OrdinalIgnoreCase)) 
+            return "Private";
+        throw new InvalidOperationException("Profile visibility must be public, standard or private");
     }
 
-    private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+    private static string GenerateVerificationCode() 
+        => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
 
-    private static string HashVerificationCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+    private static string HashVerificationCode(string code) 
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 
     private async Task<ExternalIdentity> ValidateExternalIdentityAsync(ReactivateAccountDto dto) =>
         dto.Provider?.Trim().ToLowerInvariant() switch
         {
             "google" => await _google.ValidateAsync(dto.IdToken),
-            "facebook" => throw new InvalidOperationException("Facebook login is not supported."),
             "microsoft" => await _microsoft.ValidateAsync(dto.IdToken),
-            _ => throw new InvalidOperationException("Unsupported external provider.")
+            _ => throw new InvalidOperationException("Greska")
         };
 
     private async Task<User> GetOrCreateDeletedUserAsync()

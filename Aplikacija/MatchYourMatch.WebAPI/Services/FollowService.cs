@@ -38,20 +38,24 @@ namespace MatchYourMatch.WebAPI.Services
         {
             if (followerId == followingId)
                 throw new Exception("You cannot follow yourself.");
+
             var follower = await _context.Users.FindAsync(followerId)
                 ?? throw new Exception("Follower does not exist.");
+
             if (string.Equals(follower.Role, "Organizer", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(follower.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(follower.Role, "Administrator", StringComparison.OrdinalIgnoreCase))
-                throw new UnauthorizedAccessException("Organizer and administrator accounts cannot follow users.");
+                string.Equals(follower.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Organizer and admin accounts cannot follow users.");
+
             var target = await _context.Users.FirstOrDefaultAsync(u => u.Id == followingId && u.IsActive)
                 ?? throw new Exception("User does not exist.");
-            if (string.Equals(target.Role, "Admin", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(target.Role, "Administrator", StringComparison.OrdinalIgnoreCase))
+
+            if (string.Equals(target.Role, "Admin", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("User does not exist.");
+
             var exists = await _context.Follows.AnyAsync(f => f.FollowerId == followerId && f.FollowingId == followingId);
             if (exists)
                 return;
+
             _context.Follows.Add(new Follow
             {
                 FollowerId = followerId,
@@ -106,14 +110,17 @@ namespace MatchYourMatch.WebAPI.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+
             var pageUserIds = pageUsers.Select(user => user.Id).ToList();
             var profiles = await _context.UserProfiles.AsNoTracking()
                 .Where(profile => pageUserIds.Contains(profile.UserId))
                 .ToDictionaryAsync(profile => profile.UserId);
+
             var followingIds = await _context.Follows.AsNoTracking()
                 .Where(follow => follow.FollowerId == currentUserId && pageUserIds.Contains(follow.FollowingId))
                 .Select(follow => follow.FollowingId)
                 .ToListAsync();
+                
             var followingSet = followingIds.ToHashSet();
             var items = pageUsers
                 .Select(user =>
@@ -145,8 +152,10 @@ namespace MatchYourMatch.WebAPI.Services
 
         private static string? GetPublicLocation(UserProfile? profile)
         {
-            if (profile == null) return null;
-            if (profile.LocationPrivacy == "Hidden") return null;
+            if (profile == null) 
+                return null;
+            if (profile.LocationPrivacy == "Hidden") 
+                return null;
             if (profile.LocationPrivacy == "CityOnly")
             {
                 var parts = new[] { profile.LocationCity, profile.LocationCountry }

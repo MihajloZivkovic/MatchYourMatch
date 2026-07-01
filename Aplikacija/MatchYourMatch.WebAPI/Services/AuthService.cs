@@ -90,19 +90,31 @@ namespace MatchYourMatch.WebAPI.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             await _emailService.SendEmailVerificationAsync(email, verificationCode);
-            return new RegistrationResponseDto { Email = email };
+            return new RegistrationResponseDto 
+            { 
+                Email = email 
+            };
         }
 
         public async Task<AuthInfoDto> LoginAsync(LoginDto dto)
         {
-            var identifier = (dto.EmailOrUsername ?? dto.Identifier ?? dto.Email)?.Trim();
-            if (string.IsNullOrWhiteSpace(identifier))
+            var val = (dto.EmailOrUsername ?? dto.Identifier ?? dto.Email)?.Trim();
+            if (string.IsNullOrWhiteSpace(val))
                 throw new Exception("Invalid email/username or password.");
 
-            var normalizedIdentifier = identifier.ToLowerInvariant();
-            var user = identifier.Contains('@')
-                ? await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Email == normalizedIdentifier)
-                : await _context.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Username == identifier);
+            User? user;
+            if (val.Contains("@"))
+            {
+                user = await _context.Users
+                    .Include(u => u.Profile)
+                    .FirstOrDefaultAsync(u => u.Email == val.ToLowerInvariant());
+            }
+            else
+            {
+                user = await _context.Users
+                    .Include(u => u.Profile)
+                    .FirstOrDefaultAsync(u => u.Username == val);
+            }
 
             if (user == null)
                 throw new Exception("Invalid email/username or password.");
@@ -126,8 +138,12 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var email = dto.Email.Trim().ToLowerInvariant();
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user != null && !user.EmailConfirmed && !string.IsNullOrWhiteSpace(user.EmailVerificationCodeHash) &&
-                user.EmailVerificationCodeExpiresAt > DateTime.UtcNow && VerificationCodeMatches(dto.Code, user.EmailVerificationCodeHash))
+
+            // provera i aktivacija
+            if (user != null && !user.EmailConfirmed 
+                && !string.IsNullOrWhiteSpace(user.EmailVerificationCodeHash) 
+                && user.EmailVerificationCodeExpiresAt > DateTime.UtcNow 
+                && VerificationCodeMatches(dto.Code, user.EmailVerificationCodeHash))
             {
                 user.EmailConfirmed = true;
                 user.EmailConfirmedAt = DateTime.UtcNow;
@@ -139,14 +155,15 @@ namespace MatchYourMatch.WebAPI.Services
             }
 
             user = await _context.Users.FirstOrDefaultAsync(u => u.PendingEmail == email);
+
             if (user == null || string.IsNullOrWhiteSpace(user.PendingEmail) ||
                 string.IsNullOrWhiteSpace(user.PendingEmailVerificationCodeHash) ||
                 user.PendingEmailVerificationCodeExpiresAt <= DateTime.UtcNow ||
                 !VerificationCodeMatches(dto.Code, user.PendingEmailVerificationCodeHash))
-                throw new Exception("Verification code is invalid or expired.");
+                throw new Exception("Kod za verifikaciju nije validan ili je istekao.");
 
             if (await _context.Users.AnyAsync(u => u.Id != user.Id && u.Email == email))
-                throw new Exception("Email is already in use.");
+                throw new Exception("Email vec u upotrebi.");
 
             user.Email = user.PendingEmail;
             user.EmailConfirmed = true;
@@ -156,6 +173,7 @@ namespace MatchYourMatch.WebAPI.Services
             user.PendingEmailVerificationCodeExpiresAt = null;
             user.PendingEmailVerificationCodeSentAt = null;
             user.TokenVersion++;
+            
             await _context.SaveChangesAsync();
         }
 
@@ -432,9 +450,11 @@ namespace MatchYourMatch.WebAPI.Services
             throw new Exception("Invalid account type.");
         }
 
-        private static string GenerateVerificationCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        private static string GenerateVerificationCode() 
+            => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
 
-        private static string HashVerificationCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+        private static string HashVerificationCode(string code) 
+            => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 
         private static bool VerificationCodeMatches(string code, string storedHash)
         {
@@ -444,7 +464,9 @@ namespace MatchYourMatch.WebAPI.Services
                     SHA256.HashData(Encoding.UTF8.GetBytes(code.Trim())),
                     Convert.FromHexString(storedHash));
             }
-            catch { return false; }
+            catch { 
+                return false; 
+            }
         }
     }
 }

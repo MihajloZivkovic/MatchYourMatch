@@ -5,15 +5,6 @@ namespace MatchYourMatch.WebAPI.Services
 {
     public class EmailService
     {
-        private readonly IWebHostEnvironment _environment;
-        private readonly ILogger<EmailService> _logger;
-
-        public EmailService(IWebHostEnvironment environment, ILogger<EmailService> logger)
-        {
-            _environment = environment;
-            _logger = logger;
-        }
-
         public Task SendResetEmailAsync(string email, string resetToken) => SendAsync(
             email,
             "MatchYourMatch - reset lozinke",
@@ -41,16 +32,6 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var apiKey = Environment.GetEnvironmentVariable("API_KEY");
             var from = Environment.GetEnvironmentVariable("FROM");
-
-            if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(from))
-            {
-                if (_environment.IsDevelopment())
-                {
-                    _logger.LogWarning("Email delivery is not configured. DEV ONLY for {Email}: {Message}", email, developmentMessage);
-                    return;
-                }
-                throw new InvalidOperationException("Email delivery is not configured.");
-            }
 
             var response = await new SendGridClient(apiKey).SendEmailAsync(
                 MailHelper.CreateSingleEmail(new EmailAddress(from, "MatchYourMatch"), new EmailAddress(email), subject, string.Empty, html));

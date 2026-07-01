@@ -11,8 +11,10 @@ namespace MatchYourMatch.WebAPI.Controllers;
 public class AccountController : ControllerBase
 {
     private readonly IAccountService _accounts;
-    private readonly ILogger<AccountController> _logger;
-    public AccountController(IAccountService accounts, ILogger<AccountController> logger) { _accounts = accounts; _logger = logger; }
+    public AccountController(IAccountService accounts, ILogger<AccountController> logger) 
+    { 
+        _accounts = accounts;
+    }
 
     [Authorize]
     [HttpGet("status")]
@@ -38,8 +40,8 @@ public class AccountController : ControllerBase
 
     [Authorize]
     [HttpPatch("profile-visibility")]
-    public async Task<IActionResult> UpdateProfileVisibility(UpdateProfileVisibilityDto dto) => await Handle(async () =>
-        Ok(await _accounts.UpdateProfileVisibilityAsync(CurrentUserId(), dto)));
+    public async Task<IActionResult> UpdateProfileVisibility(UpdateProfileVisibilityDto dto) 
+        => await Handle(async () => Ok(await _accounts.UpdateProfileVisibilityAsync(CurrentUserId(), dto)));
 
     [Authorize]
     [HttpPost("deactivate")]
@@ -51,8 +53,8 @@ public class AccountController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("reactivate")]
-    public async Task<IActionResult> Reactivate(ReactivateAccountDto dto) =>
-        await Handle(async () => Ok(await _accounts.ReactivateAsync(dto)));
+    public async Task<IActionResult> Reactivate(ReactivateAccountDto dto) 
+        => await Handle(async () => Ok(await _accounts.ReactivateAsync(dto)));
 
     [Authorize]
     [HttpDelete]
@@ -62,14 +64,29 @@ public class AccountController : ControllerBase
         return Ok(new { success = true, message = "Account permanently deleted." });
     });
 
-    private int CurrentUserId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private int CurrentUserId() 
+        => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     private async Task<IActionResult> Handle(Func<Task<IActionResult>> action)
     {
-        try { return await action(); }
-        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
-        catch (Exception ex) { _logger.LogError(ex, "Account lifecycle request failed."); return StatusCode(500, new { message = "Account action could not be completed." }); }
+        try { 
+            return await action(); 
+        }
+        catch (UnauthorizedAccessException ex) 
+        { 
+            return Unauthorized(new { message = ex.Message }); 
+        }
+        catch (KeyNotFoundException ex) 
+        { 
+            return NotFound(new { message = ex.Message }); 
+        }
+        catch (InvalidOperationException ex) 
+        { 
+            return BadRequest(new { message = ex.Message }); 
+        }
+        catch (Exception ex) 
+        { 
+            return StatusCode(500, new { message = ex.Message }); 
+        }
     }
 }
