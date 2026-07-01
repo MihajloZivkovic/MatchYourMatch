@@ -1,8 +1,8 @@
-TBD - [ ] View details kod admina neke stvari nisu povezane sa endpointima
-TBD - [ ] Hide event kod admina da se osposobi
+Mihajlo - [ + ] View details kod admina neke stvari nisu povezane sa endpointima
+Mihajlo - [ ] Hide event kod admina da se osposobi
 TBD - [ ] password check opravi
 TBD - [ ] datum prosli da se zablokira kod create event kod organizatora
-TBD - [ ] osposobiti Details kod organizatora
+Mihajlo - [ ] osposobiti Details kod organizatora
 TBD - [ ] account deactivated
 TBD - [ ] brisanje nekad nece
 TBD - [ ] kod eventi ukloniti type
