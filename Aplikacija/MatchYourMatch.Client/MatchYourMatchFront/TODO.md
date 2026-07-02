@@ -1,12 +1,10 @@
-Mihajlo - [ + ] osposobiti Details kod organizatora
+Mihajlo - [ X ] osposobiti Details kod organizatora
 Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
 Jana - [ + ] password check opravi
 Jana - [ + ] datum prosli da se zablokira kod create event kod organizatora
 Mihajlo - [ X ] Eventualno da se izbrise public profile visibility opcija
-TBD - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije postavljene na profilu, nesto drugo da pise na fazon private
+Jana - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije postavljene na profilu, nesto drugo da pise na fazon private
 Mihajlo - [ X ] Admin reports prikazuje nedpoint, ukloniti
-Mihajlo - [ + ] sve hardkodirane stvari iz template gotta go (na profilu ono ACTIVE, procenat, i ono creative energy, na glavnoj strani korisnika oni procenti u quick i deep match)
-TBD - [ ] kada je korisnik banovan preko reporta, u report history-u korisnika koji je reportovao status prikazuje reports.statuses.actionTaken - popraviti
 TBD - [ ] kada organizatoru stigne request da se odma pojavi u Join Requests, da ne mora da refresuje 
 TBD (mozda opciono ovo realno) - [ ] da se novi event odmah pojavi, bez refresh
 TBD - [ ] change password ne radi nista kad kliknem save - proveriti

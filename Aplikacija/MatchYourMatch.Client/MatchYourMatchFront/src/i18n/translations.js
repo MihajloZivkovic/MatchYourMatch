@@ -719,7 +719,7 @@ translations.en.reports = {
     pending: 'Pending',
     reviewed: 'Reviewed',
     dismissed: 'Dismissed',
-    actionTaken: 'Action taken',
+    actiontaken: 'Action taken',
   },
 };
 
@@ -749,7 +749,7 @@ translations.sr.reports = {
     pending: 'Na cekanju',
     reviewed: 'Pregledano',
     dismissed: 'Odbijeno',
-    actionTaken: 'Preduzeta mera',
+    actiontaken: 'Preduzeta mera',
   },
 };
 
