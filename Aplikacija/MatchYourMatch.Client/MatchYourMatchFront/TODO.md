@@ -1,17 +1,13 @@
-Mihajlo - [ X ] View details kod admina neke stvari nisu povezane sa endpointima
 Mihajlo - [ + ] Hide event kod admina da se osposobi
+Mihajlo - [ ] osposobiti Details kod organizatora
+Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
 Jana - [ + ] password check opravi
 Jana - [ + ] datum prosli da se zablokira kod create event kod organizatora
-Mihajlo - [ ] osposobiti Details kod organizatora
-Jana - [ X ] account deactivated
-TBD - [ ] brisanje nekad nece
-Mihajlo - [ X ] kod eventi ukloniti type
-Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
-
 TBD - [ ] Eventualno da se izbrise public profile visibility opcija
 TBD - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije postavljene na profilu, nesto drugo da pise na fazon private
 TBD - [ ] Admin reports prikazuje nedpoint, ukloniti
 TBD - [ ] sve hardkodirane stvari iz template gotta go
+TBD - [ ] kada je korisnik banovan preko reporta, u report history-u korisnika koji je reportovao status prikazuje reports.statuses.actionTaken - popraviti
 
 ------------------------
 GENERALNO DOBRO(ne gleda se na odbranu)
