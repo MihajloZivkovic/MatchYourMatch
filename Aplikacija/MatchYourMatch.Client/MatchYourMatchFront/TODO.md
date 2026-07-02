@@ -1,10 +1,7 @@
-Mihajlo - [ X ] osposobiti Details kod organizatora
 Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
 Jana - [ + ] password check opravi
 Jana - [ + ] datum prosli da se zablokira kod create event kod organizatora
-Mihajlo - [ X ] Eventualno da se izbrise public profile visibility opcija
 Jana - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije postavljene na profilu, nesto drugo da pise na fazon private
-Mihajlo - [ X ] Admin reports prikazuje nedpoint, ukloniti
 TBD - [ ] kada organizatoru stigne request da se odma pojavi u Join Requests, da ne mora da refresuje 
 TBD (mozda opciono ovo realno) - [ ] da se novi event odmah pojavi, bez refresh
 TBD - [ ] change password ne radi nista kad kliknem save - proveriti
