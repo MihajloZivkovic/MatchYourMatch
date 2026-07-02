@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -66,79 +66,67 @@ function PublicProfile() {
   });
   const [organizerEventsLoading, setOrganizerEventsLoading] = useState(false);
   const [organizerEventsError, setOrganizerEventsError] = useState('');
+  const isLockedPrivateProfile = Boolean(
+    profile?.isPrivate && profile?.canViewPrivateContent === false,
+  );
+
+  const loadProfile = useCallback(async (signal) => {
+    if (!id) {
+      setError('Profile route is missing a user id.');
+      setLoading(false);
+      return null;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/UserProfile/public/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        signal,
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        setError('Please log in again.');
+        return null;
+      }
+
+      const body = await response.text();
+      if (!response.ok)
+        throw new Error(body || 'Profile could not be loaded.');
+
+      const data = body ? JSON.parse(body) : null;
+      if (!data || !data.id || !data.username)
+        throw new Error('Profile response was empty or invalid.');
+
+      setProfile(data);
+      setIsFollowing(Boolean(data.isFollowing));
+      return data;
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setError(
+          err.message ||
+            'Profile could not be loaded. Make sure the backend is running.',
+        );
+      }
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    async function loadProfile() {
-      if (!id) {
-        setError('Profile route is missing a user id.');
-        setLoading(false);
-        return;
-      }
-
-      const token = localStorage.getItem('token');
-      const requestUrl = `/api/UserProfile/public/${id}`;
-      setLoading(true);
-      setError('');
-
-      try {
-        console.log('[PublicProfile] request', requestUrl);
-
-        const response = await fetch(requestUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          signal: controller.signal,
-        });
-
-        console.log('[PublicProfile] status', response.status);
-
-        if (response.status === 401 || response.status === 403) {
-          setError('Please log in again.');
-          return;
-        }
-
-        const body = await response.text();
-
-        if (!response.ok) {
-          console.error('[PublicProfile] failed', response.status, body);
-          throw new Error(body || 'Profile could not be loaded.');
-        }
-
-        const data = body ? JSON.parse(body) : null;
-
-        if (!data || !data.id || !data.username) {
-          console.error('[PublicProfile] invalid response', data);
-          throw new Error('Profile response was empty or invalid.');
-        }
-
-        setProfile(data);
-        setIsFollowing(Boolean(data.isFollowing));
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('[PublicProfile] request error', err);
-          setError(
-            err.message ||
-              'Profile could not be loaded. Make sure the backend is running.',
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProfile();
-
+    loadProfile(controller.signal);
     return () => controller.abort();
-  }, [id]);
+  }, [loadProfile]);
 
   useEffect(() => {
     const controller = new AbortController();
     async function loadRating() {
       if (!id) return;
       if (!profile) return;
-      if (isGuestSession()) {
+      if (isGuestSession() || isLockedPrivateProfile) {
         setRatingStatus(null);
         setRatingLoading(false);
         return;
@@ -167,7 +155,7 @@ function PublicProfile() {
     }
     loadRating();
     return () => controller.abort();
-  }, [id, profile?.role, t]);
+  }, [id, isLockedPrivateProfile, profile, t]);
 
   const handleFollow = async () => {
     if (followLoading) return;
@@ -195,6 +183,7 @@ function PublicProfile() {
         throw new Error(
           (await response.text()) || t('publicProfile.followError'),
         );
+      await loadProfile();
     } catch (err) {
       setIsFollowing(previous);
       setProfile((current) =>
@@ -696,27 +685,31 @@ function PublicProfile() {
           <div className='public-profile__identity'>
             <h1>{profile.fullName || profile.username}</h1>
             <p>@{profile.username}</p>
-            <span>
-              <MapPin size={15} />
-              {profile.locationDisplayName || 'Location not shared'}
+            {!isLockedPrivateProfile && (
+              <>
+                <span>
+                  <MapPin size={15} />
+                  {profile.locationDisplayName || 'Location not shared'}
               {profile.age != null ? ` · ${profile.age}` : ''}
-            </span>
-            <div className='public-profile__social-counts'>
-              <button
-                type='button'
-                onClick={() => setFollowListType('followers')}
-              >
-                <strong>{profile.followersCount || 0}</strong>{' '}
-                {t('publicProfile.followers')}
-              </button>
-              <button
-                type='button'
-                onClick={() => setFollowListType('following')}
-              >
-                <strong>{profile.followingCount || 0}</strong>{' '}
-                {t('publicProfile.followingCount')}
-              </button>
-            </div>
+                </span>
+                <div className='public-profile__social-counts'>
+                  <button
+                    type='button'
+                    onClick={() => setFollowListType('followers')}
+                  >
+                    <strong>{profile.followersCount || 0}</strong>{' '}
+                    {t('publicProfile.followers')}
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setFollowListType('following')}
+                  >
+                    <strong>{profile.followingCount || 0}</strong>{' '}
+                    {t('publicProfile.followingCount')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           <div className='public-profile__actions'>
             <div className='public-profile__primary-actions'>
@@ -736,7 +729,7 @@ function PublicProfile() {
                   ? t('publicProfile.following')
                   : t('publicProfile.follow')}
               </button>
-              {canUseDirectMessages && !isBlocked && profile.canMessage !== false && (
+              {canUseDirectMessages && !isBlocked && !isLockedPrivateProfile && profile.canMessage !== false && (
                 <button
                   type='button'
                   className='public-profile__connect'
@@ -750,7 +743,7 @@ function PublicProfile() {
                   {t('publicProfile.sayHello')}
                 </button>
               )}
-              {canUseDirectMessages && !isBlocked && profile.canMessage === false && (
+              {canUseDirectMessages && !isBlocked && !isLockedPrivateProfile && profile.canMessage === false && (
                 <span className='public-profile__connect-hint'>
                   {t('publicProfile.messageRestricted')}
                 </span>
@@ -778,6 +771,10 @@ function PublicProfile() {
         </div>
       )}
 
+      {isLockedPrivateProfile ? (
+        <PrivateProfileState />
+      ) : (
+        <>
       <ProfileStats
         matches={profile.matchesCount}
         eventsJoined={profile.eventsJoinedCount}
@@ -1092,6 +1089,8 @@ function PublicProfile() {
           )}
         </article>
       </section>
+        </>
+      )}
       {followListType && (
         <FollowListModal
           userId={profile.id}
@@ -1101,6 +1100,17 @@ function PublicProfile() {
         />
       )}
     </main>
+  );
+}
+
+function PrivateProfileState() {
+  return (
+    <section className='public-profile__private-state' aria-live='polite'>
+      <div>
+        <h2>This profile is private</h2>
+        <p>Follow each other to view this profile.</p>
+      </div>
+    </section>
   );
 }
 

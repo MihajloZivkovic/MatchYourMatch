@@ -37,6 +37,7 @@ import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from "../../hooks/useTranslation";
 import { clearAuthSession, logoutAndRedirect } from "../../services/authSession";
+import { PASSWORD_POLICY_MESSAGE, getPasswordValidationMessage } from "../../utils/passwordPolicy";
 import {
   announceEventJoinRequestChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
@@ -731,6 +732,14 @@ function Profile(props) {
   const savePassword = async () => {
     setAccountSaving("password");
     setAccountMessage({ type: "", text: "" });
+
+    const passwordError = getPasswordValidationMessage(passwordDraft.newPassword);
+    if (passwordError) {
+      setAccountSaving("");
+      setAccountMessage({ type: "error", text: passwordError });
+      return;
+    }
+
     try {
       await accountService.updatePassword(passwordDraft);
       setPasswordDraft({
@@ -1467,6 +1476,9 @@ function Profile(props) {
                           }
                           autoComplete="new-password"
                         />
+                        <small className="profile-settings-password-help">
+                          {PASSWORD_POLICY_MESSAGE}
+                        </small>
                       </label>
                       <label>
                         <span>Confirm new password</span>

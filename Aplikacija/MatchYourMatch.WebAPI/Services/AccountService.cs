@@ -342,13 +342,21 @@ public class AccountService : IAccountService
         return value;
     }
 
-    private static void ValidatePassword(string? password)
+    public static void ValidatePassword(string? password)
     {
-        var value = password ?? string.Empty;
-        if (value.Length < 8)
-            throw new InvalidOperationException("Password must be at least 8 characters long.");
-        if (!value.Any(char.IsUpper) || !value.Any(char.IsLower) || !value.Any(char.IsDigit))
-            throw new InvalidOperationException("Password must contain uppercase, lowercase and number characters.");
+        if (!IsPasswordValid(password))
+            throw new WeakPasswordException();
+    }
+
+    private static bool IsPasswordValid(string? password)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+            return false;
+
+        return password.Any(char.IsUpper)
+            && password.Any(char.IsLower)
+            && password.Any(char.IsDigit)
+            && password.Any(value => !char.IsLetterOrDigit(value));
     }
 
     private static string NormalizeProfileVisibility(string? visibility)
@@ -399,4 +407,16 @@ public class AccountService : IAccountService
         await _context.SaveChangesAsync();
         return deleted;
     }
+}
+
+public class WeakPasswordException : Exception
+{
+    public const string DefaultCode = "WEAK_PASSWORD";
+
+    public WeakPasswordException()
+        : base("Password must be at least 8 characters long and include uppercase, lowercase, number and special character.")
+    {
+    }
+
+    public string Code => DefaultCode;
 }

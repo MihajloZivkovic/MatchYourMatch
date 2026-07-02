@@ -36,12 +36,15 @@ namespace MatchYourMatch.WebAPI.Controllers
             var normalizedQuery = trimmedQuery.ToLower();
             var currentUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var eventsOnlySearch = IsOrganizer() || IsGuest();
+            var canModeratePrivateProfiles = IsAdmin();
 
             response.Events = await SearchCategory("events", () => SearchEvents(normalizedQuery));
 
             if (!eventsOnlySearch)
             {
-                response.People = await SearchCategory("people", () => SearchPeople(normalizedQuery, currentUserId));
+                response.People = await SearchCategory(
+                    "people",
+                    () => SearchPeople(normalizedQuery, currentUserId, canModeratePrivateProfiles));
                 response.Activities = await SearchCategory("activities", () => SearchActivities(normalizedQuery));
                 response.Interests = await SearchCategory("interests", () => SearchInterests(normalizedQuery));
             }
@@ -62,6 +65,13 @@ namespace MatchYourMatch.WebAPI.Controllers
             return role.Equals("Guest", StringComparison.OrdinalIgnoreCase);
         }
 
+        private bool IsAdmin()
+        {
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role") ?? string.Empty;
+            return role.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                role.Equals("Administrator", StringComparison.OrdinalIgnoreCase);
+        }
+
         private async Task<List<T>> SearchCategory<T>(string category, Func<Task<List<T>>> search)
         {
             try
@@ -75,7 +85,10 @@ namespace MatchYourMatch.WebAPI.Controllers
             }
         }
 
-        private async Task<List<SearchPersonDto>> SearchPeople(string query, int currentUserId)
+        private async Task<List<SearchPersonDto>> SearchPeople(
+            string query,
+            int currentUserId,
+            bool canModeratePrivateProfiles)
         {
             var excluded = _context.HiddenProfiles.Where(x => x.UserId == currentUserId).Select(x => x.HiddenUserId)
                 .Concat(_context.BlockedUsers.Where(x => x.BlockerUserId == currentUserId || x.BlockedUserId == currentUserId)
@@ -86,34 +99,63 @@ namespace MatchYourMatch.WebAPI.Controllers
                 .Include(u => u.UserInterests)
                     .ThenInclude(ui => ui.Interest)
                 .Where(u => u.IsActive && u.Id != currentUserId && !excluded.Contains(u.Id) &&
-                    u.Role != "Admin" && u.Role != "Administrator" &&
-                    (u.Profile == null || u.Profile.ProfileVisibility != "Private"))
+                    u.Role != "Admin" && u.Role != "Administrator")
                 .ToListAsync();
 
+            var userIds = users.Select(u => u.Id).ToList();
+            var followingIds = await _context.Follows.AsNoTracking()
+                .Where(f => f.FollowerId == currentUserId && userIds.Contains(f.FollowingId))
+                .Select(f => f.FollowingId)
+                .ToListAsync();
+            var followedByIds = await _context.Follows.AsNoTracking()
+                .Where(f => f.FollowingId == currentUserId && userIds.Contains(f.FollowerId))
+                .Select(f => f.FollowerId)
+                .ToListAsync();
+            var followingSet = followingIds.ToHashSet();
+            var followedBySet = followedByIds.ToHashSet();
+
             return users
-                .Select(u => new { User = u, Score = ScorePerson(u, query) })
+                .Select(u =>
+                {
+                    var privacy = GetSearchPrivacy(u, currentUserId, canModeratePrivateProfiles, followingSet, followedBySet);
+                    return new { User = u, Privacy = privacy, Score = ScorePerson(u, query, privacy.CanViewPrivateContent) };
+                })
                 .Where(x => x.Score > 0)
                 .OrderByDescending(x => x.Score)
                 .ThenBy(x => x.User.Username)
                 .Take(CategoryLimit)
-                .Select(x => new SearchPersonDto
-                {
-                    Id = x.User.Id,
-                    Username = x.User.Username,
-                    DisplayName = x.User.Role == "Organizer" && !string.IsNullOrWhiteSpace(x.User.Profile?.FullName)
-                        ? x.User.Profile!.FullName!
-                        : x.User.Username,
-                    ProfilePicture = x.User.Profile?.ProfilePicture,
-                    Role = x.User.Role,
-                    LocationDisplayName = GetPublicLocation(x.User.Profile),
-                    Tags = x.User.UserInterests
+                .Select(x => ToSearchPersonDto(x.User, x.Privacy))
+                .ToList();
+        }
+
+        private SearchPersonDto ToSearchPersonDto(Models.User user, SearchPrivacy privacy)
+        {
+            var isOrganizer = user.Role.Equals("Organizer", StringComparison.OrdinalIgnoreCase);
+            var canShowFullName = isOrganizer || user.Profile?.ShowFullName == true || privacy.CanViewPrivateContent;
+            var displayName = canShowFullName && !string.IsNullOrWhiteSpace(user.Profile?.FullName)
+                ? user.Profile!.FullName!
+                : user.Username;
+
+            return new SearchPersonDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                DisplayName = displayName,
+                ProfilePicture = user.Profile?.ProfilePicture,
+                Role = user.Role,
+                IsPrivate = privacy.IsPrivate,
+                CanViewPrivateContent = privacy.CanViewPrivateContent,
+                IsMutualFollow = privacy.IsMutualFollow,
+                LocationDisplayName = privacy.CanViewPrivateContent ? GetPublicLocation(user.Profile) : null,
+                Tags = privacy.CanViewPrivateContent
+                    ? user.UserInterests
                         .Select(ui => ui.Interest?.Name)
                         .Where(name => !string.IsNullOrWhiteSpace(name))
                         .Take(4)
                         .Cast<string>()
                         .ToList()
-                })
-                .ToList();
+                    : new List<string>()
+            };
         }
 
         private async Task<List<SearchEventDto>> SearchEvents(string query)
@@ -202,10 +244,15 @@ namespace MatchYourMatch.WebAPI.Controllers
                 .ToList();
         }
 
-        private static int ScorePerson(Models.User user, string query)
+        private static int ScorePerson(Models.User user, string query, bool canViewPrivateContent)
         {
             var score = 0;
             score = Math.Max(score, ScoreText(user.Username, query, 100, 80));
+            if (!canViewPrivateContent)
+            {
+                return score;
+            }
+
             score = Math.Max(score, ScoreText(user.Profile?.FullName, query, 95, 75));
             score = Math.Max(score, ScoreText(user.Profile?.Bio, query, 0, 25));
             score = Math.Max(score, ScoreText(user.Profile?.LocationDisplayName, query, 0, 45));
@@ -219,6 +266,28 @@ namespace MatchYourMatch.WebAPI.Controllers
 
             return score;
         }
+
+        private static SearchPrivacy GetSearchPrivacy(
+            Models.User user,
+            int currentUserId,
+            bool canModeratePrivateProfiles,
+            HashSet<int> followingSet,
+            HashSet<int> followedBySet)
+        {
+            var isPrivate = string.Equals(user.Profile?.ProfileVisibility, "Private", StringComparison.OrdinalIgnoreCase);
+            var isMutualFollow = followingSet.Contains(user.Id) && followedBySet.Contains(user.Id);
+            var canViewPrivateContent = !isPrivate ||
+                user.Id == currentUserId ||
+                canModeratePrivateProfiles ||
+                isMutualFollow;
+
+            return new SearchPrivacy(isPrivate, canViewPrivateContent, isMutualFollow);
+        }
+
+        private sealed record SearchPrivacy(
+            bool IsPrivate,
+            bool CanViewPrivateContent,
+            bool IsMutualFollow);
 
         private static int ScoreEvent(Models.Event eventItem, string query)
         {

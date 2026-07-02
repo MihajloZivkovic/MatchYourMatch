@@ -26,6 +26,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var response = await _authService.RegisterAsync(dto);
                 return Ok(response);
             }
+            catch (WeakPasswordException ex)
+            {
+                return BadRequest(new { errorCode = ex.Code, message = ex.Message });
+            }
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
@@ -198,6 +202,10 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 await _authService.ResetPasswordAsync(dto);
                 return Ok("Lozinka uspesno promenjena.");
+            }
+            catch (WeakPasswordException ex)
+            {
+                return BadRequest(new { errorCode = ex.Code, message = ex.Message });
             }
             catch (Exception ex)
             {

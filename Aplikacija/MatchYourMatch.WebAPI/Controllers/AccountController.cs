@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MatchYourMatch.WebAPI.DTOs.Account;
+using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -82,6 +83,10 @@ public class AccountController : ControllerBase
         catch (KeyNotFoundException ex) 
         { 
             return NotFound(new { message = ex.Message }); 
+        }
+        catch (WeakPasswordException ex)
+        {
+            return BadRequest(new { errorCode = ex.Code, message = ex.Message });
         }
         catch (InvalidOperationException ex) 
         { 

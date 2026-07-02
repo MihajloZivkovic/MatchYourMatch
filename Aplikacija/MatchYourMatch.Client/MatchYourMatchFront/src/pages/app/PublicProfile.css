@@ -794,6 +794,34 @@
   color: #ffb1a8;
 }
 
+.public-profile__private-state {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  border: 1px solid rgba(244, 163, 0, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(145deg, rgba(244, 163, 0, 0.08), transparent 58%),
+    rgba(255, 255, 255, 0.035);
+  text-align: center;
+}
+
+.public-profile__private-state h2 {
+  margin: 0 0 0.45rem;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.public-profile__private-state p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
 @media (max-width: 720px) {
   .public-profile__hero-inner {
     grid-template-columns: 1fr;
@@ -875,7 +903,8 @@
 }
 
 :root[data-theme='light'] .public-profile__card,
-:root[data-theme='light'] .public-profile__state {
+:root[data-theme='light'] .public-profile__state,
+:root[data-theme='light'] .public-profile__private-state {
   background:
     linear-gradient(145deg, rgba(244, 163, 0, 0.035), transparent 56%),
     var(--color-surface);

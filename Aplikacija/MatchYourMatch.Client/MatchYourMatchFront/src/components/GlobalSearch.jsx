@@ -99,12 +99,7 @@ function GlobalSearch({ onNavigate }) {
         }
 
         if (!response.ok) {
-          const body = await response.text();
-          console.error('[GlobalSearch] failed', {
-            requestUrl,
-            status: response.status,
-            body,
-          });
+          await response.text();
           setResults(emptyResults);
           setError(t('search.unavailable'));
           return;
@@ -119,7 +114,6 @@ function GlobalSearch({ onNavigate }) {
         });
       } catch (err) {
         if (err.name !== 'AbortError') {
-          console.error('[GlobalSearch] request error', err);
           setResults(emptyResults);
           setError(t('search.unavailable'));
         }
@@ -235,14 +229,17 @@ function GlobalSearch({ onNavigate }) {
                     {person.role?.toLowerCase() === 'organizer' && (
                       <span className='global-search__role-badge'>Organizer</span>
                     )}
+                    {person.isPrivate && !person.canViewPrivateContent && (
+                      <span className='global-search__role-badge'>Private</span>
+                    )}
                   </span>
                   <span className='global-search__item-meta'>
                     @{person.username}
-                    {person.locationDisplayName
+                    {person.canViewPrivateContent && person.locationDisplayName
                       ? ` - ${person.locationDisplayName}`
                       : ''}
                   </span>
-                  {person.tags?.length > 0 && (
+                  {person.canViewPrivateContent && person.tags?.length > 0 && (
                     <span className='global-search__tags'>
                       {person.tags.join(' - ')}
                     </span>
