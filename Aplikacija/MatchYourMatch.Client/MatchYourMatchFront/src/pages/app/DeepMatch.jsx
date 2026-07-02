@@ -79,7 +79,6 @@ function DeepMatch() {
         }
 
         const matchesData = await matchesResponse.json();
-        console.log ("Matches data:", matchesData);
         setMatches(matchesData.matches || []);
         setTotalPages(matchesData.totalPages || 1);
       } catch (err) {

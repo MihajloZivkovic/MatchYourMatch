@@ -131,7 +131,6 @@ function App() {
       } catch (err) {
         if (err.name === 'AbortError') return;
         if (mounted) setCurrentUser("");
-        console.log(err);
       }
     };
 

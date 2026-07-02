@@ -55,7 +55,6 @@ export const adminService = {
     const response = await fetch(`/api/Admin/users/promote/${userId}`, {
       headers: authHeaders(),
     });
-    console.log(response);
     return readResponse(response, 'User could not be promoted.');
   },
 

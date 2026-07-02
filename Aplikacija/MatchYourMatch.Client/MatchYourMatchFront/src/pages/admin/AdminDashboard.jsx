@@ -345,7 +345,6 @@ function AdminDashboard() {
       setActionLoading(false);
     }
   };
-  console.log(reports);
 
   const requestBanReportedUser = (report) => {
     setConfirmError('');
