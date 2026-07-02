@@ -44,6 +44,7 @@ import {
   announceProfileChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
 } from "../../services/notificationService";
+import {handleLeaveAPI} from "../../utils/eventUtils";
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
 const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
@@ -211,11 +212,15 @@ function Profile(props) {
   const [leaveEventCandidate, setLeaveEventCandidate] = useState(null);
   const [leaveEventLoading, setLeaveEventLoading] = useState(false);
   const [enteredThroughDashboard, setEnteredThroughDashboard] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+  const [events, setEvents] = useState([]);
   const navigate = useNavigate();
   const redirectToPublic = useCallback(() => {
     clearAuthSession();
     window.location.replace("/");
   }, []);
+
 
   const styleButton = (btn) => {
     if (btn === 1) {
@@ -1213,6 +1218,7 @@ function Profile(props) {
     );
   };
 
+
   const updateProfileEventsAfterLeave = (eventId, updated) => {
     setProfileEvents((current) => ({
       Upcoming: current.Upcoming.filter((event) => event.id !== eventId),
@@ -1229,6 +1235,28 @@ function Profile(props) {
       ),
     }));
   };
+
+  const handleLeave = async (eventId) => {
+  setNotice('');
+  setError('');
+  try {
+    await handleLeaveAPI(eventId, t);
+    
+    setProfileEvents((currentGroups) => {
+      const updatedGroups = {};
+      Object.keys(currentGroups).forEach((category) => {
+        updatedGroups[category] = currentGroups[category].filter(
+          (event) => event.id !== eventId
+        );
+      });
+      
+      return updatedGroups;
+    });
+    setNotice(t('events.left'));
+  } catch (err) {
+    setError(err.message || t('events.leaveError'));
+  }
+};
 
   return (
     <div className="page-fade-in profile">
@@ -2242,14 +2270,7 @@ function Profile(props) {
                         style={{ "--i": index }}
                         onOpen={() => setSelectedEvent(event)}
                         onJoin={() => handleJoinEvent(event.id)}
-                        onLeave={
-                          eventSegment === "Upcoming" &&
-                          event.isJoinedByCurrentUser &&
-                          !event.isOrganizer
-                            ? () => requestLeaveEvent(event)
-                            : undefined
-                        }
-                        confirmLeaveInline={false}
+                        onLeave={() => handleLeave(event.id)}
                         onCancelJoinRequest={() =>
                           handleCancelEventJoinRequest(event.id)
                         }

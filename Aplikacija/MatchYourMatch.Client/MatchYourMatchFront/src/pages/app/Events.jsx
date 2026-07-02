@@ -11,6 +11,7 @@ import {
   announceEventsChanged,
   EVENTS_CHANGED_EVENT,
 } from '../../services/notificationService';
+import {handleLeaveAPI} from '../../utils/eventUtils';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
 const EVENTS_PAGE_SIZE = 4;
@@ -146,20 +147,15 @@ function Events({ currentUser }) {
     setNotice('');
     setError('');
     try {
-      const response = await fetch(`/api/Events/${eventId}/join`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || t('events.leaveError'));
-      }
-
-      const updated = mapApiEvent(await response.json());
-      setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
+      const rawData = await handleLeaveAPI(eventId, t); 
+      
+      setEvents((current) => current.map((event) => {
+        if (event.id === eventId) {
+          return rawData ? mapApiEvent(rawData) : { ...event, isJoined: false };
+        }
+        return event;
+      }));
+      
       setNotice(t('events.left'));
       announceEventsChanged({ source: 'events-leave', eventId });
     } catch (err) {
