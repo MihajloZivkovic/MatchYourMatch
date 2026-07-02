@@ -174,8 +174,7 @@ namespace MatchYourMatch.WebAPI.Services
                     ActorUsername = n.ActorUser?.Username,
                     ActorDisplayName = n.ActorUser?.Profile?.ShowFullName == true &&
                         !string.IsNullOrWhiteSpace(n.ActorUser.Profile.FullName)
-                            ? n.ActorUser.Profile.FullName
-                            : n.ActorUser?.Username,
+                            ? n.ActorUser.Profile.FullName : n.ActorUser?.Username,
                     ActorAvatar = n.ActorUser?.Profile?.ProfilePicture,
                     RelatedEntityType = n.Type == "EventJoinRequest" ? "Event" : n.RelatedEntityType,
                     RelatedEntityId = n.Type == "EventJoinRequest"

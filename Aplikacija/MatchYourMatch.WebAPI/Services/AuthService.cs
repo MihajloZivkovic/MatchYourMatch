@@ -366,7 +366,6 @@ namespace MatchYourMatch.WebAPI.Services
                     {
                         Username = username, Email = identity.Email,
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword(Convert.ToHexString(RandomNumberGenerator.GetBytes(32))),
-                        // Social registration does not offer account-type selection yet, so it defaults to regular user.
                         Role = "User",
                         HasPassword = false,
                         EmailConfirmed = identity.EmailVerified,
