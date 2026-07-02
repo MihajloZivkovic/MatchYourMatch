@@ -41,6 +41,7 @@ import {
   announceEventJoinRequestChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
 } from "../../services/notificationService";
+// import EventDetails from "../../components/events/EventDetails";
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
 const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
@@ -2024,67 +2025,7 @@ function Profile(props) {
   );
 }
 
-function EditableSetting({ icon: Icon, label, value, active, onOpen, children }) {
-  const displayValue = label === "Password" || label === "Lozinka" ? "********" : value;
-  return (
-    <div className={`profile-settings-editable${active ? " is-active" : ""}`}>
-      <button
-        type="button"
-        className="profile-settings-editable__summary"
-        onClick={onOpen}
-        aria-expanded={active}
-      >
-        <Icon size={16} />
-        <div>
-          <strong>{label}</strong>
-          <span>{displayValue}</span>
-        </div>
-        <small>{active ? "Editing" : "Edit"}</small>
-      </button>
-      {active && (
-        <div className="profile-settings-editable__form">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SettingActions({ saving, onSave, onCancel }) {
-  return (
-    <div className="profile-settings-editable__actions">
-      <button
-        type="button"
-        className="profile__quiet-btn"
-        onClick={onCancel}
-        disabled={saving}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        className="app-btn-pill"
-        onClick={onSave}
-        disabled={saving}
-      >
-        {saving ? "Saving..." : "Save"}
-      </button>
-    </div>
-  );
-}
-
-function formatVisibilityLabel(value) {
-  switch (value) {
-    case "Public":
-      return "Public";
-    case "Private":
-      return "Private";
-    default:
-      return "Standard";
-  }
-}
-
-function EventDetails({
+export function EventDetails({
   event,
   onBack,
   onJoin,
@@ -2171,6 +2112,67 @@ function EventDetails({
     </section>
   );
 }
+
+function EditableSetting({ icon: Icon, label, value, active, onOpen, children }) {
+  const displayValue = label === "Password" || label === "Lozinka" ? "********" : value;
+  return (
+    <div className={`profile-settings-editable${active ? " is-active" : ""}`}>
+      <button
+        type="button"
+        className="profile-settings-editable__summary"
+        onClick={onOpen}
+        aria-expanded={active}
+      >
+        <Icon size={16} />
+        <div>
+          <strong>{label}</strong>
+          <span>{displayValue}</span>
+        </div>
+        <small>{active ? "Editing" : "Edit"}</small>
+      </button>
+      {active && (
+        <div className="profile-settings-editable__form">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingActions({ saving, onSave, onCancel }) {
+  return (
+    <div className="profile-settings-editable__actions">
+      <button
+        type="button"
+        className="profile__quiet-btn"
+        onClick={onCancel}
+        disabled={saving}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="app-btn-pill"
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </div>
+  );
+}
+
+function formatVisibilityLabel(value) {
+  switch (value) {
+    case "Public":
+      return "Public";
+    case "Private":
+      return "Private";
+    default:
+      return "Standard";
+  }
+}
+
 
 function EventDiscussion({ event, onJoin }) {
   const { t } = useTranslation();
