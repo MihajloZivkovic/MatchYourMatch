@@ -318,6 +318,16 @@ Object.assign(translations.sr.emailVerification, {
   registrationSuccess: 'Registracija je uspesna. Proveri email da potvrdis nalog.',
 });
 
+Object.assign(translations.en.accountLifecycle, {
+  actionError: 'Account action could not be completed. Please try again.',
+  deleteError: 'Account could not be deleted. Please try again.',
+});
+
+Object.assign(translations.sr.accountLifecycle, {
+  actionError: 'Radnja nad nalogom nije mogla da se zavrsi. Pokusaj ponovo.',
+  deleteError: 'Nalog nije mogao da se obrise. Pokusaj ponovo.',
+});
+
 Object.assign(translations.en.chatUi, {
   usersOnly: 'Only user and organizer accounts can send messages.',
 });

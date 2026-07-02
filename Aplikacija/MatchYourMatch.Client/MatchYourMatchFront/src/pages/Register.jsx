@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "../hooks/useTranslation";
 import SocialAuthButtons from "../components/SocialAuthButtons";
 import GuestEntryButton from "../components/GuestEntryButton";
+import { PASSWORD_POLICY_MESSAGE, getPasswordValidationMessage } from "../utils/passwordPolicy";
 
 const ACCOUNT_TYPES = {
   user: "User",
@@ -27,6 +28,18 @@ function getLatestAllowedBirthDate() {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+async function readRegisterError(response) {
+  const rawError = await response.text();
+  if (!rawError) return "";
+
+  try {
+    const parsed = JSON.parse(rawError);
+    return parsed.message || rawError;
+  } catch {
+    return rawError;
+  }
 }
 
 function Register() {
@@ -54,6 +67,8 @@ function Register() {
       if (!values.dateOfBirth) return { error: t("auth.dateOfBirthRequired"), values };
       if (values.dateOfBirth > getLatestAllowedBirthDate()) return { error: t("auth.minimumAge"), values };
     }
+    const passwordError = getPasswordValidationMessage(values.password);
+    if (passwordError) return { error: passwordError, values };
     if (values.password !== values.confirmPassword) return { error: t("auth.passwordsMismatch"), values };
 
     try {
@@ -72,7 +87,7 @@ function Register() {
       });
 
       if (!response.ok) {
-        const message = await response.text();
+        const message = await readRegisterError(response);
         return { error: message || t("auth.registrationFailed"), values };
       }
 
@@ -160,6 +175,7 @@ function Register() {
               <label className="auth__label" htmlFor="register-password">{t("auth.password")}</label>
               <input id="register-password" className="auth__input" type="password" name="password"
                 placeholder="••••••••" autoComplete="new-password" required defaultValue={state.values.password} />
+              <p className="auth__hint">{PASSWORD_POLICY_MESSAGE}</p>
             </div>
 
             <div className="auth__field">

@@ -1,4 +1,5 @@
 ﻿using MatchYourMatch.WebAPI.DTOs.Event;
+using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -163,6 +164,10 @@ namespace MatchYourMatch.WebAPI.Controllers
             catch (UnauthorizedAccessException ex) 
             { 
                 return StatusCode(StatusCodes.Status403Forbidden, ex.Message); 
+            }
+            catch (EventStartInPastException ex)
+            {
+                return BadRequest(new { errorCode = ex.Code, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -379,6 +384,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var organizerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 await _service.UpdateAsync(organizerId, id, dto);
                 return NoContent();
+            }
+            catch (EventStartInPastException ex)
+            {
+                return BadRequest(new { errorCode = ex.Code, message = ex.Message });
             }
             catch (Exception ex)
             {

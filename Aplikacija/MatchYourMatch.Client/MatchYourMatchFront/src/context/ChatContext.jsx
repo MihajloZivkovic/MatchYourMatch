@@ -207,6 +207,24 @@ export function ChatProvider({ children }) {
     }
   }, [apiFetch, auth.userId]);
 
+  const removeUnavailableConversation = useCallback((conversationId) => {
+    setMessagesForConversation(setMessagesByConversation, messagesByConversationRef, conversationId, []);
+    setMessageLoadStateByConversation((current) => ({
+      ...current,
+      [conversationId]: { status: "idle", error: "" },
+    }));
+
+    const nextConversations = conversationsRef.current.filter(
+      (conversation) => conversation.conversationId !== conversationId,
+    );
+    conversationsRef.current = nextConversations;
+    setConversations(nextConversations);
+    setActiveConversationId((current) => {
+      if (current !== conversationId) return current;
+      return nextConversations[0]?.conversationId || null;
+    });
+  }, []);
+
   const loadMessages = useCallback(
     async (conversationId, { silent = false, markRead = true } = {}) => {
       if (!conversationId) return [];
@@ -276,6 +294,16 @@ export function ChatProvider({ children }) {
         return decrypted;
       } catch (err) {
         const message = err.message || "Messages could not be loaded.";
+
+        if (err.status === 403 || err.status === 404) {
+          removeUnavailableConversation(conversationId);
+          if (!silent) {
+            setError("");
+          }
+          await loadConversations({ silent: true });
+          return [];
+        }
+
         setMessageLoadStateByConversation((current) => ({
           ...current,
           [conversationId]: { status: "error", error: message },
@@ -287,7 +315,7 @@ export function ChatProvider({ children }) {
         }
       }
     },
-    [apiFetch, auth.userId],
+    [apiFetch, auth.userId, loadConversations, removeUnavailableConversation],
   );
 
   const startConversation = useCallback(
@@ -735,7 +763,9 @@ function getConversationPeerId(conversation) {
 
 function getFriendlyChatError(message, status, url) {
   if (status === 401) return "Chat request failed: you are not logged in.";
-  if (status === 403) return "Chat request failed: you do not have access to this conversation.";
+  if (status === 403 && url.includes("/messages"))
+    return "Chat request failed: you do not have access to this conversation.";
+  if (status === 403) return "Chat request failed: this action is not allowed.";
   if (status === 404) return `Chat request failed: ${url} was not found.`;
   if (status >= 500) {
     if (message?.toLowerCase().includes("chat service is not ready")) {

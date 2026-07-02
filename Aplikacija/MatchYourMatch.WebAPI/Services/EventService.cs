@@ -635,6 +635,9 @@ namespace MatchYourMatch.WebAPI.Services
 
         private static void ValidateEvent(CreateEventDto dto)
         {
+            if (dto.Date.ToDateTime(dto.Time) <= DateTime.Now)
+                throw new EventStartInPastException();
+
             if (dto.MinAge is < MinimumAllowedEventAge or > MaximumAllowedEventAge ||
                 dto.MaxAge is < MinimumAllowedEventAge or > MaximumAllowedEventAge ||
                 (dto.MinAge.HasValue && dto.MaxAge.HasValue && dto.MinAge > dto.MaxAge))
@@ -888,5 +891,18 @@ namespace MatchYourMatch.WebAPI.Services
             Provider = attachment.Provider, ProviderMediaId = attachment.ProviderMediaId,
             OriginalUrl = attachment.OriginalUrl, PreviewUrl = attachment.PreviewUrl
         };
+    }
+
+    public class EventStartInPastException : Exception
+    {
+        public const string DefaultCode = "EVENT_START_IN_PAST";
+        public const string DefaultMessage = "Event start time must be in the future.";
+
+        public EventStartInPastException()
+            : base(DefaultMessage)
+        {
+        }
+
+        public string Code => DefaultCode;
     }
 }

@@ -540,6 +540,7 @@
 .profile-settings-editable__form select option { background: #11100d; color: #f4efe4; }
 .profile-settings-editable__form select option:checked { background: #2b2110; color: var(--accent); }
 .profile-settings-editable__form input:focus, .profile-settings-editable__form select:focus { border-color: rgba(244, 163, 0, .55); box-shadow: 0 0 0 3px rgba(244, 163, 0, .08); }
+.profile-settings-password-help { display: block; margin-top: .35rem; color: var(--text-muted); font-size: .66rem; line-height: 1.35; }
 .profile-settings-visibility-help { display: grid; gap: .45rem; padding: .65rem; border: 1px solid color-mix(in srgb, var(--color-border) 82%, var(--accent)); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .24); }
 .profile-settings-visibility-help p { margin: 0; display: grid; gap: .12rem; }
 .profile-settings-visibility-help strong { color: var(--accent); font-size: .68rem; }

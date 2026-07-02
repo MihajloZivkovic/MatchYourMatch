@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import AppNavbar from './AppNavbar';
 import AppFooter from './AppFooter';
 import FloatingChat from '../components/chat/FloatingChat';
@@ -9,9 +9,14 @@ import './app-polish.css';
 
 function AppShell(props) {
   const location = useLocation();
+  const token = localStorage.getItem('token');
   const isChatRoute = location.pathname === '/app/chat';
   const isGuest = isGuestSession();
   const isOrganizer = !isGuest && isOrganizerSession();
+
+  if (!token) {
+    return <Navigate to='/' replace />;
+  }
 
   return (
     <div className="app-shell">
@@ -20,7 +25,7 @@ function AppShell(props) {
         <span className="app-shell__glow app-shell__glow--tl" />
         <span className="app-shell__glow app-shell__glow--br" />
       </div>
-      <AppNavbar picture={props.userProfile.profilePicture} currentUser={props.currentUser} />
+      <AppNavbar picture={props.userProfile?.profilePicture} currentUser={props.currentUser} />
       <ChatProvider>
         <main className={`app-shell__main${isChatRoute ? ' app-shell__main--chat' : ''}`}>
           <Outlet />

@@ -7,6 +7,9 @@ import LocationAutocomplete from "../../components/LocationAutocomplete";
 import { isOrganizerSession } from "../../services/guestSession";
 
 const CATEGORIES = ["Study", "Gaming", "Coffee", "Social", "Sport"];
+const EVENT_START_IN_PAST_CODE = "EVENT_START_IN_PAST";
+const EVENT_START_IN_PAST_MESSAGE = "Event start time must be in the future.";
+
 const initialForm = {
   title: "",
   date: "",
@@ -19,6 +22,61 @@ const initialForm = {
   showFullAddress: false,
   requiresParticipantApproval: false,
 };
+
+function toDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toTimeInputValue(date) {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function combineDateAndTime(date, time) {
+  if (!date || !time) return null;
+
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+  if ([year, month, day, hours, minutes].some((value) => Number.isNaN(value)))
+    return null;
+
+  return new Date(year, month - 1, day, hours, minutes);
+}
+
+function getEventStartValidationMessage(date, time, now) {
+  const eventStart = combineDateAndTime(date, time);
+  if (!eventStart) return "";
+
+  return eventStart > now ? "" : EVENT_START_IN_PAST_MESSAGE;
+}
+
+function getMinimumTimeForDate(date, now) {
+  const today = toDateInputValue(now);
+  if (date !== today) return undefined;
+
+  const nextMinute = new Date(now.getTime() + 60000);
+  return toDateInputValue(nextMinute) === today
+    ? toTimeInputValue(nextMinute)
+    : "23:59";
+}
+
+async function readEventError(response) {
+  const rawError = await response.text();
+  if (!rawError) return "";
+
+  try {
+    const parsed = JSON.parse(rawError);
+    if (parsed.errorCode === EVENT_START_IN_PAST_CODE)
+      return EVENT_START_IN_PAST_MESSAGE;
+    return parsed.message || rawError;
+  } catch {
+    return rawError;
+  }
+}
 
 function CreateEvent() {
   const navigate = useNavigate();
@@ -33,6 +91,10 @@ function CreateEvent() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(editing);
   const [ageError, setAgeError] = useState("");
+  const [now, setNow] = useState(() => new Date());
+  const today = toDateInputValue(now);
+  const minTimeForSelectedDate = getMinimumTimeForDate(form.date, now);
+  const eventStartError = getEventStartValidationMessage(form.date, form.time, now);
 
   useEffect(() => {
     if (!editing) return undefined;
@@ -71,6 +133,11 @@ function CreateEvent() {
     return () => controller.abort();
   }, [editing, id, t]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const change = (event) => {
     setForm((current) => ({
       ...current,
@@ -98,6 +165,7 @@ function CreateEvent() {
       setAgeError(ageValidation);
       return;
     }
+    if (eventStartError) return;
     setError("");
     setAgeError("");
     setSubmitting(true);
@@ -126,7 +194,7 @@ function CreateEvent() {
       );
       if (!response.ok)
         throw new Error(
-          (await response.text()) ||
+          (await readEventError(response)) ||
             t(editing ? "events.updateError" : "events.createError"),
         );
       setSuccess(true);
@@ -166,6 +234,9 @@ function CreateEvent() {
           <p>{t("events.createSubtitle")}</p>
         </header>
         {error && <div className="create-event__error">{error}</div>}
+        {eventStartError && (
+          <div className="create-event__error">{eventStartError}</div>
+        )}
         {loading ? (
           <p className="create-event__loading">{t("common.loading")}</p>
         ) : (
@@ -203,6 +274,7 @@ function CreateEvent() {
                   name="date"
                   value={form.date}
                   onChange={change}
+                  min={today}
                   required
                 />
               </label>
@@ -213,6 +285,7 @@ function CreateEvent() {
                   name="time"
                   value={form.time}
                   onChange={change}
+                  min={minTimeForSelectedDate}
                   required
                 />
               </label>
@@ -335,7 +408,7 @@ function CreateEvent() {
               <button
                 type="submit"
                 className="app-btn-pill"
-                disabled={submitting}
+                disabled={submitting || Boolean(eventStartError)}
               >
                 {submitting
                   ? t("events.publishing").toUpperCase()

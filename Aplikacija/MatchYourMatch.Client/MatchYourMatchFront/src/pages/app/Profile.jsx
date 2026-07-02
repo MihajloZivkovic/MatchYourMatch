@@ -35,7 +35,8 @@ import ProfileStats from "../../components/profile/ProfileStats";
 import FollowListModal from "../../components/profile/FollowListModal";
 import "./Profile.css";
 import { useTranslation } from "../../hooks/useTranslation";
-import { logoutAndRedirect } from "../../services/authSession";
+import { clearAuthSession, logoutAndRedirect } from "../../services/authSession";
+import { PASSWORD_POLICY_MESSAGE, getPasswordValidationMessage } from "../../utils/passwordPolicy";
 import {
   announceEventJoinRequestChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
@@ -129,6 +130,10 @@ const LITTLE_THINGS_SUGGESTIONS = [
 
 function Profile(props) {
   const { t } = useTranslation();
+  const currentUser = props.currentUser ?? {};
+  const userProfile = props.userProfile ?? {};
+  const setUserProfile = props.setUserProfile ?? (() => {});
+  const username = currentUser.username || "User";
   const formatProfileValue = (value) => {
     const key = `profileValues.${value}`;
     const translated = t(key);
@@ -137,11 +142,10 @@ function Profile(props) {
     const legacy = t(legacyKey);
     return legacy === legacyKey ? value : legacy;
   };
-  const { setUserProfile } = props;
   const [tab, setTab] = useState("ABOUT");
   const [eventSegment, setEventSegment] = useState("Upcoming");
   const [profileEditing, setProfileEditing] = useState(false);
-  const [bio, setBio] = useState(props.userProfile.bio || "");
+  const [bio, setBio] = useState(userProfile.bio || "");
   const [locationDraft, setLocationDraft] = useState("");
   const [locationPrivacyDraft, setLocationPrivacyDraft] = useState("CityOnly");
   const [profileLocation, setProfileLocation] = useState("");
@@ -159,8 +163,8 @@ function Profile(props) {
   const [accountEditor, setAccountEditor] = useState(null);
   const [accountSaving, setAccountSaving] = useState("");
   const [accountMessage, setAccountMessage] = useState({ type: "", text: "" });
-  const [usernameDraft, setUsernameDraft] = useState(props.currentUser?.username || "");
-  const [emailDraft, setEmailDraft] = useState(props.currentUser?.email || "");
+  const [usernameDraft, setUsernameDraft] = useState(currentUser?.username || "");
+  const [emailDraft, setEmailDraft] = useState(currentUser?.email || "");
   const [emailPasswordDraft, setEmailPasswordDraft] = useState("");
   const [passwordDraft, setPasswordDraft] = useState({
     currentPassword: "",
@@ -168,7 +172,7 @@ function Profile(props) {
     confirmNewPassword: "",
   });
   const [visibilityDraft, setVisibilityDraft] = useState(
-    props.userProfile?.profileVisibility || props.currentUser?.profileVisibility || "Standard",
+    userProfile?.profileVisibility || currentUser?.profileVisibility || "Standard",
   );
   const [followListType, setFollowListType] = useState(null);
   const [lifestyleEditing, setLifestyleEditing] = useState(false);
@@ -202,6 +206,10 @@ function Profile(props) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [enteredThroughDashboard, setEnteredThroughDashboard] = useState(false);
   const navigate = useNavigate();
+  const redirectToPublic = useCallback(() => {
+    clearAuthSession();
+    window.location.replace("/");
+  }, []);
 
   const styleButton = (btn) => {
     if (btn === 1) {
@@ -226,12 +234,12 @@ function Profile(props) {
 
   useEffect(() => {
     const location =
-      props.currentUser?.locationDisplayName ||
-      props.currentUser?.location ||
+      currentUser?.locationDisplayName ||
+      currentUser?.location ||
       "";
-    const locationInput = props.currentUser?.locationRawInput || location;
-    const currentBio = props.currentUser?.bio || props.userProfile.bio || "";
-    const privacy = props.currentUser?.locationPrivacy || "CityOnly";
+    const locationInput = currentUser?.locationRawInput || location;
+    const currentBio = currentUser?.bio || userProfile.bio || "";
+    const privacy = currentUser?.locationPrivacy || "CityOnly";
 
     setProfileLocation(location);
     setLocationDraft(locationInput);
@@ -239,36 +247,36 @@ function Profile(props) {
     setBio(currentBio);
     setProfileLocationPrivacy(privacy);
     setLocationPrivacyDraft(privacy);
-    setFullNameDraft(props.userProfile.fullName || "");
-    setShowFullNameDraft(Boolean(props.userProfile.showFullName));
-    setDateOfBirthDraft(toDateInputValue(props.userProfile.dateOfBirth));
-    setShowAgeDraft(Boolean(props.userProfile.showAge));
+    setFullNameDraft(userProfile.fullName || "");
+    setShowFullNameDraft(Boolean(userProfile.showFullName));
+    setDateOfBirthDraft(toDateInputValue(userProfile.dateOfBirth));
+    setShowAgeDraft(Boolean(userProfile.showAge));
   }, [
-    props.currentUser?.bio,
-    props.currentUser?.location,
-    props.currentUser?.locationDisplayName,
-    props.currentUser?.locationRawInput,
-    props.currentUser?.locationPrivacy,
-    props.userProfile.bio,
-    props.userProfile.fullName,
-    props.userProfile.showFullName,
-    props.userProfile.dateOfBirth,
-    props.userProfile.showAge,
+    currentUser?.bio,
+    currentUser?.location,
+    currentUser?.locationDisplayName,
+    currentUser?.locationRawInput,
+    currentUser?.locationPrivacy,
+    userProfile.bio,
+    userProfile.fullName,
+    userProfile.showFullName,
+    userProfile.dateOfBirth,
+    userProfile.showAge,
   ]);
 
   useEffect(() => {
-    setUsernameDraft(props.currentUser?.username || "");
-    setEmailDraft(props.currentUser?.email || "");
+    setUsernameDraft(currentUser?.username || "");
+    setEmailDraft(currentUser?.email || "");
     setVisibilityDraft(
-      props.userProfile?.profileVisibility ||
-        props.currentUser?.profileVisibility ||
+      userProfile?.profileVisibility ||
+        currentUser?.profileVisibility ||
         "Standard",
     );
   }, [
-    props.currentUser?.username,
-    props.currentUser?.email,
-    props.currentUser?.profileVisibility,
-    props.userProfile?.profileVisibility,
+    currentUser?.username,
+    currentUser?.email,
+    currentUser?.profileVisibility,
+    userProfile?.profileVisibility,
   ]);
 
   useEffect(() => {
@@ -349,6 +357,10 @@ function Profile(props) {
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 404) {
+          redirectToPublic();
+          return;
+        }
         const body = await response.text();
         throw new Error(body || `Profile request failed (${response.status}).`);
       }
@@ -396,7 +408,7 @@ function Profile(props) {
     } finally {
       setProfileLoading(false);
     }
-  }, [setUserProfile]);
+  }, [redirectToPublic, setUserProfile]);
 
   useEffect(() => {
     fetchProfile();
@@ -533,6 +545,10 @@ function Profile(props) {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 404) {
+        redirectToPublic();
+        return null;
+      }
       const body = await response.text();
       throw new Error(body || "We couldn't save your profile right now.");
     }
@@ -561,7 +577,7 @@ function Profile(props) {
         nextBio: profileBio || bio,
         nextPicture: convertedImage,
         nextLocation:
-          props.currentUser?.locationRawInput || props.userProfile.location,
+          currentUser?.locationRawInput || userProfile.location,
         nextPrivacy: profileLocationPrivacy,
       });
 
@@ -580,12 +596,12 @@ function Profile(props) {
   };
 
   const handleProfileEdit = () => {
-    setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
+    setLocationDraft(currentUser?.locationRawInput || profileLocation);
     setLocationPrivacyDraft(profileLocationPrivacy);
-    setFullNameDraft(props.userProfile.fullName || "");
-    setShowFullNameDraft(Boolean(props.userProfile.showFullName));
-    setDateOfBirthDraft(toDateInputValue(props.userProfile.dateOfBirth));
-    setShowAgeDraft(Boolean(props.userProfile.showAge));
+    setFullNameDraft(userProfile.fullName || "");
+    setShowFullNameDraft(Boolean(userProfile.showFullName));
+    setDateOfBirthDraft(toDateInputValue(userProfile.dateOfBirth));
+    setShowAgeDraft(Boolean(userProfile.showAge));
     setProfileError("");
     setProfileSuccess("");
     setLocationSuggestions([]);
@@ -601,7 +617,7 @@ function Profile(props) {
   }
 
   const handleProfileCancel = () => {
-    setLocationDraft(props.currentUser?.locationRawInput || profileLocation);
+    setLocationDraft(currentUser?.locationRawInput || profileLocation);
     setLocationPrivacyDraft(profileLocationPrivacy);
     setProfileError("");
     setProfileSuccess("");
@@ -629,9 +645,9 @@ function Profile(props) {
     setAccountMessage({ type: "", text: "" });
     setProfileError("");
     setProfileSuccess("");
-    if (editor === "username") setUsernameDraft(props.currentUser?.username || "");
+    if (editor === "username") setUsernameDraft(currentUser?.username || "");
     if (editor === "email") {
-      setEmailDraft(props.currentUser?.email || "");
+      setEmailDraft(currentUser?.email || "");
       setEmailPasswordDraft("");
     }
     if (editor === "password") {
@@ -643,8 +659,8 @@ function Profile(props) {
     }
     if (editor === "visibility") {
       setVisibilityDraft(
-        props.userProfile?.profileVisibility ||
-          props.currentUser?.profileVisibility ||
+        userProfile?.profileVisibility ||
+          currentUser?.profileVisibility ||
           "Standard",
       );
     }
@@ -715,6 +731,14 @@ function Profile(props) {
   const savePassword = async () => {
     setAccountSaving("password");
     setAccountMessage({ type: "", text: "" });
+
+    const passwordError = getPasswordValidationMessage(passwordDraft.newPassword);
+    if (passwordError) {
+      setAccountSaving("");
+      setAccountMessage({ type: "error", text: passwordError });
+      return;
+    }
+
     try {
       await accountService.updatePassword(passwordDraft);
       setPasswordDraft({
@@ -756,7 +780,7 @@ function Profile(props) {
     try {
       const savedProfile = await updateProfile({
         nextBio: profileBio,
-        nextPicture: props.userProfile.profilePicture,
+        nextPicture: userProfile.profilePicture,
         nextLocation: locationDraft.trim(),
         nextPrivacy: locationPrivacyDraft,
       });
@@ -819,10 +843,10 @@ function Profile(props) {
       },
       body: JSON.stringify({
         littleThings:
-          changes.littleThings ?? props.userProfile.littleThings ?? [],
+          changes.littleThings ?? userProfile.littleThings ?? [],
         currentlyExploring:
           changes.currentlyExploring ??
-          props.userProfile.currentlyExploring ??
+          userProfile.currentlyExploring ??
           [],
       }),
     });
@@ -840,10 +864,10 @@ function Profile(props) {
 
   const startLifestyleEdit = () => {
     setLifestyleDraft({
-      favoriteActivities: [...(props.userProfile.favoriteActivities || [])],
-      socialEnergy: props.userProfile.socialEnergy,
-      conversationStyle: props.userProfile.conversationStyle || "",
-      lookingFor: [...(props.userProfile.lookingFor || [])],
+      favoriteActivities: [...(userProfile.favoriteActivities || [])],
+      socialEnergy: userProfile.socialEnergy,
+      conversationStyle: userProfile.conversationStyle || "",
+      lookingFor: [...(userProfile.lookingFor || [])],
     });
     setLifestyleError("");
     setLifestyleEditing(true);
@@ -898,9 +922,9 @@ function Profile(props) {
     try {
       await updateProfile({
         nextBio: bioText,
-        nextPicture: props.userProfile.profilePicture,
+        nextPicture: userProfile.profilePicture,
         nextLocation:
-          props.currentUser?.locationRawInput || props.userProfile.location,
+          currentUser?.locationRawInput || userProfile.location,
         nextPrivacy: profileLocationPrivacy,
       });
 
@@ -917,41 +941,38 @@ function Profile(props) {
   };
 
   const responseRateValue =
-    props.currentUser?.responseRatePercent ??
-    props.userProfile?.responseRatePercent;
+    currentUser?.responseRatePercent ??
+    userProfile?.responseRatePercent;
   const matchesValue =
-    props.currentUser?.matchesCount ?? props.userProfile?.matchesCount;
+    currentUser?.matchesCount ?? userProfile?.matchesCount;
   const eventsJoinedValue =
-    props.currentUser?.eventsJoinedCount ??
-    props.userProfile?.eventsJoinedCount;
+    currentUser?.eventsJoinedCount ??
+    userProfile?.eventsJoinedCount;
   const profileScoreValue =
     props.currentUser?.profileScorePercent ??
     props.userProfile?.profileScorePercent;
+  const ratingsCount =
+      props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
+  const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
   const followersValue =
     props.currentUser?.followersCount ?? props.userProfile?.followersCount;
-  const ratingsCount =
-    props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
   const followersDisplay =
     typeof followersValue === "number" ? String(followersValue) : "—";
 
-  const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
-
-  const followingValue = props.currentUser?.followingCount ?? props.userProfile?.followingCount;
-  
-  const followingDisplay =
-    typeof followingValue === "number" ? String(followingValue) : "—";
-
+  var followingValue =
+    props.currentUser?.followingCount ?? props.userProfile?.followingCount ?? 0;
+  followingValue --;
 
 
   const savedLocationInput =
-    props.currentUser?.locationRawInput || props.userProfile.location || "";
+    currentUser?.locationRawInput || userProfile.location || "";
   const profileHasChanges =
     locationDraft.trim() !== savedLocationInput.trim() ||
     locationPrivacyDraft !== profileLocationPrivacy ||
-    fullNameDraft.trim() !== (props.userProfile.fullName || "").trim() ||
-    showFullNameDraft !== Boolean(props.userProfile.showFullName) ||
-    dateOfBirthDraft !== toDateInputValue(props.userProfile.dateOfBirth) ||
-    showAgeDraft !== Boolean(props.userProfile.showAge);
+    fullNameDraft.trim() !== (userProfile.fullName || "").trim() ||
+    showFullNameDraft !== Boolean(userProfile.showFullName) ||
+    dateOfBirthDraft !== toDateInputValue(userProfile.dateOfBirth) ||
+    showAgeDraft !== Boolean(userProfile.showAge);
 
   const eventLists = profileEvents;
   const eventEmptyCopy = {
@@ -1058,8 +1079,8 @@ function Profile(props) {
                 className="profile__avatar"
                 title={t("profileSettings.chooseImage")}
               >
-                {props.userProfile.profilePicture ? (
-                  <img src={props.userProfile.profilePicture} alt="Profile" />
+                {userProfile.profilePicture ? (
+                  <img src={userProfile.profilePicture} alt="Profile" />
                 ) : (
                   "+"
                 )}
@@ -1074,11 +1095,11 @@ function Profile(props) {
             </div>
             <div className="profile__identity-text">
               <h1>
-                {props.userProfile.showFullName && props.userProfile.fullName
-                  ? props.userProfile.fullName
-                  : props.currentUser.username}
+                {userProfile.showFullName && userProfile.fullName
+                  ? userProfile.fullName
+                  : username}
               </h1>
-              <p className="profile__username">@{props.currentUser.username}</p>
+              <p className="profile__username">@{username}</p>
               <button
                 type="button"
                 className="profile__followers profile__followers--clickable"
@@ -1096,7 +1117,7 @@ function Profile(props) {
                 disabled={!profileUserId}
               >
                 <Users size={14} />
-                <strong>{followingDisplay}</strong>{" "}
+                <strong>{followingValue}</strong>{" "}
                 {t("publicProfile.following")}
               </button>
               <p className="profile__location">
@@ -1122,14 +1143,14 @@ function Profile(props) {
                     Add location
                   </p>
                 )}
-                {props.userProfile.showAge && props.userProfile.age != null
-                  ? ` · ${props.userProfile.age}`
+                {userProfile.showAge && userProfile.age != null
+                  ? ` · ${userProfile.age}`
                   : ""}
               </p>
               <ProfileTagEditor
                 compact
                 title={t("profile.exploring")}
-                tags={props.userProfile.currentlyExploring || []}
+                tags={userProfile.currentlyExploring || []}
                 maxTags={5}
                 placeholder={t("profileTags.exploringPlaceholder")}
                 emptyText={t("profile.noExploringTags")}
@@ -1220,10 +1241,10 @@ function Profile(props) {
 
                   <div className="profile-settings-picture">
                     <span className="profile-settings-picture__preview">
-                      {props.userProfile.profilePicture ? (
-                        <img src={props.userProfile.profilePicture} alt="" />
+                      {userProfile.profilePicture ? (
+                        <img src={userProfile.profilePicture} alt="" />
                       ) : (
-                        props.currentUser.username.slice(0, 2).toUpperCase()
+                        username.slice(0, 2).toUpperCase()
                       )}
                     </span>
                     <div>
@@ -1351,7 +1372,7 @@ function Profile(props) {
                     <EditableSetting
                       icon={UserRound}
                       label={t("profileSettings.username")}
-                      value={`@${props.currentUser.username}`}
+                      value={`@${username}`}
                       active={accountEditor === "username"}
                       onOpen={() => openAccountEditor("username")}
                     >
@@ -1374,9 +1395,9 @@ function Profile(props) {
                       icon={Mail}
                       label={t("profileSettings.email")}
                       value={
-                        props.currentUser.pendingEmail
-                          ? `${props.currentUser.email} (pending ${props.currentUser.pendingEmail})`
-                          : props.currentUser.email ||
+                        currentUser.pendingEmail
+                          ? `${currentUser.email} (pending ${currentUser.pendingEmail})`
+                          : currentUser.email ||
                             t("profileSettings.privateValue")
                       }
                       active={accountEditor === "email"}
@@ -1440,6 +1461,9 @@ function Profile(props) {
                           }
                           autoComplete="new-password"
                         />
+                        <small className="profile-settings-password-help">
+                          {PASSWORD_POLICY_MESSAGE}
+                        </small>
                       </label>
                       <label>
                         <span>Confirm new password</span>
@@ -1476,8 +1500,8 @@ function Profile(props) {
                     icon={Shield}
                     label={t("profileSettings.visibility")}
                     value={formatVisibilityLabel(
-                      props.userProfile?.profileVisibility ||
-                        props.currentUser?.profileVisibility ||
+                      userProfile?.profileVisibility ||
+                        currentUser?.profileVisibility ||
                         "Standard",
                     )}
                     active={accountEditor === "visibility"}
@@ -1616,7 +1640,7 @@ function Profile(props) {
               <section className="profile__block profile__little-things">
                 <ProfileTagEditor
                   title={t("profile.littleThings").toUpperCase()}
-                  tags={props.userProfile.littleThings || []}
+                  tags={userProfile.littleThings || []}
                   maxTags={10}
                   placeholder={t("profileTags.littlePlaceholder")}
                   emptyText={t("profileTags.noLittleThings")}
@@ -1660,10 +1684,10 @@ function Profile(props) {
                           <Music size={14} />
                           {t("profile.favoriteActivities")}
                         </h4>
-                        {(props.userProfile.favoriteActivities || []).length >
+                        {(userProfile.favoriteActivities || []).length >
                         0 ? (
                           <div className="profile__pills">
-                            {props.userProfile.favoriteActivities.map(
+                            {userProfile.favoriteActivities.map(
                               (item) => (
                                 <span key={item} className="profile__pill">
                                   {formatProfileValue(item)}
@@ -1699,7 +1723,7 @@ function Profile(props) {
                           {socialEnergyLabel(lifestyleDraft.socialEnergy ?? 50)}
                         </small>
                       </div>
-                    ) : props.userProfile.socialEnergy != null ? (
+                    ) : userProfile.socialEnergy != null ? (
                       <div className="profile__energy-ring">
                         <svg viewBox="0 0 36 36">
                           <circle
@@ -1715,11 +1739,11 @@ function Profile(props) {
                             className="profile__ring-fill"
                             style={{
                               strokeDashoffset:
-                                94 * (1 - props.userProfile.socialEnergy / 100),
+                                94 * (1 - userProfile.socialEnergy / 100),
                             }}
                           />
                         </svg>
-                        <span>{props.userProfile.socialEnergy}%</span>
+                        <span>{userProfile.socialEnergy}%</span>
                       </div>
                     ) : (
                       <p>{t("profileLifestyle.notSet")}</p>
@@ -1751,9 +1775,9 @@ function Profile(props) {
                       </select>
                     ) : (
                       <p>
-                        {props.userProfile.conversationStyle
+                        {userProfile.conversationStyle
                           ? formatProfileValue(
-                              props.userProfile.conversationStyle,
+                              userProfile.conversationStyle,
                             )
                           : t("profileLifestyle.notSet")}
                       </p>
@@ -1784,9 +1808,9 @@ function Profile(props) {
                           <Moon size={14} />
                           {t("profile.lookingFor")}
                         </h4>
-                        {(props.userProfile.lookingFor || []).length > 0 ? (
+                        {(userProfile.lookingFor || []).length > 0 ? (
                           <div className="profile__pills">
-                            {props.userProfile.lookingFor.map((item) => (
+                            {userProfile.lookingFor.map((item) => (
                               <span key={item} className="profile__pill">
                                 {formatProfileValue(item)}
                               </span>

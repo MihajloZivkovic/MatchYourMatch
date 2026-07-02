@@ -17,6 +17,9 @@ namespace MatchYourMatch.WebAPI.DTOs.Search
         public string? ProfilePicture { get; set; }
         public string? Role { get; set; }
         public string? LocationDisplayName { get; set; }
+        public bool IsPrivate { get; set; }
+        public bool CanViewPrivateContent { get; set; } = true;
+        public bool IsMutualFollow { get; set; }
         public List<string> Tags { get; set; } = new();
     }
 

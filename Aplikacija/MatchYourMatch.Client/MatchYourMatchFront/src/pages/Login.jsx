@@ -4,6 +4,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButtons from '../components/SocialAuthButtons';
 import GuestEntryButton from '../components/GuestEntryButton';
 import { isAdminSession, isOrganizerSession } from '../services/guestSession';
+import { PASSWORD_POLICY_MESSAGE, getPasswordValidationMessage } from '../utils/passwordPolicy';
 
 const ACCOUNT_DEACTIVATED_CODE = 'ACCOUNT_DEACTIVATED';
 
@@ -177,6 +178,11 @@ function Login() {
       updateResetPanel({ error: t('auth.passwordsMismatch'), message: '' });
       return;
     }
+    const passwordError = getPasswordValidationMessage(resetPanel.newPassword);
+    if (passwordError) {
+      updateResetPanel({ error: passwordError, message: '' });
+      return;
+    }
 
     updateResetPanel({ loading: true, error: '', message: '' });
     try {
@@ -188,7 +194,10 @@ function Login() {
           newPassword: resetPanel.newPassword,
         }),
       });
-      if (!response.ok) throw new Error(await response.text());
+      if (!response.ok) {
+        const resetError = await readLoginError(response);
+        throw new Error(resetError.message || t('passwordReset.resetError'));
+      }
       updateResetPanel({
         step: 'done',
         loading: false,
@@ -197,10 +206,10 @@ function Login() {
         confirmPassword: '',
         message: t('passwordReset.success'),
       });
-    } catch {
+    } catch (error) {
       updateResetPanel({
         loading: false,
-        error: t('passwordReset.resetError'),
+        error: error.message || t('passwordReset.resetError'),
       });
     }
   };
@@ -328,6 +337,7 @@ function Login() {
                       disabled={resetPanel.step === 'done'}
                       onChange={(event) => updateResetPanel({ newPassword: event.target.value })}
                     />
+                    <p className="auth__hint">{PASSWORD_POLICY_MESSAGE}</p>
                     <input
                       className="auth__input"
                       type="password"

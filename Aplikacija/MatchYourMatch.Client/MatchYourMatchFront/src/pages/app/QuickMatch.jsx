@@ -153,8 +153,6 @@ function QuickMatch() {
           throw new Error('You must be logged in to load activities.');
         }
 
-        console.log('QuickMatch activities request URL:', activitiesUrl);
-
         const response = await fetch(activitiesUrl, {
           headers: {
             Authorization: `Bearer ${token}`,

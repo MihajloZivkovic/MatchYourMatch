@@ -13,6 +13,8 @@ namespace MatchYourMatch.WebAPI.DTOs.User
         public string? LocationDisplayName { get; set; }
         public string ProfileVisibility { get; set; } = "Standard";
         public bool IsPrivate { get; set; }
+        public bool CanViewPrivateContent { get; set; } = true;
+        public bool IsMutualFollow { get; set; }
         public int MatchesCount { get; set; }
         public int EventsJoinedCount { get; set; }
         public int ProfileScorePercent { get; set; }

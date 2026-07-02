@@ -198,9 +198,15 @@ namespace MatchYourMatch.WebAPI.Services
                 throw new Exception("Profile not found.");
 
             var visibility = user.Profile?.ProfileVisibility ?? "Standard";
+            var isFollowing = await _context.Follows.AnyAsync(f =>
+                f.FollowerId == currentUserId && f.FollowingId == userId);
+            var isFollowedBack = await _context.Follows.AnyAsync(f =>
+                f.FollowerId == userId && f.FollowingId == currentUserId);
+            var isMutualFollow = isFollowing && isFollowedBack;
             var canViewFullProfile = userId == currentUserId ||
                 string.Equals(viewerRole, "Admin", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(viewerRole, "Administrator", StringComparison.OrdinalIgnoreCase);
+                string.Equals(viewerRole, "Administrator", StringComparison.OrdinalIgnoreCase) ||
+                isMutualFollow;
             if (visibility == "Private" && !canViewFullProfile)
             {
                 return new PublicUserProfileDto
@@ -211,6 +217,9 @@ namespace MatchYourMatch.WebAPI.Services
                     ProfilePicture = user.Profile?.ProfilePicture,
                     ProfileVisibility = visibility,
                     IsPrivate = true,
+                    CanViewPrivateContent = false,
+                    IsMutualFollow = isMutualFollow,
+                    IsFollowing = isFollowing,
                     CanMessage = false
                 };
             }
@@ -222,8 +231,6 @@ namespace MatchYourMatch.WebAPI.Services
             var followersCount = await _context.Follows.CountAsync(f => f.FollowingId == userId);
             var followingCount = await _context.Follows.CountAsync(f => f.FollowerId == userId);
             var rating = await GetRatingSummaryAsync(userId);
-            var isFollowing = await _context.Follows.AnyAsync(f =>
-                f.FollowerId == currentUserId && f.FollowingId == userId);
             var canMessage = await CanMessageAsync(currentUserId, userId);
             var isOrganizer = string.Equals(user.Role, "Organizer", StringComparison.OrdinalIgnoreCase);
 
@@ -239,7 +246,9 @@ namespace MatchYourMatch.WebAPI.Services
                 ContactEmail = isOrganizer ? user.Email : null,
                 LocationDisplayName = GetPublicLocation(user.Profile),
                 ProfileVisibility = visibility,
-                IsPrivate = false,
+                IsPrivate = string.Equals(visibility, "Private", StringComparison.OrdinalIgnoreCase),
+                CanViewPrivateContent = true,
+                IsMutualFollow = isMutualFollow,
                 MatchesCount = isOrganizer ? 0 : matchesCount,
                 EventsJoinedCount = isOrganizer ? 0 : eventsJoinedCount,
                 ProfileScorePercent = isOrganizer ? 0 : profileScorePercent,

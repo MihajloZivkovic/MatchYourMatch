@@ -3,13 +3,17 @@ const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bea
 async function request(url, options = {}) {
   const response = await fetch(url, options);
   if (response.ok) return response.status === 204 ? null : response.json();
+
+  const rawBody = await response.text();
   let message = 'Account action failed.';
+
   try {
-    const body = await response.json();
-    message = body.message || message;
+    const body = rawBody ? JSON.parse(rawBody) : null;
+    message = body?.message || message;
   } catch {
-    message = (await response.text()) || message;
+    message = rawBody || message;
   }
+
   throw new Error(message);
 }
 

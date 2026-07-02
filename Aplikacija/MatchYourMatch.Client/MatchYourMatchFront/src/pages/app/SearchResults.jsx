@@ -50,7 +50,6 @@ function SearchResults() {
       const requestUrl = `/api/Search?query=${encodeURIComponent(query)}`;
       const token = localStorage.getItem('token');
 
-      console.log('[SearchResults] request', requestUrl);
       setLoading(true);
       setError('');
 
@@ -62,8 +61,6 @@ function SearchResults() {
           signal: controller.signal,
         });
 
-        console.log('[SearchResults] status', response.status);
-
         if (response.status === 401 || response.status === 403) {
           setResults(emptyResults);
           setError('Please log in again');
@@ -71,8 +68,7 @@ function SearchResults() {
         }
 
         if (!response.ok) {
-          const body = await response.text();
-          console.error('[SearchResults] failed', response.status, body);
+          await response.text();
           setResults(emptyResults);
           setError('Search could not be loaded');
           return;
@@ -82,7 +78,6 @@ function SearchResults() {
         setResults(normalizeResults(body, eventsOnlySearch));
       } catch (err) {
         if (err.name !== 'AbortError') {
-          console.error('[SearchResults] request error', err);
           setResults(emptyResults);
           setError('Search could not be loaded');
         }
@@ -169,14 +164,19 @@ function SearchResults() {
                       alt=''
                     />
                     <span className='search-results__content'>
-                      <strong>{person.displayName || person.username}</strong>
+                      <strong>
+                        {person.displayName || person.username}
+                        {person.isPrivate && !person.canViewPrivateContent && (
+                          <span className='search-results__badge'>Private</span>
+                        )}
+                      </strong>
                       <small>
                         @{person.username}
-                        {person.locationDisplayName
+                        {person.canViewPrivateContent && person.locationDisplayName
                           ? ` - ${person.locationDisplayName}`
                           : ''}
                       </small>
-                      {person.tags?.length > 0 && (
+                      {person.canViewPrivateContent && person.tags?.length > 0 && (
                         <em>{person.tags.slice(0, 3).join(' - ')}</em>
                       )}
                     </span>

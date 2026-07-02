@@ -59,6 +59,8 @@ namespace MatchYourMatch.WebAPI.Services
                     throw new Exception("You must be at least 16 years old.");
             }
 
+            AccountService.ValidatePassword(dto.Password);
+
             if (await _context.Users.AnyAsync(u => u.Email == email))
                 throw new Exception("Email is already in use.");
             if (await _context.Users.AnyAsync(u => u.Username == username))
@@ -306,6 +308,8 @@ namespace MatchYourMatch.WebAPI.Services
 
             if (user.ResetTokenExpiry < DateTime.UtcNow)
                 throw new Exception("Token istekao");
+
+            AccountService.ValidatePassword(dto.NewPassword);
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
             user.ResetToken = null;

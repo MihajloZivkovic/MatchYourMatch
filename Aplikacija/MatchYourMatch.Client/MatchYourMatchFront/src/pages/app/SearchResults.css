@@ -178,6 +178,20 @@ button.search-results__card:hover {
   font-size: 0.94rem;
 }
 
+.search-results__badge {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: rgba(244, 163, 0, 0.14);
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .search-results__content small {
   color: rgba(255, 255, 255, 0.58);
   font-size: 0.78rem;
