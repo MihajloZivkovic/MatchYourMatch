@@ -8,6 +8,11 @@ TBD - [ ] brisanje nekad nece
 Mihajlo - [ X ] kod eventi ukloniti type
 Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
 
+TBD - [ ] Eventualno da se izbrise public profile visibility opcija
+TBD - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije postavljene na profilu, nesto drugo da pise na fazon private
+TBD - [ ] Admin reports prikazuje nedpoint, ukloniti
+TBD - [ ] sve hardkodirane stvari iz template gotta go
+
 ------------------------
 GENERALNO DOBRO(ne gleda se na odbranu)
 TBD - [  ] Dodati seedovanje za bazu jer ako nekad u buducnost treba da se pokrene app, da ne moramo da trazimo i ubacujemo posebno podaci

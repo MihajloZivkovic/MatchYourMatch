@@ -28,9 +28,11 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             if (IsOrganizer())
                 return StatusCode(StatusCodes.Status403Forbidden, "Organizer settings are limited to appearance and language.");
+
             if (dto.MaximumDistanceKm is < 1 or > 200 || dto.MinAge is < 16 or > 100 ||
                 dto.MaxAge is < 16 or > 100 || dto.MinAge > dto.MaxAge)
                 return BadRequest("Distance or age range is invalid.");
+
             var settings = await GetOrCreate(CurrentUserId());
             settings.MaximumDistanceKm = dto.MaximumDistanceKm;
             settings.ShowMeInQuickMatch = dto.ShowMeInQuickMatch;
@@ -50,6 +52,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             settings.NotifyNewEventNearby = dto.NotifyNewEventNearby;
             settings.NotifyEventStartingSoon = dto.NotifyEventStartingSoon;
             settings.NotifyNewMatchNearby = dto.NotifyNewMatchNearby;
+
             await _context.SaveChangesAsync();
             return Ok(Map(settings));
         }
@@ -116,12 +119,25 @@ namespace MatchYourMatch.WebAPI.Controllers
         }
 
         private async Task<List<SafetyUserDto>> SafetyList(IQueryable<int> ids) => await _context.Users.AsNoTracking()
-            .Where(u => ids.Contains(u.Id)).Select(u => new SafetyUserDto { UserId = u.Id, Username = u.Username, ProfilePicture = u.Profile != null ? u.Profile.ProfilePicture : null }).ToListAsync();
+            .Where(u => ids.Contains(u.Id)).Select(u => new SafetyUserDto { 
+                UserId = u.Id, 
+                Username = u.Username, 
+                ProfilePicture = u.Profile != null ? u.Profile.ProfilePicture : null })
+                .ToListAsync();
+                
         private async Task<UserAppSettings> GetOrCreate(int userId)
         {
             var value = await _context.UserAppSettings.FirstOrDefaultAsync(x => x.UserId == userId);
-            if (value != null) return value;
-            value = new UserAppSettings { UserId = userId }; _context.UserAppSettings.Add(value); await _context.SaveChangesAsync(); return value;
+            if (value != null) 
+                return value;
+            value = new UserAppSettings 
+            { 
+                UserId = userId 
+            }; 
+
+            _context.UserAppSettings.Add(value); 
+            await _context.SaveChangesAsync(); 
+            return value;
         }
 
         private static string Normalize(string value, params string[] allowed) 
