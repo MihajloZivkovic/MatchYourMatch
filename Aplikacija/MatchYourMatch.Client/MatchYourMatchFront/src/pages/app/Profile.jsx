@@ -1502,19 +1502,14 @@ function Profile(props) {
                         value={visibilityDraft}
                         onChange={(event) => setVisibilityDraft(event.target.value)}
                       >
-                        <option value="Public">Public</option>
                         <option value="Standard">Standard</option>
                         <option value="Private">Private</option>
                       </select>
                     </label>
                     <div className="profile-settings-visibility-help">
                       <p>
-                        <strong>Public</strong>
+                        <strong>Standard(Public)</strong>
                         <span>Visible in search, matches, event participants and public profile views.</span>
-                      </p>
-                      <p>
-                        <strong>Standard</strong>
-                        <span>Normal MYM visibility for logged-in users, with existing privacy rules.</span>
                       </p>
                       <p>
                         <strong>Private</strong>

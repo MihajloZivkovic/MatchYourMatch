@@ -814,9 +814,6 @@ function AdminEventsPanel({
           <option value='upcoming'>{t('admin.events.filters.upcoming')}</option>
           <option value='past'>{t('admin.events.filters.past')}</option>
         </select>
-        <span className='admin-toolbar__note'>
-          {t('admin.events.hideShowUnavailable')}
-        </span>
       </div>
       <PanelState loading={loading} error={error} empty={!events.length} onRetry={onRetry} t={t} />
       {!loading && !error && events.length > 0 && (
@@ -897,12 +894,14 @@ function AdminReportsPanel({
   onReject,
   onBan,
   t,
-}) {
+}) 
+{
+  const unresolvedReports = reports.filter((report) => normalizeStatusKey(report.status) === 'pending').length;
   return (
     <section className='admin-panel'>
       <PanelHead
         title={t('admin.reports.title')}
-        description={t('admin.reports.description', { count: totalReports })}
+        description={t('admin.reports.description', { count: unresolvedReports })}
       />
       <div className='admin-toolbar'>
         <select
