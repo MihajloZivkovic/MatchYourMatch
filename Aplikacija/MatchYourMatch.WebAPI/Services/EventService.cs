@@ -330,7 +330,8 @@ namespace MatchYourMatch.WebAPI.Services
                 {
                     await _notifications.CreateNotificationAsync(e.OrganizerId.Value, userId,
                         "EventJoinRequest", "New join request",
-                        $"{username} requested to join {e.Title}.", "EventJoinRequest", request.Id);
+                        $"{username} requested to join {e.Title}.", "EventJoinRequest", request.Id,
+                        preventDuplicate: true);
                 }
                 return await GetByIdAsync(eventId, userId);
             }
@@ -342,7 +343,8 @@ namespace MatchYourMatch.WebAPI.Services
             {
                 await _notifications.CreateNotificationAsync(e.OrganizerId.Value, userId,
                     "EventParticipantJoined", "New event participant",
-                    $"{username} joined {e.Title}.", "Event", eventId);
+                    $"{username} joined {e.Title}.", "Event", eventId,
+                    preventDuplicate: true);
                 await NotifyOrganizerIfEventFullAsync(e, userId);
             }
 

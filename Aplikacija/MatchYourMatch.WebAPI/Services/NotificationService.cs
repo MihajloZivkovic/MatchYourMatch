@@ -19,7 +19,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (actorUserId == userId)
                 return;
 
-            if (await IsOrganizerAsync(userId) && !IsOrganizerNotificationAllowed(type))
+            var recipientRole = await GetUserRoleAsync(userId);
+            if (!CanReceiveNotification(recipientRole, type))
                 return;
 
             var settings = await _context.UserAppSettings.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
@@ -64,6 +65,11 @@ namespace MatchYourMatch.WebAPI.Services
             _ => true
         };
 
+        private static readonly string[] AdminNotificationTypes =
+        {
+            "AdminReport"
+        };
+
         private static readonly string[] OrganizerNotificationTypes =
         {
             "EventJoinRequest",
@@ -74,29 +80,62 @@ namespace MatchYourMatch.WebAPI.Services
             "EventCancelled"
         };
 
+        private static readonly string[] OrganizerOnlyNotificationTypes =
+        {
+            "EventJoinRequest",
+            "EventParticipantJoined",
+            "EventCapacityReached"
+        };
+
         private static bool IsOrganizerNotificationAllowed(string type) =>
             OrganizerNotificationTypes.Contains(type);
 
-        private async Task<bool> IsOrganizerAsync(int userId)
+        private static bool IsAdminNotificationAllowed(string type) =>
+            AdminNotificationTypes.Contains(type);
+
+        private static bool IsAdminRole(string? role) =>
+            string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "Administrator", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsOrganizerRole(string? role) =>
+            string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase);
+
+        private static bool CanReceiveNotification(string? role, string type)
         {
-            var role = await _context.Users.AsNoTracking()
+            if (IsAdminRole(role))
+                return IsAdminNotificationAllowed(type);
+
+            if (IsOrganizerRole(role))
+                return IsOrganizerNotificationAllowed(type);
+
+            return !IsAdminNotificationAllowed(type) && !OrganizerOnlyNotificationTypes.Contains(type);
+        }
+
+        private async Task<string?> GetUserRoleAsync(int userId)
+        {
+            return await _context.Users.AsNoTracking()
                 .Where(user => user.Id == userId)
                 .Select(user => user.Role)
                 .FirstOrDefaultAsync();
-            return string.Equals(role, "Organizer", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<List<NotificationDto>> GetNotificationsForUserAsync(int userId, int limit = 50)
         {
-            var organizerOnly = await IsOrganizerAsync(userId);
+            var role = await GetUserRoleAsync(userId);
             var query = _context.Notifications
                 .AsNoTracking()
                 .Include(n => n.ActorUser)
                     .ThenInclude(u => u!.Profile)
                 .Where(n => n.UserId == userId);
 
-            if (organizerOnly)
+            if (IsAdminRole(role))
+                query = query.Where(n => AdminNotificationTypes.Contains(n.Type));
+            else if (IsOrganizerRole(role))
                 query = query.Where(n => OrganizerNotificationTypes.Contains(n.Type));
+            else
+                query = query.Where(n =>
+                    !AdminNotificationTypes.Contains(n.Type) &&
+                    !OrganizerOnlyNotificationTypes.Contains(n.Type));
 
             var notifications = await query
                 .OrderByDescending(n => n.CreatedAt)
@@ -197,8 +236,15 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task<int> GetUnreadCountAsync(int userId)
         {
             var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsRead);
-            if (await IsOrganizerAsync(userId))
+            var role = await GetUserRoleAsync(userId);
+            if (IsAdminRole(role))
+                query = query.Where(n => AdminNotificationTypes.Contains(n.Type));
+            else if (IsOrganizerRole(role))
                 query = query.Where(n => OrganizerNotificationTypes.Contains(n.Type));
+            else
+                query = query.Where(n =>
+                    !AdminNotificationTypes.Contains(n.Type) &&
+                    !OrganizerOnlyNotificationTypes.Contains(n.Type));
             return await query.CountAsync();
         }
 
@@ -221,8 +267,15 @@ namespace MatchYourMatch.WebAPI.Services
         {
             var now = DateTime.UtcNow;
             var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsRead);
-            if (await IsOrganizerAsync(userId))
+            var role = await GetUserRoleAsync(userId);
+            if (IsAdminRole(role))
+                query = query.Where(n => AdminNotificationTypes.Contains(n.Type));
+            else if (IsOrganizerRole(role))
                 query = query.Where(n => OrganizerNotificationTypes.Contains(n.Type));
+            else
+                query = query.Where(n =>
+                    !AdminNotificationTypes.Contains(n.Type) &&
+                    !OrganizerOnlyNotificationTypes.Contains(n.Type));
             await query
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(n => n.IsRead, true)

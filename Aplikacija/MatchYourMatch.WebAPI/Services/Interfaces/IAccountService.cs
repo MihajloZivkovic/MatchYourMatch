@@ -15,4 +15,5 @@ public interface IAccountService
     Task DeactivateAsync(int userId, DeactivateAccountDto dto);
     Task<AuthInfoDto> ReactivateAsync(ReactivateAccountDto dto);
     Task DeleteAsync(int userId, DeleteAccountDto dto);
+    Task DeleteUserAccountAsync(int userId, int? deletedByAdminId = null);
 }

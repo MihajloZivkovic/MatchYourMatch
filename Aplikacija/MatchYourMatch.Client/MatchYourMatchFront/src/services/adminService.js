@@ -5,13 +5,28 @@ function authHeaders() {
 }
 
 async function readResponse(response, fallbackMessage) {
+  const text = await response.text();
+
   if (response.ok) {
     if (response.status === 204) return null;
-    const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
 
-  throw new Error((await response.text()) || fallbackMessage);
+  if (!text) {
+    throw new Error(fallbackMessage);
+  }
+
+  try {
+    const payload = JSON.parse(text);
+    const message = payload.message || payload.error || fallbackMessage;
+    throw new Error(payload.details ? `${message} ${payload.details}` : message);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(text);
+    }
+
+    throw error;
+  }
 }
 
 export const adminService = {

@@ -6,6 +6,8 @@ import { clearAuthSession } from '../../services/authSession';
 import { accountService } from '../../services/accountService';
 import './AccountDangerModal.css';
 
+const INVALID_CURRENT_PASSWORD = 'INVALID_CURRENT_PASSWORD';
+
 export default function AccountDangerModal({ onClose }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState('choose');
@@ -188,6 +190,9 @@ export default function AccountDangerModal({ onClose }) {
 }
 
 function getActionErrorMessage(error, mode, t) {
+  if (error?.errorCode === INVALID_CURRENT_PASSWORD)
+    return 'Current password is incorrect.';
+
   const fallbackKey =
     mode === 'delete'
       ? 'accountLifecycle.deleteError'

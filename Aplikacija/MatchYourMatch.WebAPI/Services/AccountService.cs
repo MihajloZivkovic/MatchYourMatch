@@ -20,6 +20,7 @@ public class AccountService : IAccountService
     private readonly EmailService _emailService;
     private readonly GoogleTokenValidator _google;
     private readonly MicrosoftTokenValidator _microsoft;
+    private readonly ILogger<AccountService> _logger;
 
     public AccountService(AppDbContext context, IAuthService authService, IUserProfilesService profiles, EmailService emailService, GoogleTokenValidator google,
         MicrosoftTokenValidator microsoft)
@@ -30,6 +31,7 @@ public class AccountService : IAccountService
         _emailService = emailService;
         _google = google;
         _microsoft = microsoft;
+        _logger = logger;
     }
 
     public async Task<AccountStatusDto> GetStatusAsync(int userId)
@@ -269,8 +271,6 @@ public class AccountService : IAccountService
         if (!string.Equals(dto.Confirmation?.Trim(), "DELETE", StringComparison.Ordinal))
             throw new InvalidOperationException("Type DELETE to permanently delete the account.");
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
-
         var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
             ?? throw new KeyNotFoundException("Account does not exist.");
 
@@ -279,13 +279,60 @@ public class AccountService : IAccountService
 
         EnsureAccountConfirmation(user, dto.Password, dto.Confirmation, "DELETE");
 
-        var deletedUser = await GetOrCreateDeletedUserAsync();
-        await DeletePrivateChatConversationsAsync(userId);
-        await PreserveHistoricalContentAsync(userId, deletedUser.Id);
-        await RemoveUserRelationsAsync(userId);
-        await DeleteUserRecordAsync(user);
+        await DeleteUserAccountAsync(userId);
+    }
 
-        await transaction.CommitAsync();
+    public async Task DeleteUserAccountAsync(int userId, int? deletedByAdminId = null)
+    {
+        if (deletedByAdminId == userId)
+            throw new UnauthorizedAccessException("Admin cannot delete their own account.");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        string? username = null;
+
+        try
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+                ?? throw new KeyNotFoundException("Account does not exist.");
+            username = user.Username;
+
+            if (user.Role == "System" || string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
+                throw new UnauthorizedAccessException("Nalog ne moze biti obrisan.");
+
+            var deletedUser = await GetOrCreateDeletedUserAsync();
+            await DeletePrivateChatConversationsAsync(userId);
+            await PreserveHistoricalContentAsync(userId, deletedUser.Id);
+            await RemoveUserRelationsAsync(userId);
+            await DeleteUserRecordAsync(user);
+
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(
+                ex,
+                "User account deletion failed for UserId {UserId}, Username {Username}. EF details: {Details}. InnerException: {InnerException}. StackTrace: {StackTrace}",
+                userId,
+                username ?? "(unknown)",
+                GetFullExceptionDetails(ex),
+                ex.InnerException?.Message,
+                ex.StackTrace);
+            throw new InvalidOperationException("User could not be deleted because related data still exists.", ex);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(
+                ex,
+                "User account deletion failed for UserId {UserId}, Username {Username}. Details: {Details}. InnerException: {InnerException}. StackTrace: {StackTrace}",
+                userId,
+                username ?? "(unknown)",
+                GetFullExceptionDetails(ex),
+                ex.InnerException?.Message,
+                ex.StackTrace);
+            throw;
+        }
     }
 
     private async Task DeletePrivateChatConversationsAsync(int userId)
@@ -349,7 +396,9 @@ public class AccountService : IAccountService
         await _context.EventReminders.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.EventJoinRequests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.SavedEvents.Where(x => x.UserId == userId).ExecuteDeleteAsync();
-        await _context.QuickMatchRequests.Where(x => x.RequesterUserId == userId).ExecuteDeleteAsync();
+        await _context.QuickMatchRequests
+            .Where(x => x.RequesterUserId == userId || x.QuickMatchPost.UserId == userId)
+            .ExecuteDeleteAsync();
         await _context.QuickMatchPosts.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.OrganizerSubscriptions.Where(x => x.UserId == userId || x.OrganizerId == userId).ExecuteDeleteAsync();
         await _context.FreeTimeSlots.Where(x => x.UserId == userId).ExecuteDeleteAsync();
@@ -375,7 +424,7 @@ public class AccountService : IAccountService
         if (user.HasPassword)
         {
             if (string.IsNullOrWhiteSpace(password) || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-                throw new UnauthorizedAccessException("Trenutna lozinka netacna.");
+                throw new InvalidCurrentPasswordException();
         }
         else if (!string.Equals(confirmation?.Trim(), requiredConfirmation, StringComparison.Ordinal))
         {
@@ -388,7 +437,7 @@ public class AccountService : IAccountService
         if (!user.HasPassword)
             throw new UnauthorizedAccessException("Password sign-in is not enabled for this account.");
         if (string.IsNullOrWhiteSpace(password) || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-            throw new UnauthorizedAccessException("Trenutna lozinka netacna.");
+            throw new InvalidCurrentPasswordException();
     }
 
     private static string NormalizeUsername(string? username)
@@ -461,6 +510,18 @@ public class AccountService : IAccountService
         user.PendingEmailVerificationCodeSentAt = null;
     }
 
+    private static string GetFullExceptionDetails(Exception exception)
+    {
+        var messages = new List<string>();
+
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            messages.Add($"{current.GetType().Name}: {current.Message}");
+        }
+
+        return string.Join(" | Inner: ", messages);
+    }
+
     private async Task<ExternalIdentity> ValidateExternalIdentityAsync(ReactivateAccountDto dto) =>
         dto.Provider?.Trim().ToLowerInvariant() switch
         {
@@ -499,6 +560,18 @@ public class WeakPasswordException : Exception
 
     public WeakPasswordException()
         : base("Password must be at least 8 characters long and include uppercase, lowercase, number and special character.")
+    {
+    }
+
+    public string Code => DefaultCode;
+}
+
+public class InvalidCurrentPasswordException : Exception
+{
+    public const string DefaultCode = "INVALID_CURRENT_PASSWORD";
+
+    public InvalidCurrentPasswordException()
+        : base("Current password is incorrect.")
     {
     }
 

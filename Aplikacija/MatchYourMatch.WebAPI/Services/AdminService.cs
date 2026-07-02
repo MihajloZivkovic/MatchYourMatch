@@ -8,10 +8,12 @@ namespace MatchYourMatch.WebAPI.Services
     public class AdminService : IAdminService
     {
         private readonly AppDbContext _context;
+        private readonly IAccountService _accountService;
 
-        public AdminService(AppDbContext context)
+        public AdminService(AppDbContext context, IAccountService accountService)
         {
             _context = context;
+            _accountService = accountService;
         }
 
         public async Task<List<CheckUserDto>> GetUserInfoAsync()
@@ -44,13 +46,9 @@ namespace MatchYourMatch.WebAPI.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteUserAsync(int userId)
+        public async Task DeleteUserAsync(int userId, int adminUserId)
         {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-                throw new Exception("User nije pronadjen");
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            await _accountService.DeleteUserAccountAsync(userId, adminUserId);
         }
 
         public async Task DeleteEventAsync(int eventId)
