@@ -5,6 +5,7 @@ import "./CreateEvent.css";
 import { useTranslation } from "../../hooks/useTranslation";
 import LocationAutocomplete from "../../components/LocationAutocomplete";
 import { isOrganizerSession } from "../../services/guestSession";
+import { announceEventsChanged } from "../../services/notificationService";
 
 const CATEGORIES = ["Study", "Gaming", "Coffee", "Social", "Sport"];
 const EVENT_START_IN_PAST_CODE = "EVENT_START_IN_PAST";
@@ -197,6 +198,10 @@ function CreateEvent() {
           (await readEventError(response)) ||
             t(editing ? "events.updateError" : "events.createError"),
         );
+      announceEventsChanged({
+        source: editing ? "event-update" : "event-create",
+        eventId: id ? Number(id) : null,
+      });
       setSuccess(true);
     } catch (requestError) {
       setError(

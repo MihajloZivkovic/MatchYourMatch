@@ -7,6 +7,9 @@ public interface IAccountService
     Task<AccountStatusDto> GetStatusAsync(int userId);
     Task<UserProfileDto> UpdateUsernameAsync(int userId, UpdateUsernameDto dto);
     Task<object> UpdateEmailAsync(int userId, UpdateEmailDto dto);
+    Task<UserProfileDto> VerifyEmailChangeAsync(int userId, VerifyEmailChangeDto dto);
+    Task<object> ResendEmailChangeCodeAsync(int userId);
+    Task<UserProfileDto> CancelEmailChangeAsync(int userId);
     Task ChangePasswordAsync(int userId, UpdatePasswordDto dto);
     Task<UserProfileDto> UpdateProfileVisibilityAsync(int userId, UpdateProfileVisibilityDto dto);
     Task DeactivateAsync(int userId, DeactivateAccountDto dto);

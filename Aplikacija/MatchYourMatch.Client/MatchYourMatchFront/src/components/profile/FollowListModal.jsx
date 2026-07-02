@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../UserAvatar';
 import { useTranslation } from '../../hooks/useTranslation';
+import { announceProfileChanged } from '../../services/notificationService';
 import './FollowListModal.css';
 
 const PAGE_SIZE = 20;
@@ -77,7 +78,7 @@ export default function FollowListModal({ userId, currentUserId, type = 'followe
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (!response.ok) throw new Error(await response.text() || t('publicProfile.followError'));
-      window.dispatchEvent(new Event('tokenChanged'));
+      announceProfileChanged({ source: wasFollowing ? 'unfollow' : 'follow', userId: targetId });
     } catch (err) {
       setData((current) => ({
         ...current,

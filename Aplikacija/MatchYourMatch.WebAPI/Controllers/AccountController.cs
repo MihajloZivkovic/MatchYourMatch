@@ -35,6 +35,21 @@ public class AccountController : ControllerBase
         Ok(await _accounts.UpdateEmailAsync(CurrentUserId(), dto)));
 
     [Authorize]
+    [HttpPost("email/verify")]
+    public async Task<IActionResult> VerifyEmailChange(VerifyEmailChangeDto dto) => await Handle(async () =>
+        Ok(await _accounts.VerifyEmailChangeAsync(CurrentUserId(), dto)));
+
+    [Authorize]
+    [HttpPost("email/resend")]
+    public async Task<IActionResult> ResendEmailChangeCode() => await Handle(async () =>
+        Ok(await _accounts.ResendEmailChangeCodeAsync(CurrentUserId())));
+
+    [Authorize]
+    [HttpDelete("email/pending")]
+    public async Task<IActionResult> CancelEmailChange() => await Handle(async () =>
+        Ok(await _accounts.CancelEmailChangeAsync(CurrentUserId())));
+
+    [Authorize]
     [HttpPatch("password")]
     public async Task<IActionResult> UpdatePassword(UpdatePasswordDto dto) => await Handle(async () =>
     {

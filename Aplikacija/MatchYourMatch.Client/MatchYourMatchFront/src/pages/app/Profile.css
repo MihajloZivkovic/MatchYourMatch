@@ -541,6 +541,18 @@
 .profile-settings-editable__form select option:checked { background: #2b2110; color: var(--accent); }
 .profile-settings-editable__form input:focus, .profile-settings-editable__form select:focus { border-color: rgba(244, 163, 0, .55); box-shadow: 0 0 0 3px rgba(244, 163, 0, .08); }
 .profile-settings-password-help { display: block; margin-top: .35rem; color: var(--text-muted); font-size: .66rem; line-height: 1.35; }
+.profile-settings-field-error { margin: -.15rem 0 0; color: #ff9a9a; font-size: .68rem; line-height: 1.35; }
+.profile-settings-email-verify { display: grid; gap: .7rem; padding: .75rem; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--color-border)); border-radius: var(--radius-sm); background: rgba(244, 163, 0, .07); }
+.profile-settings-email-verify strong { display: block; color: var(--accent); font-size: .78rem; }
+.profile-settings-email-verify p { margin: .2rem 0 0; color: var(--text-muted); font-size: .68rem; line-height: 1.4; }
+.profile-settings-email-verify label > span { display: block; margin-bottom: .35rem; color: var(--text-muted); font-size: .65rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.profile-settings-email-verify input { width: 100%; min-height: 40px; padding: 0 .72rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); outline: none; background: var(--color-input); color: var(--text); letter-spacing: .18em; }
+.profile-settings-email-verify input:focus { border-color: rgba(244, 163, 0, .55); box-shadow: 0 0 0 3px rgba(244, 163, 0, .08); }
+.profile-settings-email-verify__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; }
+.profile-settings-email-verify__actions .app-btn-pill { min-height: 34px; padding: 0 .9rem; font-size: .68rem; }
+.profile-settings-email-verify__actions .app-btn-pill:disabled,
+.profile-settings-email-verify__actions .app-btn-pill:disabled:hover,
+.profile-settings-email-verify__actions .app-btn-pill:disabled:focus-visible { box-shadow: none; transform: none; }
 .profile-settings-visibility-help { display: grid; gap: .45rem; padding: .65rem; border: 1px solid color-mix(in srgb, var(--color-border) 82%, var(--accent)); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .24); }
 .profile-settings-visibility-help p { margin: 0; display: grid; gap: .12rem; }
 .profile-settings-visibility-help strong { color: var(--accent); font-size: .68rem; }
@@ -549,6 +561,15 @@
 .profile-settings-editable__actions .app-btn-pill { min-height: 34px; padding: 0 .9rem; font-size: .68rem; }
 .profile-settings-editable__actions .app-btn-pill:hover,
 .profile-settings-editable__actions .app-btn-pill:focus-visible { color: #17110a; background: var(--accent); border-color: var(--accent); box-shadow: 0 0 18px rgba(244, 163, 0, .22); }
+.profile-settings-editable__actions .app-btn-pill:disabled,
+.profile-settings-editable__actions .app-btn-pill:disabled:hover,
+.profile-settings-editable__actions .app-btn-pill:disabled:focus-visible {
+  color: #17110a;
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
 .profile-settings-editable__actions button:disabled { cursor: not-allowed; opacity: .55; }
 .profile-settings-disabled { min-height: 48px; padding: .55rem .65rem; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: .55rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--text-muted); background: var(--color-input); opacity: .72; }
 .profile-settings-disabled > svg { color: var(--text-muted); }

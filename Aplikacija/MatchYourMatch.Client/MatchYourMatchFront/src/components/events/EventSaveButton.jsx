@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bookmark } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { savedEventService } from '../../services/savedEventService';
+import { announceEventsChanged } from '../../services/notificationService';
 
 function EventSaveButton({
   eventId,
@@ -27,6 +28,7 @@ function EventSaveButton({
       else await savedEventService.remove(eventId);
       setSaved(next);
       onChange?.(next);
+      announceEventsChanged({ source: 'event-save-button', eventId, isSaved: next });
     } catch {
       setError(t('events.saveError'));
     } finally {

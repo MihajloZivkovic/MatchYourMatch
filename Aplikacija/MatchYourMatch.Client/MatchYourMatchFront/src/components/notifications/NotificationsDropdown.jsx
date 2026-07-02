@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
+  announceEventsChanged,
   announceEventJoinRequestChanged,
   announceNotificationsChanged,
   notificationService,
@@ -153,6 +154,11 @@ function NotificationsDropdown({
             : value,
         ),
       );
+      announceEventsChanged({
+        source: 'notification-event-invite',
+        eventInviteId: item.eventInviteId,
+        action,
+      });
     } catch (err) {
       setError(err.message || t('notifications.error'));
       await loadItems();
