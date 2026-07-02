@@ -16,6 +16,9 @@ namespace MatchYourMatch.WebAPI.Services
             string title, string message, string? relatedEntityType = null,
             int? relatedEntityId = null, bool preventDuplicate = false)
         {
+            if (IsUnsupportedNotificationType(type))
+                return;
+
             if (actorUserId == userId)
                 return;
 
@@ -56,12 +59,7 @@ namespace MatchYourMatch.WebAPI.Services
             "EventInvite" => settings.NotifyEventInvites,
             "Follow" => settings.NotifyNewFollowers,
             "QuickMatch" or "QuickMatchRequest" => settings.NotifyQuickMatches,
-            "ChatMessage" => settings.NotifyChatMessages,
-            "GroupMessage" => settings.NotifyGroupMessages,
-            "EventDiscussionReply" => settings.NotifyEventDiscussionReplies,
-            "NewEventNearby" => settings.NotifyNewEventNearby,
             "EventStartingSoon" => settings.NotifyEventStartingSoon,
-            "NewMatchNearby" => settings.NotifyNewMatchNearby,
             _ => true
         };
 
@@ -75,7 +73,6 @@ namespace MatchYourMatch.WebAPI.Services
             "EventJoinRequest",
             "EventParticipantJoined",
             "EventCapacityReached",
-            "EventDiscussionReply",
             "EventUpdated",
             "EventCancelled"
         };
@@ -86,6 +83,18 @@ namespace MatchYourMatch.WebAPI.Services
             "EventParticipantJoined",
             "EventCapacityReached"
         };
+
+        private static readonly string[] UnsupportedNotificationTypes =
+        {
+            "ChatMessage",
+            "GroupMessage",
+            "EventDiscussionReply",
+            "NewEventNearby",
+            "NewMatchNearby"
+        };
+
+        private static bool IsUnsupportedNotificationType(string type) =>
+            UnsupportedNotificationTypes.Contains(type);
 
         private static bool IsOrganizerNotificationAllowed(string type) =>
             OrganizerNotificationTypes.Contains(type);
@@ -126,7 +135,7 @@ namespace MatchYourMatch.WebAPI.Services
                 .AsNoTracking()
                 .Include(n => n.ActorUser)
                     .ThenInclude(u => u!.Profile)
-                .Where(n => n.UserId == userId);
+                .Where(n => n.UserId == userId && !UnsupportedNotificationTypes.Contains(n.Type));
 
             if (IsAdminRole(role))
                 query = query.Where(n => AdminNotificationTypes.Contains(n.Type));
@@ -235,7 +244,10 @@ namespace MatchYourMatch.WebAPI.Services
 
         public async Task<int> GetUnreadCountAsync(int userId)
         {
-            var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsRead);
+            var query = _context.Notifications.Where(n =>
+                n.UserId == userId &&
+                !n.IsRead &&
+                !UnsupportedNotificationTypes.Contains(n.Type));
             var role = await GetUserRoleAsync(userId);
             if (IsAdminRole(role))
                 query = query.Where(n => AdminNotificationTypes.Contains(n.Type));
@@ -266,7 +278,10 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task MarkAllAsReadAsync(int userId)
         {
             var now = DateTime.UtcNow;
-            var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsRead);
+            var query = _context.Notifications.Where(n =>
+                n.UserId == userId &&
+                !n.IsRead &&
+                !UnsupportedNotificationTypes.Contains(n.Type));
             var role = await GetUserRoleAsync(userId);
             if (IsAdminRole(role))
                 query = query.Where(n => AdminNotificationTypes.Contains(n.Type));
