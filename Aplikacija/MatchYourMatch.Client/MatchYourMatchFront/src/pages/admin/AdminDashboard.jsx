@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  EyeOff,
   Flag,
   Info,
   LogOut,
