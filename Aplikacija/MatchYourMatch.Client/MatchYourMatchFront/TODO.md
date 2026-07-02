@@ -1,5 +1,4 @@
-Mihajlo - [ + ] Hide event kod admina da se osposobi
-Mihajlo - [ ] osposobiti Details kod organizatora
+Mihajlo - [ + ] osposobiti Details kod organizatora
 Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
 Jana - [ + ] password check opravi
 Jana - [ + ] datum prosli da se zablokira kod create event kod organizatora
