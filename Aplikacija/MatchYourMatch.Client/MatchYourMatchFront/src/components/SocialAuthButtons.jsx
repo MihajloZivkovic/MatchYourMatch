@@ -6,6 +6,8 @@ import { useTranslation } from '../hooks/useTranslation';
 import SocialAuthButton from './SocialAuthButton';
 import { isAdminSession } from '../services/guestSession';
 
+const ACCOUNT_DEACTIVATED_CODE = 'ACCOUNT_DEACTIVATED';
+
 function loadScript(src, ready) {
   if (ready()) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -24,6 +26,22 @@ function loadScript(src, ready) {
       reject(new Error('Provider SDK could not be loaded.'));
     document.head.appendChild(script);
   });
+}
+
+async function readAuthError(response) {
+  const rawError = await response.text();
+  if (!rawError) return { code: '', message: '' };
+
+  try {
+    const parsed = JSON.parse(rawError);
+    return {
+      code: parsed.code || '',
+      message: parsed.message || rawError,
+      requiresReactivation: Boolean(parsed.requiresReactivation),
+    };
+  } catch {
+    return { code: '', message: rawError };
+  }
 }
 
 function SocialAuthButtons({ register = false }) {
@@ -55,7 +73,7 @@ function SocialAuthButtons({ register = false }) {
         });
         let data;
         if (response.status === 409) {
-          const conflict = await response.json();
+          const conflict = await readAuthError(response);
           if (!conflict.requiresReactivation)
             throw new Error(conflict.message || t('socialAuth.failed'));
           const reactivation = await fetch('/api/account/reactivate', {
@@ -69,8 +87,16 @@ function SocialAuthButtons({ register = false }) {
             );
           data = await reactivation.json();
         } else {
-          if (!response.ok)
-            throw new Error((await response.text()) || t('socialAuth.failed'));
+          if (!response.ok) {
+            const authError = await readAuthError(response);
+            if (
+              response.status === 403 &&
+              authError.code === ACCOUNT_DEACTIVATED_CODE
+            ) {
+              throw new Error(t('auth.accountDeactivated'));
+            }
+            throw new Error(authError.message || t('socialAuth.failed'));
+          }
           data = await response.json();
         }
         localStorage.setItem('token', data.accessToken);

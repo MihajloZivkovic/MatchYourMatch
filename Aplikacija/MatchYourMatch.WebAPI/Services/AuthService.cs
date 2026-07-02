@@ -125,8 +125,8 @@ namespace MatchYourMatch.WebAPI.Services
             if (user.IsDeactivated)
                 throw new AccountDeactivatedException();
 
-            if (!user.IsActive) 
-                throw new Exception("Nalog je deaktiviran.");
+            if (!user.IsActive)
+                throw new AdminDeactivatedAccountException();
 
             if (!user.EmailConfirmed)
                 throw new Exception("Please verify your email before logging in.");
@@ -379,7 +379,7 @@ namespace MatchYourMatch.WebAPI.Services
                 await _context.SaveChangesAsync();
             }
             if (user.IsDeactivated) throw new AccountDeactivatedException();
-            if (!user.IsActive) throw new Exception("Nalog je deaktiviran.");
+            if (!user.IsActive) throw new AdminDeactivatedAccountException();
             if (!user.EmailConfirmed) throw new Exception("Please verify your email before logging in.");
             return CreateAuthResponse(user);
         }

@@ -44,6 +44,14 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return Conflict(new { requiresReactivation = true, message = ex.Message });
             }
+            catch (AdminDeactivatedAccountException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    code = ex.Code,
+                    message = ex.Message
+                });
+            }
             catch (Exception ex)
             {
                 return ex.Message == "Please verify your email before logging in."
@@ -104,6 +112,14 @@ namespace MatchYourMatch.WebAPI.Controllers
             { 
                 return Conflict(new { requiresReactivation = true, message = ex.Message }); 
             }
+            catch (AdminDeactivatedAccountException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    code = ex.Code,
+                    message = ex.Message
+                });
+            }
             catch (InvalidOperationException ex) 
             { 
                 return StatusCode(StatusCodes.Status501NotImplemented, ex.Message); 
@@ -130,6 +146,14 @@ namespace MatchYourMatch.WebAPI.Controllers
             catch (AccountDeactivatedException ex) 
             { 
                 return Conflict(new { requiresReactivation = true, message = ex.Message }); 
+            }
+            catch (AdminDeactivatedAccountException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    code = ex.Code,
+                    message = ex.Message
+                });
             }
             catch (InvalidOperationException ex) 
             { 

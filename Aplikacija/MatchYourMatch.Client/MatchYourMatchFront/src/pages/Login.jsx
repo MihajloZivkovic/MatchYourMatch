@@ -5,6 +5,26 @@ import SocialAuthButtons from '../components/SocialAuthButtons';
 import GuestEntryButton from '../components/GuestEntryButton';
 import { isAdminSession, isOrganizerSession } from '../services/guestSession';
 
+const ACCOUNT_DEACTIVATED_CODE = 'ACCOUNT_DEACTIVATED';
+
+async function readLoginError(response) {
+  const fallback = { code: '', message: '' };
+  const rawError = await response.text();
+
+  if (!rawError) return fallback;
+
+  try {
+    const parsed = JSON.parse(rawError);
+    return {
+      code: parsed.code || '',
+      message: parsed.message || rawError,
+      requiresReactivation: Boolean(parsed.requiresReactivation),
+    };
+  } catch {
+    return { ...fallback, message: rawError };
+  }
+}
+
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,10 +80,13 @@ function Login() {
     });
 
     if (!response.ok) {
-      const rawError = await response.text();
-      let errorMessage = rawError;
-      try { errorMessage = JSON.parse(rawError).message || rawError; } catch { /* plain text response */ }
-      if (response.status === 409) {
+      const loginError = await readLoginError(response);
+      setReactivationCredentials(null);
+
+      if (response.status === 403 && loginError.code === ACCOUNT_DEACTIVATED_CODE) {
+        setVrstaGreske("adminDeactivated");
+      }
+      else if (response.status === 409 && loginError.requiresReactivation) {
         setVrstaGreske("deactivated");
         setReactivationCredentials({ email: emailOrUsername, password });
       }
@@ -76,7 +99,7 @@ function Login() {
       }
 
       return {
-        error: errorMessage,
+        error: loginError.message || t('auth.invalidLogin'),
         values: { emailOrUsername, password }
       }
     }
@@ -94,6 +117,21 @@ function Login() {
     if (isAdminSession(token)) return adminDestination;
     if (isOrganizerSession(token)) return organizerDestination;
     return loginDestination;
+  }
+
+  function getLoginErrorMessage() {
+    switch (vrstaGreske) {
+      case 'adminDeactivated':
+        return t('auth.accountDeactivated');
+      case 'deactivated':
+        return 'This account is deactivated.';
+      case 'verify':
+        return t('emailVerification.loginBlocked');
+      case 'identifier':
+        return t('auth.identifierRequired');
+      default:
+        return t('auth.invalidLogin');
+    }
   }
 
   const updateResetPanel = (patch) => {
@@ -178,7 +216,7 @@ function Login() {
 
             {state.error && (
               <p className="auth__error" role="alert">
-                {vrstaGreske === 'verify' ? t('emailVerification.loginBlocked') : vrstaGreske === 'deactivated' ? 'This account is deactivated.' : vrstaGreske === 'identifier' ? t('auth.identifierRequired') : t('auth.invalidLogin')}
+                {getLoginErrorMessage()}
               </p>
             )}
             {vrstaGreske === 'verify' && <p className="auth__switch"><Link to="/verify-email" state={{email: state.values.emailOrUsername?.includes('@') ? state.values.emailOrUsername : ''}} className="auth__switch-link">{t('emailVerification.resend')}</Link></p>}

@@ -1,13 +1,12 @@
 Mihajlo - [ X ] View details kod admina neke stvari nisu povezane sa endpointima
 Mihajlo - [ + ] Hide event kod admina da se osposobi
-TBD - [ ] password check opravi
-TBD - [ ] datum prosli da se zablokira kod create event kod organizatora
+Jana - [ + ] password check opravi
+Jana - [ + ] datum prosli da se zablokira kod create event kod organizatora
 Mihajlo - [ ] osposobiti Details kod organizatora
-TBD - [ ] account deactivated
+Jana - [ X ] account deactivated
 TBD - [ ] brisanje nekad nece
 Mihajlo - [ X ] kod eventi ukloniti type
-TBD - [ ] stagod kaze search u report
-TBD - [ ] kada korisnik pokusa da brise account "Account action could not be completed."
+Jana - [ + ] kada korisnik pokusa da brise account "Account action could not be completed."
 
 ------------------------
 GENERALNO DOBRO(ne gleda se na odbranu)
