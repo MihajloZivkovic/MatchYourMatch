@@ -1,6 +1,7 @@
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace MatchYourMatch.WebAPI.Controllers
 {
@@ -9,10 +10,17 @@ namespace MatchYourMatch.WebAPI.Controllers
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _service;
+        private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<AdminController> _logger;
 
-        public AdminController(IAdminService service)
+        public AdminController(
+            IAdminService service,
+            IWebHostEnvironment environment,
+            ILogger<AdminController> logger)
         {
             _service = service;
+            _environment = environment;
+            _logger = logger;
         }
 
         [Authorize(Roles = "Admin")]
@@ -66,12 +74,28 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             try
             {
-                await _service.DeleteUserAsync(userId);
-                return NoContent();
+                await _service.DeleteUserAsync(userId, CurrentUserId());
+                return Ok(new { message = "User deleted successfully." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                LogAdminDeleteFailure(ex, userId);
+                return StatusCode(StatusCodes.Status403Forbidden, CreateDeleteErrorResponse(ex));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                LogAdminDeleteFailure(ex, userId);
+                return NotFound(CreateDeleteErrorResponse(ex));
+            }
+            catch (InvalidOperationException ex)
+            {
+                LogAdminDeleteFailure(ex, userId);
+                return BadRequest(CreateDeleteErrorResponse(ex));
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                LogAdminDeleteFailure(ex, userId);
+                return BadRequest(CreateDeleteErrorResponse(ex));
             }
         }
 
@@ -118,6 +142,54 @@ namespace MatchYourMatch.WebAPI.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        private int CurrentUserId()
+        {
+            var id =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue("sub") ??
+                User.FindFirstValue("nameid");
+
+            return int.TryParse(id, out var userId)
+                ? userId
+                : throw new UnauthorizedAccessException("Invalid admin session.");
+        }
+
+        private object CreateDeleteErrorResponse(Exception exception)
+        {
+            const string message = "User could not be deleted.";
+
+            if (!_environment.IsDevelopment())
+                return new { message };
+
+            return new
+            {
+                message,
+                details = GetFullExceptionDetails(exception)
+            };
+        }
+
+        private void LogAdminDeleteFailure(Exception exception, int targetUserId)
+        {
+            _logger.LogError(
+                exception,
+                "Admin delete user failed for TargetUserId {TargetUserId}. InnerException: {InnerException}. StackTrace: {StackTrace}",
+                targetUserId,
+                exception.InnerException?.Message,
+                exception.StackTrace);
+        }
+
+        private static string GetFullExceptionDetails(Exception exception)
+        {
+            var messages = new List<string>();
+
+            for (var current = exception; current != null; current = current.InnerException)
+            {
+                messages.Add($"{current.GetType().Name}: {current.Message}");
+            }
+
+            return string.Join(" | Inner: ", messages);
         }
     }
 }

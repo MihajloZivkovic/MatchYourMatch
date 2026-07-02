@@ -7,7 +7,7 @@ namespace MatchYourMatch.WebAPI.Services.Interfaces
         Task<List<CheckUserDto>> GetUserInfoAsync();
         Task DeactivateUserAsync(int userId);
         Task ActivateUserAsync(int userId);
-        Task DeleteUserAsync(int userId);
+        Task DeleteUserAsync(int userId, int adminUserId);
         Task DeleteEventAsync(int eventId);
         Task DemoteToUserAsync(int userId);
         Task PromoteToAdminAsync(int userId);

@@ -103,6 +103,10 @@ public class AccountController : ControllerBase
         {
             return BadRequest(new { errorCode = ex.Code, message = ex.Message });
         }
+        catch (InvalidCurrentPasswordException ex)
+        {
+            return BadRequest(new { errorCode = ex.Code, message = ex.Message });
+        }
         catch (InvalidOperationException ex) 
         { 
             return BadRequest(new { message = ex.Message }); 

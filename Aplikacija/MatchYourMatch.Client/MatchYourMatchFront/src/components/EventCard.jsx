@@ -4,7 +4,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import UserAvatar from './UserAvatar';
 import EventSaveButton from './events/EventSaveButton';
 
-function EventCard({ event, style, mini = false, guestMode = false, organizerMode = false, onJoin, onLeave, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
+function EventCard({ event, style, mini = false, guestMode = false, organizerMode = false, confirmLeaveInline = true, onJoin, onLeave, onCancelJoinRequest, onOpen, onInvite, onEdit, onSavedChange }) {
   const { t } = useTranslation();
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const {
@@ -130,7 +130,12 @@ function EventCard({ event, style, mini = false, guestMode = false, organizerMod
                 className="event-card__leave"
                 onClick={(clickEvent) => {
                   clickEvent.stopPropagation();
-                  setConfirmingLeave(true);
+                  if (confirmLeaveInline) {
+                    setConfirmingLeave(true);
+                    return;
+                  }
+
+                  onLeave();
                 }}
               >
                 {t('events.leave').toUpperCase()}

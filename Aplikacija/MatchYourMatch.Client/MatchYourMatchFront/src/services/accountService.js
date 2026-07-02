@@ -6,15 +6,20 @@ async function request(url, options = {}) {
 
   const rawBody = await response.text();
   let message = 'Account action failed.';
+  let errorCode = '';
 
   try {
     const body = rawBody ? JSON.parse(rawBody) : null;
     message = body?.message || message;
+    errorCode = body?.errorCode || body?.code || '';
   } catch {
     message = rawBody || message;
   }
 
-  throw new Error(message);
+  const error = new Error(message);
+  error.status = response.status;
+  error.errorCode = errorCode;
+  throw error;
 }
 
 export const accountService = {

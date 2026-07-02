@@ -21,6 +21,7 @@ import {
   announceProfileChanged,
   EVENTS_CHANGED_EVENT,
 } from '../../services/notificationService';
+import ConfirmModal from '../../components/ConfirmModal';
 import { organizerService } from '../../services/organizerService';
 import { EventDetails } from './Profile';
 import './OrganizerDashboard.css';
@@ -36,6 +37,8 @@ function OrganizerDashboard({ currentUser, userProfile }) {
   const [notice, setNotice] = useState('');
   const [actionKey, setActionKey] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [deleteEventCandidate, setDeleteEventCandidate] = useState(null);
+  const [deleteEventError, setDeleteEventError] = useState('');
   const [eventTab, setEventTab] = useState('upcoming');
   const [eventPage, setEventPage] = useState(1);
   const [profileImageSaving, setProfileImageSaving] = useState(false);
@@ -172,20 +175,36 @@ function OrganizerDashboard({ currentUser, userProfile }) {
     }
   };
 
-  const handleDelete = async (event) => {
-    if (!window.confirm(`Delete "${event.title}"? This cannot be undone.`)) return;
-    setActionKey(`delete-${event.id}`);
+  const handleDelete = (event) => {
+    setDeleteEventCandidate(event);
+    setDeleteEventError('');
+    setNotice('');
+  };
+
+  const handleCancelDelete = () => {
+    if (actionKey === `delete-${deleteEventCandidate?.id}`) return;
+    setDeleteEventCandidate(null);
+    setDeleteEventError('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteEventCandidate) return;
+
+    const eventId = deleteEventCandidate.id;
+    setActionKey(`delete-${eventId}`);
+    setDeleteEventError('');
     setError('');
     setNotice('');
     try {
-      await organizerService.deleteEvent(event.id);
-      setEvents((current) => current.filter((item) => item.id !== event.id));
-      setRequests((current) => current.filter((item) => item.eventId !== event.id));
+      await organizerService.deleteEvent(eventId);
+      setEvents((current) => current.filter((item) => item.id !== eventId));
+      setRequests((current) => current.filter((item) => item.eventId !== eventId));
+      setDeleteEventCandidate(null);
       setNotice('Event deleted.');
       announceNotificationsChanged();
-      announceEventsChanged({ source: 'organizer-delete-event', eventId: event.id });
+      announceEventsChanged({ source: 'organizer-delete-event', eventId });
     } catch (requestError) {
-      setError(requestError.message || 'Event could not be deleted.');
+      setDeleteEventError(requestError.message || 'Event could not be deleted. Please try again.');
     } finally {
       setActionKey('');
     }
@@ -516,6 +535,18 @@ function OrganizerDashboard({ currentUser, userProfile }) {
           </div>
         </>
       )}
+      <ConfirmModal
+        isOpen={Boolean(deleteEventCandidate)}
+        title="Delete event"
+        message={`Are you sure you want to delete "${deleteEventCandidate?.title || 'this event'}"? This action cannot be undone.`}
+        confirmText="Delete event"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={actionKey === `delete-${deleteEventCandidate?.id}`}
+        errorMessage={deleteEventError}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 }
