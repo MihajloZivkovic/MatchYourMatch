@@ -113,7 +113,11 @@ function Events({ currentUser }) {
 
   useEffect(() => {
     setPage(1);
-  }, [activeFilter, events]);
+  }, [activeFilter]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   const handleJoin = async (eventId) => {
     setNotice('');

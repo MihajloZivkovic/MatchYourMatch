@@ -20,6 +20,7 @@ import {
   ImagePlus,
 } from "lucide-react";
 import EventCard from "../../components/EventCard";
+import ConfirmModal from "../../components/ConfirmModal";
 import EventSaveButton from "../../components/events/EventSaveButton";
 import AvailabilityScheduleEditor from "../../components/profile/AvailabilityScheduleEditor";
 import DeepPreferencesSection from "../../components/profile/DeepPreferencesSection";
@@ -207,6 +208,8 @@ function Profile(props) {
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [leaveEventCandidate, setLeaveEventCandidate] = useState(null);
+  const [leaveEventLoading, setLeaveEventLoading] = useState(false);
   const [enteredThroughDashboard, setEnteredThroughDashboard] = useState(false);
   const navigate = useNavigate();
   const redirectToPublic = useCallback(() => {
@@ -1135,6 +1138,54 @@ function Profile(props) {
     }
   };
 
+  const requestLeaveEvent = (event) => {
+    if (!event?.id) {
+      setEventsError("Could not leave event. Please try again.");
+      return;
+    }
+
+    setEventsError("");
+    setLeaveEventCandidate(event);
+  };
+
+  const handleLeaveEvent = async () => {
+    const eventId = leaveEventCandidate?.id;
+    if (!isValidEventId(eventId)) {
+      setEventsError("Could not leave event. Please try again.");
+      setLeaveEventCandidate(null);
+      return;
+    }
+
+    setLeaveEventLoading(true);
+    setEventsError("");
+
+    try {
+      const response = await fetch(`/api/Events/${eventId}/join`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not leave event. Please try again.");
+      }
+
+      const updated = mapApiEvent(await response.json());
+      updateProfileEventsAfterLeave(eventId, updated);
+      setSelectedEvent((current) =>
+        current?.id === eventId ? { ...updated, isJoinedByCurrentUser: false } : current,
+      );
+      setLeaveEventCandidate(null);
+      await fetchProfileEvents();
+      announceEventsChanged({ source: "profile-leave", eventId });
+    } catch (error) {
+      setEventsError(error.message || "Could not leave event. Please try again.");
+    } finally {
+      setLeaveEventLoading(false);
+    }
+  };
+
   const handleSavedEventChange = (eventId, isSaved) => {
     setProfileEvents((current) => {
       const source = [
@@ -1160,6 +1211,23 @@ function Profile(props) {
     setSelectedEvent((current) =>
       current?.id === eventId ? { ...current, isSaved } : current,
     );
+  };
+
+  const updateProfileEventsAfterLeave = (eventId, updated) => {
+    setProfileEvents((current) => ({
+      Upcoming: current.Upcoming.filter((event) => event.id !== eventId),
+      Past: current.Past,
+      Saved: current.Saved.map((event) =>
+        event.id === eventId
+          ? {
+              ...event,
+              ...updated,
+              isSaved: event.isSaved,
+              isJoinedByCurrentUser: false,
+            }
+          : event,
+      ),
+    }));
   };
 
   return (
@@ -2102,6 +2170,13 @@ function Profile(props) {
                   onCancelJoinRequest={() =>
                     handleCancelEventJoinRequest(selectedEvent.id)
                   }
+                  onLeave={
+                    eventSegment === "Upcoming" &&
+                    selectedEvent.isJoinedByCurrentUser &&
+                    !selectedEvent.isOrganizer
+                      ? () => requestLeaveEvent(selectedEvent)
+                      : undefined
+                  }
                   onEventUpdated={(updated) => {
                     setSelectedEvent(updated);
                     fetchProfileEvents();
@@ -2167,6 +2242,14 @@ function Profile(props) {
                         style={{ "--i": index }}
                         onOpen={() => setSelectedEvent(event)}
                         onJoin={() => handleJoinEvent(event.id)}
+                        onLeave={
+                          eventSegment === "Upcoming" &&
+                          event.isJoinedByCurrentUser &&
+                          !event.isOrganizer
+                            ? () => requestLeaveEvent(event)
+                            : undefined
+                        }
+                        confirmLeaveInline={false}
                         onCancelJoinRequest={() =>
                           handleCancelEventJoinRequest(event.id)
                         }
@@ -2190,6 +2273,19 @@ function Profile(props) {
           onClose={() => setFollowListType(null)}
         />
       )}
+      <ConfirmModal
+        isOpen={Boolean(leaveEventCandidate)}
+        title="Leave event"
+        message="Are you sure you want to leave this event?"
+        confirmText="Leave event"
+        cancelText={t("common.cancel")}
+        variant="danger"
+        isLoading={leaveEventLoading}
+        onConfirm={handleLeaveEvent}
+        onCancel={() => {
+          if (!leaveEventLoading) setLeaveEventCandidate(null);
+        }}
+      />
     </div>
   );
 }
@@ -2198,6 +2294,7 @@ export function EventDetails({
   event,
   onBack,
   onJoin,
+  onLeave,
   onCancelJoinRequest,
   onSavedChange,
   onEventUpdated,
@@ -2245,14 +2342,14 @@ export function EventDetails({
             className={`event-card__join${
               event.isJoinedByCurrentUser ? " event-card__join--joined" : ""
             }`}
-            onClick={onJoin}
+            onClick={event.isJoinedByCurrentUser ? onLeave : onJoin}
             disabled={
-              event.isJoinedByCurrentUser ||
+              (event.isJoinedByCurrentUser && !onLeave) ||
               event.joinRequestStatus === "Pending"
             }
           >
             {event.isJoinedByCurrentUser
-              ? t("events.joined").toUpperCase()
+              ? (onLeave ? t("events.leave") : t("events.joined")).toUpperCase()
               : event.joinRequestStatus === "Pending"
                 ? t("events.requestPending").toUpperCase()
                 : t("events.join").toUpperCase()}

@@ -380,6 +380,12 @@ function AdminDashboard() {
         setNotice(t('admin.notices.userDeactivated', { username: confirmAction.target.username }));
       } else if (confirmAction.type === 'deleteUser') {
         await adminService.deleteUser(confirmAction.target.id);
+        setUsers((current) =>
+          current.filter((user) => user.id !== confirmAction.target.id),
+        );
+        setSelectedUser((current) =>
+          current?.id === confirmAction.target.id ? null : current,
+        );
         await loadUsers();
         setNotice(t('admin.notices.userDeleted', { username: confirmAction.target.username }));
       } else if (confirmAction.type === 'deleteEvent') {
