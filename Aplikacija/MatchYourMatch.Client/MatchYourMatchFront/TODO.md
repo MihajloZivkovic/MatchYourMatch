@@ -10,6 +10,8 @@ TBD - [ ] sve hardkodirane stvari iz template gotta go
 TBD - [ ] kada je korisnik banovan preko reporta, u report history-u korisnika koji je reportovao status prikazuje reports.statuses.actionTaken - popraviti
 TBD - [ ] kada organizatoru stigne request da se odma pojavi u Join Requests, da ne mora da refresuje 
 TBD (mozda opciono ovo realno) - [ ] da se novi event odmah pojavi, bez refresh
+TBD - [ ] change password ne radi nista kad kliknem save - proveriti
+TBD - [ ] change email salje kod ali nema gde da se unese
 
 ------------------------
 GENERALNO DOBRO(ne gleda se na odbranu)
