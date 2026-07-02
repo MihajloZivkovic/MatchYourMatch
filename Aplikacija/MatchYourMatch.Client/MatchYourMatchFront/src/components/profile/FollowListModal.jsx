@@ -77,6 +77,7 @@ export default function FollowListModal({ userId, currentUserId, type = 'followe
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (!response.ok) throw new Error(await response.text() || t('publicProfile.followError'));
+      window.dispatchEvent(new Event('tokenChanged'));
     } catch (err) {
       setData((current) => ({
         ...current,

@@ -949,22 +949,19 @@ function Profile(props) {
     currentUser?.eventsJoinedCount ??
     userProfile?.eventsJoinedCount;
   const profileScoreValue =
-    currentUser?.profileScorePercent ??
-    userProfile?.profileScorePercent;
-  const followersValue =
-    currentUser?.followersCount ?? userProfile?.followersCount;
+    props.currentUser?.profileScorePercent ??
+    props.userProfile?.profileScorePercent;
   const ratingsCount =
-    currentUser?.ratingsCount ?? userProfile?.ratingsCount ?? 0;
+      props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
+  const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
+  const followersValue =
+    props.currentUser?.followersCount ?? props.userProfile?.followersCount;
   const followersDisplay =
     typeof followersValue === "number" ? String(followersValue) : "—";
 
-  const profileUserId = currentUser?.id ?? userProfile?.id;
-
-  const followingValue = currentUser?.followingCount ?? userProfile?.followingCount;
-  
-  const followingDisplay =
-    typeof followingValue === "number" ? String(followingValue) : "—";
-
+  var followingValue =
+    props.currentUser?.followingCount ?? props.userProfile?.followingCount ?? 0;
+  followingValue --;
 
 
   const savedLocationInput =
@@ -1120,7 +1117,7 @@ function Profile(props) {
                 disabled={!profileUserId}
               >
                 <Users size={14} />
-                <strong>{followingDisplay}</strong>{" "}
+                <strong>{followingValue}</strong>{" "}
                 {t("publicProfile.following")}
               </button>
               <p className="profile__location">
