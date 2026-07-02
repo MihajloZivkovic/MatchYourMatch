@@ -341,7 +341,7 @@ function Dashboard(props) {
               <span>{t("dashboard.longTerm").toUpperCase()}</span>
             </div>
             <div className="dashboard__graph-mock">
-              {[88, 72, 95, 64].map((v, i) => (
+              {[32, 50, 95, 64].map((v, i) => (
                 <div key={i} className="dashboard__graph-bar">
                   <span style={{ "--h": `${v}%` }} />
                   <small>{v}%</small>

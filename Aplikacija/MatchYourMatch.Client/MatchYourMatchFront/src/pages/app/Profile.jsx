@@ -33,7 +33,6 @@ import AttachmentView from "../../components/chat/AttachmentView";
 import AccountDangerModal from "../../components/profile/AccountDangerModal";
 import ProfileStats from "../../components/profile/ProfileStats";
 import FollowListModal from "../../components/profile/FollowListModal";
-import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from "../../hooks/useTranslation";
 import { logoutAndRedirect } from "../../services/authSession";
@@ -41,7 +40,6 @@ import {
   announceEventJoinRequestChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
 } from "../../services/notificationService";
-// import EventDetails from "../../components/events/EventDetails";
 
 const TABS = ["ABOUT", "MATCHES", "EVENTS"];
 const EVENT_SEGMENTS = ["Upcoming", "Past", "Saved"];
@@ -1128,17 +1126,6 @@ function Profile(props) {
                   ? ` · ${props.userProfile.age}`
                   : ""}
               </p>
-              <div className="profile__badges-row">
-                <span className="glass-pill glass-pill--online">
-                  {t("profile.activeToday").toUpperCase()}
-                </span>
-                <span className="profile__completion">
-                  {CURRENT_USER.completion}% {t("profile.complete")}
-                </span>
-                <span className="profile__type-badge">
-                  {t(`profileOptions.${CURRENT_USER.personalityType}`)}
-                </span>
-              </div>
               <ProfileTagEditor
                 compact
                 title={t("profile.exploring")}
