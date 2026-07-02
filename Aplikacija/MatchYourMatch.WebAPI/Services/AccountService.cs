@@ -22,7 +22,7 @@ public class AccountService : IAccountService
     private readonly MicrosoftTokenValidator _microsoft;
 
     public AccountService(AppDbContext context, IAuthService authService, IUserProfilesService profiles, EmailService emailService, GoogleTokenValidator google,
-        MicrosoftTokenValidator microsoft, ILogger<AccountService> logger)
+        MicrosoftTokenValidator microsoft)
     {
         _context = context;
         _authService = authService;

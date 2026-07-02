@@ -9,16 +9,11 @@ namespace MatchYourMatch.WebAPI.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
-        private readonly ILogger<GeocodingService> _logger;
 
-        public GeocodingService(
-            HttpClient httpClient,
-            IConfiguration configuration,
-            ILogger<GeocodingService> logger)
+        public GeocodingService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
             _configuration = configuration;
-            _logger = logger;
         }
 
         public async Task<GeocodingResult?> GeocodeAsync(string locationInput)
@@ -31,16 +26,14 @@ namespace MatchYourMatch.WebAPI.Services
             if (string.IsNullOrWhiteSpace(locationInput))
                 return new List<GeocodingResult>();
 
-            var baseUrl = _configuration["Geocoding:BaseUrl"]
-                ?? "https://nominatim.openstreetmap.org/search";
-            var userAgent = _configuration["Geocoding:UserAgent"]
-                ?? "MatchYourMatch/1.0";
+            var baseUrl = _configuration["Geocoding:BaseUrl"] ?? "https://nominatim.openstreetmap.org/search";
+            var userAgent = _configuration["Geocoding:UserAgent"] ?? "MatchYourMatch/1.0";
             var resultLimit = Math.Clamp(limit, 1, 8);
 
-            using var request = new HttpRequestMessage(
-                HttpMethod.Get,
+            using var request = new HttpRequestMessage(HttpMethod.Get,
                 $"{baseUrl}?format=json&limit={resultLimit}&addressdetails=1&accept-language=en&q={Uri.EscapeDataString(locationInput.Trim())}");
 
+            // treba header
             request.Headers.UserAgent.ParseAdd(userAgent);
 
             try
@@ -49,47 +42,44 @@ namespace MatchYourMatch.WebAPI.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning(
-                        "Geocoding request failed with status code {StatusCode}.",
-                        response.StatusCode);
                     return new List<GeocodingResult>();
                 }
 
                 await using var stream = await response.Content.ReadAsStreamAsync();
-                var results = await JsonSerializer.DeserializeAsync<List<NominatimResult>>(
-                    stream,
+                var results = await JsonSerializer.DeserializeAsync<List<NominatimResult>>(stream,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 return results?
                     .Select(MapResult)
                     .Where(result => result != null)
                     .Cast<GeocodingResult>()
-                    .DistinctBy(result => result.LocationInput.ToLowerInvariant())
+                    .DistinctBy(result => result.LocationInput.ToLowerInvariant()) // treba, nekad izbacuje isto iz nekog razloga
                     .Take(resultLimit)
                     .ToList() ?? new List<GeocodingResult>();
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogWarning(ex, "Geocoding request could not be completed.");
                 return new List<GeocodingResult>();
             }
         }
 
         private static GeocodingResult? MapResult(NominatimResult result)
         {
+            // parsiranje koordinata
             if (!double.TryParse(result.Latitude, NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) ||
                 !double.TryParse(result.Longitude, NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude))
             {
                 return null;
             }
 
-            var city = FirstNonEmpty(
+            var city = FirstNonEmpty( // da uzme prvi koji nadje, posto nominatim vraca nekad razlicite
                 result.Address?.City,
                 result.Address?.Town,
                 result.Address?.Village,
                 result.Address?.Municipality,
                 result.Address?.County,
-                result.Address?.State);
+                result.Address?.State
+            );
             var country = result.Address?.Country;
             var displayName = BuildPublicDisplayName(city, country);
 
@@ -123,6 +113,7 @@ namespace MatchYourMatch.WebAPI.Services
             return string.Join(", ", parts);
         }
 
+        // da se deserijalizuje odgovor APIja
         private class NominatimResult
         {
             [JsonPropertyName("lat")]

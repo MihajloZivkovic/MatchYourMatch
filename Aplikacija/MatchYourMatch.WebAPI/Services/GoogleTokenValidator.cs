@@ -5,8 +5,9 @@ namespace MatchYourMatch.WebAPI.Services
 {
     public class GoogleTokenValidator
     {
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IHttpClientFactory _httpClientFactory; 
         private readonly IConfiguration _configuration;
+        
         public GoogleTokenValidator(IHttpClientFactory httpClientFactory, IConfiguration configuration) 
         { 
             _httpClientFactory = httpClientFactory; 
