@@ -262,6 +262,7 @@ function Chat() {
       return;
     }
 
+    setError("");
     const controller = new AbortController();
     const timeoutId = window.setTimeout(async () => {
       setSearchingPeople(true);

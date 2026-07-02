@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, PauseCircle, Trash2, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../hooks/useTranslation';
 import { clearAuthSession } from '../../services/authSession';
 import { accountService } from '../../services/accountService';
@@ -9,7 +8,6 @@ import './AccountDangerModal.css';
 
 export default function AccountDangerModal({ onClose }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [mode, setMode] = useState('choose');
   const [status, setStatus] = useState(null);
   const [password, setPassword] = useState('');
@@ -40,18 +38,9 @@ export default function AccountDangerModal({ onClose }) {
         await accountService.delete({ password, confirmation });
       else await accountService.deactivate({ password, confirmation });
       clearAuthSession();
-      navigate('/login', {
-        replace: true,
-        state: {
-          accountMessage: t(
-            mode === 'delete'
-              ? 'accountLifecycle.deleted'
-              : 'accountLifecycle.deactivated',
-          ),
-        },
-      });
+      window.location.replace('/');
     } catch (requestError) {
-      setError(requestError.message);
+      setError(getActionErrorMessage(requestError, mode, t));
       setLoading(false);
     }
   };
@@ -196,4 +185,20 @@ export default function AccountDangerModal({ onClose }) {
     </div>,
     document.body,
   );
+}
+
+function getActionErrorMessage(error, mode, t) {
+  const fallbackKey =
+    mode === 'delete'
+      ? 'accountLifecycle.deleteError'
+      : 'accountLifecycle.actionError';
+  const fallback = t(fallbackKey);
+
+  if (!error?.message || error.message === 'Account action failed.')
+    return fallback;
+
+  if (error instanceof TypeError || error.message === 'Failed to fetch')
+    return fallback;
+
+  return error.message;
 }

@@ -11,9 +11,12 @@ namespace MatchYourMatch.WebAPI.Controllers;
 public class AccountController : ControllerBase
 {
     private readonly IAccountService _accounts;
+    private readonly ILogger<AccountController> _logger;
+
     public AccountController(IAccountService accounts, ILogger<AccountController> logger) 
     { 
         _accounts = accounts;
+        _logger = logger;
     }
 
     [Authorize]
@@ -61,7 +64,7 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> Delete(DeleteAccountDto dto) => await Handle(async () =>
     {
         await _accounts.DeleteAsync(CurrentUserId(), dto);
-        return Ok(new { success = true, message = "Account permanently deleted." });
+        return Ok(new { message = "Account deleted successfully" });
     });
 
     private int CurrentUserId() 
@@ -85,8 +88,9 @@ public class AccountController : ControllerBase
             return BadRequest(new { message = ex.Message }); 
         }
         catch (Exception ex) 
-        { 
-            return StatusCode(500, new { message = ex.Message }); 
+        {
+            _logger.LogError(ex, "Account action failed for {Method} {Path}.", Request.Method, Request.Path);
+            return StatusCode(500, new { message = "Account action could not be completed. Please try again." });
         }
     }
 }

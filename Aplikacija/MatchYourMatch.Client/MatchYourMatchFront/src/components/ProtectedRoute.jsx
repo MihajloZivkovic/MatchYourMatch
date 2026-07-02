@@ -26,7 +26,9 @@ function ProtectedRoute({ children }) {
       clearAuthSession();
   }, [isAuthed]);
 
-  if (isSessionExpired()) return children;
+  if (isSessionExpired()) {
+    return <Navigate to='/login' replace />;
+  }
 
   if (!isAuthed) {
     return <Navigate to='/login' replace />;

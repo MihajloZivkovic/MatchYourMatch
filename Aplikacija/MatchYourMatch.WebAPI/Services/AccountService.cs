@@ -203,62 +203,100 @@ public class AccountService : IAccountService
         var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
             ?? throw new KeyNotFoundException("Account does not exist.");
 
-        if (user.Role == "System") 
+        if (user.Role == "System" || string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("Nalog ne moze biti obrisan.");
 
         EnsureAccountConfirmation(user, dto.Password, dto.Confirmation, "DELETE");
 
         var deletedUser = await GetOrCreateDeletedUserAsync();
-        // trazi konverzacije korisnika da obrise
+        await DeletePrivateChatConversationsAsync(userId);
+        await PreserveHistoricalContentAsync(userId, deletedUser.Id);
+        await RemoveUserRelationsAsync(userId);
+        await DeleteUserRecordAsync(user);
+
+        await transaction.CommitAsync();
+    }
+
+    private async Task DeletePrivateChatConversationsAsync(int userId)
+    {
         var conversationIdsToDelete = await _context.ChatConversations
             .Where(c => (!c.IsGroup && (c.UserAId == userId || c.UserBId == userId)) ||
                 (c.IsGroup && c.Members.Any(m => m.UserId == userId) && !c.Members.Any(m => m.UserId != userId)))
-            .Select(c => c.Id).ToListAsync();
+            .Select(c => c.Id)
+            .ToListAsync();
 
         if (conversationIdsToDelete.Count > 0)
         {
-            var messageIds = _context.ChatMessages.Where(m => conversationIdsToDelete.Contains(m.ConversationId)).Select(m => m.Id);
+            var messageIds = _context.ChatMessages
+                .Where(m => conversationIdsToDelete.Contains(m.ConversationId))
+                .Select(m => m.Id);
+
             await _context.ChatMessageReactions.Where(x => messageIds.Contains(x.MessageId)).ExecuteDeleteAsync();
             await _context.ChatMessageUserDeletions.Where(x => messageIds.Contains(x.MessageId)).ExecuteDeleteAsync();
             await _context.ChatMessages.Where(x => conversationIdsToDelete.Contains(x.ConversationId)).ExecuteDeleteAsync();
             await _context.ChatConversationMembers.Where(x => conversationIdsToDelete.Contains(x.ConversationId)).ExecuteDeleteAsync();
             await _context.ChatConversations.Where(x => conversationIdsToDelete.Contains(x.Id)).ExecuteDeleteAsync();
         }
+    }
 
+    private async Task PreserveHistoricalContentAsync(int userId, int deletedUserId)
+    {
         await _context.ChatConversations.Where(x => x.IsGroup && x.CreatedByUserId == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.CreatedByUserId, (int?)null));
+        await _context.ChatConversations.Where(x => x.UserAId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UserAId, (int?)null));
+        await _context.ChatConversations.Where(x => x.UserBId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UserBId, (int?)null));
         await _context.ChatMessages.Where(x => x.SenderId == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.SenderId, deletedUser.Id));
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.SenderId, deletedUserId));
         await _context.ChatMessages.Where(x => x.ReceiverId == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.ReceiverId, (int?)null));
         await _context.EventDiscussionMessages.Where(x => x.UserId == userId)
-            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UserId, deletedUser.Id));
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.UserId, deletedUserId));
         await _context.Events.Where(x => x.OrganizerId == userId)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.OrganizerId, (int?)null));
+        await _context.Notifications.Where(x => x.ActorUserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ActorUserId, (int?)null));
+        await _context.UserReports.Where(x => x.ReviewedByUserId == userId)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ReviewedByUserId, (int?)null));
+    }
 
-        // sve poveznice se uklanjaju
+    private async Task RemoveUserRelationsAsync(int userId)
+    {
         await _context.ChatMessageReactions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.ChatMessageUserDeletions.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.ChatConversationMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync();
-        await _context.Notifications.Where(x => x.UserId == userId || x.ActorUserId == userId).ExecuteDeleteAsync();
+        await _context.Notifications.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.EventInvites.Where(x => x.InviterUserId == userId || x.InviteeUserId == userId).ExecuteDeleteAsync();
+        await _context.UserReports.Where(x => x.ReporterUserId == userId || x.ReportedUserId == userId).ExecuteDeleteAsync();
         await _context.UserRatings.Where(x => x.RaterUserId == userId || x.RatedUserId == userId).ExecuteDeleteAsync();
         await _context.UserMatches.Where(x => x.UserAId == userId || x.UserBId == userId).ExecuteDeleteAsync();
         await _context.Follows.Where(x => x.FollowerId == userId || x.FollowingId == userId).ExecuteDeleteAsync();
         await _context.BlockedUsers.Where(x => x.BlockerUserId == userId || x.BlockedUserId == userId).ExecuteDeleteAsync();
         await _context.HiddenProfiles.Where(x => x.UserId == userId || x.HiddenUserId == userId).ExecuteDeleteAsync();
         await _context.EventParticipants.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.EventReminders.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.EventJoinRequests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.SavedEvents.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.QuickMatchRequests.Where(x => x.RequesterUserId == userId).ExecuteDeleteAsync();
         await _context.QuickMatchPosts.Where(x => x.UserId == userId).ExecuteDeleteAsync();
+        await _context.OrganizerSubscriptions.Where(x => x.UserId == userId || x.OrganizerId == userId).ExecuteDeleteAsync();
         await _context.FreeTimeSlots.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.UserInterests.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.UserDeepMatchPreferences.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.UserAppSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.UserProfiles.Where(x => x.UserId == userId).ExecuteDeleteAsync();
         await _context.ExternalLogins.Where(x => x.UserId == userId).ExecuteDeleteAsync();
-        await _context.Users.Where(x => x.Id == userId).ExecuteDeleteAsync();
+    }
 
-        await transaction.CommitAsync();
+    private async Task DeleteUserRecordAsync(User user)
+    {
+        var deletedRows = await _context.Users
+            .Where(x => x.Id == user.Id)
+            .ExecuteDeleteAsync();
+
+        if (deletedRows != 1)
+            throw new InvalidOperationException("Account could not be deleted.");
     }
 
     private void EnsureAccountConfirmation(User user, string? password, string? confirmation, string requiredConfirmation)
