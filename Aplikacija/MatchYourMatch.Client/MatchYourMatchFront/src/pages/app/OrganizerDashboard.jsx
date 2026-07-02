@@ -19,6 +19,7 @@ import {
   announceNotificationsChanged,
 } from '../../services/notificationService';
 import { organizerService } from '../../services/organizerService';
+import { EventDetails } from './Profile';
 import './OrganizerDashboard.css';
 
 function OrganizerDashboard({ currentUser, userProfile }) {
@@ -31,6 +32,7 @@ function OrganizerDashboard({ currentUser, userProfile }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [actionKey, setActionKey] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [eventTab, setEventTab] = useState('upcoming');
   const [eventPage, setEventPage] = useState(1);
   const [profileImageSaving, setProfileImageSaving] = useState(false);
@@ -228,6 +230,28 @@ function OrganizerDashboard({ currentUser, userProfile }) {
   const displayName = organizationName;
   const organizationType = displayProfile?.organizationType || displayProfile?.bio;
 
+  const handleOpenEventDetails = (event) => {
+    setSelectedEvent({
+      id: event.id,
+      title: event.title,
+      category: event.category,
+      date: event.rawDate || event.dateLabel,
+      time: event.rawTime || event.timeLabel,
+      location: event.location,
+      description: event.description || '',
+      attendeeCount: event.attendeeCount || 0,
+      maxAttendees: event.maxAttendees || 0,
+      ageLabel: event.ageLabel || '',
+      isSaved: false,
+      isJoinedByCurrentUser: true,
+      joinRequestStatus: null,
+      organizerUsername: displayProfile?.username || currentUser?.username,
+      isOrganizer: true,
+    });
+  };
+
+  const handleCloseEventDetails = () => setSelectedEvent(null);
+
   return (
     <div className="page-fade-in organizer-dashboard">
       <header className="organizer-dashboard__hero">
@@ -296,7 +320,16 @@ function OrganizerDashboard({ currentUser, userProfile }) {
                 </button>
               </div>
 
-              {visibleEvents.length === 0 ? (
+              {selectedEvent ? (
+                <EventDetails
+                  event={selectedEvent}
+                  onBack={handleCloseEventDetails}
+                  onJoin={() => {}}
+                  onCancelJoinRequest={() => {}}
+                  onSavedChange={() => {}}
+                  onEventUpdated={(updated) => setSelectedEvent(updated)}
+                />
+              ) : visibleEvents.length === 0 ? (
                 <EmptyState
                   title={eventTab === 'upcoming' ? 'No upcoming organizer events' : 'No past organizer events'}
                   text={eventTab === 'upcoming'
@@ -334,7 +367,7 @@ function OrganizerDashboard({ currentUser, userProfile }) {
                         <button type="button" onClick={() => navigate(`/app/events/${event.id}/edit`)}>
                           <Edit3 size={14} /> Edit
                         </button>
-                        <button type="button" onClick={() => navigate(`/app/events?event=${event.id}`)}>
+                        <button type="button" onClick={() => handleOpenEventDetails(event)}>
                           <Eye size={14} /> Details
                         </button>
                         <button

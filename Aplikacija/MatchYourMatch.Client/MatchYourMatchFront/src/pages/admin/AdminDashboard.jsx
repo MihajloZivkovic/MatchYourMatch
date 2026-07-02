@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  EyeOff,
   Flag,
   Info,
   LogOut,
@@ -814,9 +813,6 @@ function AdminEventsPanel({
           <option value='upcoming'>{t('admin.events.filters.upcoming')}</option>
           <option value='past'>{t('admin.events.filters.past')}</option>
         </select>
-        <span className='admin-toolbar__note'>
-          {t('admin.events.hideShowUnavailable')}
-        </span>
       </div>
       <PanelState loading={loading} error={error} empty={!events.length} onRetry={onRetry} t={t} />
       {!loading && !error && events.length > 0 && (
@@ -851,20 +847,10 @@ function AdminEventsPanel({
                     <dd>{formatAttendees(event, t)}</dd>
                   </div>
                   <div>
-                    <dt>{t('admin.events.visibility')}</dt>
-                    <dd>{t('admin.events.visible')}</dd>
-                  </div>
-                  <div>
                     <dt>{t('admin.events.status')}</dt>
                     <dd>{isPastEvent(event) ? t('admin.events.filters.past') : t('admin.events.filters.upcoming')}</dd>
                   </div>
                 </dl>
-                <div className='admin-row-actions'>
-                  <button type='button' disabled title={t('admin.events.hideShowUnavailable')}>
-                    <EyeOff size={15} aria-hidden='true' />
-                    {t('admin.actions.hideEvent')}
-                  </button>
-                </div>
                 <button
                   type='button'
                   className='admin-event-card__delete'
@@ -907,12 +893,14 @@ function AdminReportsPanel({
   onReject,
   onBan,
   t,
-}) {
+}) 
+{
+  const unresolvedReports = reports.filter((report) => normalizeStatusKey(report.status) === 'pending').length;
   return (
     <section className='admin-panel'>
       <PanelHead
         title={t('admin.reports.title')}
-        description={t('admin.reports.description', { count: totalReports })}
+        description={t('admin.reports.description', { count: unresolvedReports })}
       />
       <div className='admin-toolbar'>
         <select

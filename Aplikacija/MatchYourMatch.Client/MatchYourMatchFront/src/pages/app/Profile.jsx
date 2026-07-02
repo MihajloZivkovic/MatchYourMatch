@@ -33,7 +33,6 @@ import AttachmentView from "../../components/chat/AttachmentView";
 import AccountDangerModal from "../../components/profile/AccountDangerModal";
 import ProfileStats from "../../components/profile/ProfileStats";
 import FollowListModal from "../../components/profile/FollowListModal";
-import { CURRENT_USER } from "../../data/matches";
 import "./Profile.css";
 import { useTranslation } from "../../hooks/useTranslation";
 import { clearAuthSession, logoutAndRedirect } from "../../services/authSession";
@@ -1151,17 +1150,6 @@ function Profile(props) {
                   ? ` · ${userProfile.age}`
                   : ""}
               </p>
-              <div className="profile__badges-row">
-                <span className="glass-pill glass-pill--online">
-                  {t("profile.activeToday").toUpperCase()}
-                </span>
-                <span className="profile__completion">
-                  {CURRENT_USER.completion}% {t("profile.complete")}
-                </span>
-                <span className="profile__type-badge">
-                  {t(`profileOptions.${CURRENT_USER.personalityType}`)}
-                </span>
-              </div>
               <ProfileTagEditor
                 compact
                 title={t("profile.exploring")}
@@ -1528,19 +1516,14 @@ function Profile(props) {
                         value={visibilityDraft}
                         onChange={(event) => setVisibilityDraft(event.target.value)}
                       >
-                        <option value="Public">Public</option>
                         <option value="Standard">Standard</option>
                         <option value="Private">Private</option>
                       </select>
                     </label>
                     <div className="profile-settings-visibility-help">
                       <p>
-                        <strong>Public</strong>
+                        <strong>Standard(Public)</strong>
                         <span>Visible in search, matches, event participants and public profile views.</span>
-                      </p>
-                      <p>
-                        <strong>Standard</strong>
-                        <span>Normal MYM visibility for logged-in users, with existing privacy rules.</span>
                       </p>
                       <p>
                         <strong>Private</strong>
@@ -2051,67 +2034,7 @@ function Profile(props) {
   );
 }
 
-function EditableSetting({ icon: Icon, label, value, active, onOpen, children }) {
-  const displayValue = label === "Password" || label === "Lozinka" ? "********" : value;
-  return (
-    <div className={`profile-settings-editable${active ? " is-active" : ""}`}>
-      <button
-        type="button"
-        className="profile-settings-editable__summary"
-        onClick={onOpen}
-        aria-expanded={active}
-      >
-        <Icon size={16} />
-        <div>
-          <strong>{label}</strong>
-          <span>{displayValue}</span>
-        </div>
-        <small>{active ? "Editing" : "Edit"}</small>
-      </button>
-      {active && (
-        <div className="profile-settings-editable__form">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SettingActions({ saving, onSave, onCancel }) {
-  return (
-    <div className="profile-settings-editable__actions">
-      <button
-        type="button"
-        className="profile__quiet-btn"
-        onClick={onCancel}
-        disabled={saving}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        className="app-btn-pill"
-        onClick={onSave}
-        disabled={saving}
-      >
-        {saving ? "Saving..." : "Save"}
-      </button>
-    </div>
-  );
-}
-
-function formatVisibilityLabel(value) {
-  switch (value) {
-    case "Public":
-      return "Public";
-    case "Private":
-      return "Private";
-    default:
-      return "Standard";
-  }
-}
-
-function EventDetails({
+export function EventDetails({
   event,
   onBack,
   onJoin,
@@ -2198,6 +2121,67 @@ function EventDetails({
     </section>
   );
 }
+
+function EditableSetting({ icon: Icon, label, value, active, onOpen, children }) {
+  const displayValue = label === "Password" || label === "Lozinka" ? "********" : value;
+  return (
+    <div className={`profile-settings-editable${active ? " is-active" : ""}`}>
+      <button
+        type="button"
+        className="profile-settings-editable__summary"
+        onClick={onOpen}
+        aria-expanded={active}
+      >
+        <Icon size={16} />
+        <div>
+          <strong>{label}</strong>
+          <span>{displayValue}</span>
+        </div>
+        <small>{active ? "Editing" : "Edit"}</small>
+      </button>
+      {active && (
+        <div className="profile-settings-editable__form">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingActions({ saving, onSave, onCancel }) {
+  return (
+    <div className="profile-settings-editable__actions">
+      <button
+        type="button"
+        className="profile__quiet-btn"
+        onClick={onCancel}
+        disabled={saving}
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="app-btn-pill"
+        onClick={onSave}
+        disabled={saving}
+      >
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </div>
+  );
+}
+
+function formatVisibilityLabel(value) {
+  switch (value) {
+    case "Public":
+      return "Public";
+    case "Private":
+      return "Private";
+    default:
+      return "Standard";
+  }
+}
+
 
 function EventDiscussion({ event, onJoin }) {
   const { t } = useTranslation();

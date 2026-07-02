@@ -360,7 +360,7 @@ translations.en.admin = {
   },
   users: {
     title: 'Users',
-    description: '{{count}} matching accounts from GET /api/Admin/users.',
+    description: '{{count}} matching accounts',
     filterStatus: 'Filter users by status',
     allStatuses: 'All statuses',
   },
@@ -460,7 +460,7 @@ translations.sr.admin = {
   },
   users: {
     title: 'Korisnici',
-    description: '{{count}} naloga odgovara pretrazi iz GET /api/Admin/users.',
+    description: '{{count}} naloga odgovara pretrazi',
     filterStatus: 'Filtriraj korisnike po statusu',
     allStatuses: 'Svi statusi',
   },
@@ -650,7 +650,7 @@ Object.assign(translations.sr.admin.confirm, {
 });
 translations.en.admin.reports = {
   title: 'Reports moderation',
-  description: '{{count}} reports from GET /api/Reports/admin.',
+  description: '{{count}} unresolved reports',
   filterStatus: 'Filter reports by status',
   noDetails: 'No description provided.',
   notReviewed: 'Not reviewed yet',
@@ -673,7 +673,7 @@ translations.en.admin.reports = {
 };
 translations.sr.admin.reports = {
   title: 'Moderacija prijava',
-  description: '{{count}} prijava iz GET /api/Reports/admin.',
+  description: '{{count}} nerazresenih prijava',
   filterStatus: 'Filtriraj prijave po statusu',
   noDetails: 'Opis nije dodat.',
   notReviewed: 'Jos nije pregledano',
@@ -729,7 +729,7 @@ translations.en.reports = {
     pending: 'Pending',
     reviewed: 'Reviewed',
     dismissed: 'Dismissed',
-    actionTaken: 'Action taken',
+    actiontaken: 'Action taken',
   },
 };
 
@@ -759,7 +759,7 @@ translations.sr.reports = {
     pending: 'Na cekanju',
     reviewed: 'Pregledano',
     dismissed: 'Odbijeno',
-    actionTaken: 'Preduzeta mera',
+    actiontaken: 'Preduzeta mera',
   },
 };
 

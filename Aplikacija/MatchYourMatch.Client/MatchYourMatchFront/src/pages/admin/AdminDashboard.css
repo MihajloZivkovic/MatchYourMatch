@@ -977,6 +977,11 @@
   color: var(--color-text);
   color-scheme: light;
 }
+:root[data-theme="dark"] .admin-select {
+  background: color-mix(in srgb, var(--color-surface) 92%, black);
+  color: var(--color-text);
+  color-scheme: light;
+}
 
 :root[data-theme="light"] .admin-table th,
 :root[data-theme="light"] .admin-table td,
