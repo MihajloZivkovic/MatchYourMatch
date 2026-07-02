@@ -8,6 +8,8 @@ TBD - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije 
 TBD - [ ] Admin reports prikazuje nedpoint, ukloniti
 TBD - [ ] sve hardkodirane stvari iz template gotta go
 TBD - [ ] kada je korisnik banovan preko reporta, u report history-u korisnika koji je reportovao status prikazuje reports.statuses.actionTaken - popraviti
+TBD - [ ] kada organizatoru stigne request da se odma pojavi u Join Requests, da ne mora da refresuje 
+TBD (mozda opciono ovo realno) - [ ] da se novi event odmah pojavi, bez refresh
 
 ------------------------
 GENERALNO DOBRO(ne gleda se na odbranu)
