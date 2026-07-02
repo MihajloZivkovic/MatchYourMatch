@@ -30,7 +30,6 @@ import {
 import '../../app/app-global.css';
 import '../../app/app-polish.css';
 import './AdminDashboard.css';
-import { reportService } from '../../services/reportService';
 
 const USERS_PAGE_SIZE = 8;
 const EVENTS_PAGE_SIZE = 6;
@@ -860,10 +859,6 @@ function AdminEventsPanel({
                     <dt>{t('admin.events.status')}</dt>
                     <dd>{isPastEvent(event) ? t('admin.events.filters.past') : t('admin.events.filters.upcoming')}</dd>
                   </div>
-                  <div>
-                    <dt>{t('admin.events.type')}</dt>
-                    <dd>{event.eventType || t('admin.events.unknown')}</dd>
-                  </div>
                 </dl>
                 <div className='admin-row-actions'>
                   <button type='button' disabled title={t('admin.events.hideShowUnavailable')}>
@@ -1053,10 +1048,6 @@ function UserDetailsModal({ user, currentAdminId, onClose, onAction, t, role, pr
           <div>
             <dt>{t('admin.table.status')}</dt>
             <dd>{user.isActive !== undefined ? (user.isActive ? t('admin.status.active') : t('admin.status.inactive')) : t('profileUi.notSet')}</dd>
-          </div>
-          <div>
-            <dt>{t('admin.users.joinedDate')}</dt>
-            <dd>{t('admin.unavailable.long')}</dd>
           </div>
           <div>
             <dt>{t('admin.users.reportsCount')}</dt>
