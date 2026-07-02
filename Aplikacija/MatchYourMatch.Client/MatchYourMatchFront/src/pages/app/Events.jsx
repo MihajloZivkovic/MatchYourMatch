@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CalendarX, ChevronLeft, ChevronRight } from 'lucide-react';
 import EventCard from '../../components/EventCard';
@@ -7,6 +7,10 @@ import GuestCityModal from '../../components/GuestCityModal';
 import './Events.css';
 import { useTranslation } from '../../hooks/useTranslation';
 import { getGuestCity, isGuestSession, isOrganizerSession } from '../../services/guestSession';
+import {
+  announceEventsChanged,
+  EVENTS_CHANGED_EVENT,
+} from '../../services/notificationService';
 
 const FILTERS = ['ALL', 'NEARBY', 'THIS WEEK', 'STUDY', 'GAMING', 'COFFEE', 'SOCIAL', 'SPORT'];
 const EVENTS_PAGE_SIZE = 4;
@@ -29,7 +33,7 @@ function Events({ currentUser }) {
   const guestCity = getGuestCity();
   const filterLabels = { ALL: t('events.all'), NEARBY: t('events.nearby'), 'THIS WEEK': t('events.thisWeek'), STUDY: t('events.study'), GAMING: t('events.gaming'), COFFEE: t('events.coffee'), SOCIAL: t('events.social'), SPORT: t('events.sport') };
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -52,12 +56,22 @@ function Events({ currentUser }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initial = window.setTimeout(loadEvents, 0);
-    return () => window.clearTimeout(initial);
-  }, []);
+    const refreshAfterExternalChange = (event) => {
+      const source = event.detail?.source || '';
+      if (source.startsWith('events-') || source === 'event-save-button')
+        return;
+      loadEvents();
+    };
+    window.addEventListener(EVENTS_CHANGED_EVENT, refreshAfterExternalChange);
+    return () => {
+      window.clearTimeout(initial);
+      window.removeEventListener(EVENTS_CHANGED_EVENT, refreshAfterExternalChange);
+    };
+  }, [loadEvents]);
 
   useEffect(() => {
     const state = window.history.state?.usr;
@@ -118,6 +132,7 @@ function Events({ currentUser }) {
 
       const updated = mapApiEvent(await response.json());
       setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
+      announceEventsChanged({ source: 'events-join', eventId });
     } catch (err) {
       setError(err.message || 'Event could not be joined.');
     }
@@ -142,6 +157,7 @@ function Events({ currentUser }) {
       const updated = mapApiEvent(await response.json());
       setEvents((current) => current.map((event) => (event.id === eventId ? updated : event)));
       setNotice(t('events.left'));
+      announceEventsChanged({ source: 'events-leave', eventId });
     } catch (err) {
       setError(err.message || t('events.leaveError'));
     }
@@ -156,6 +172,7 @@ function Events({ currentUser }) {
       if (!response.ok) throw new Error(await response.text() || t('events.cancelRequestError'));
       const updated = mapApiEvent(await response.json());
       setEvents((current) => current.map((event) => event.id === eventId ? updated : event));
+      announceEventsChanged({ source: 'events-cancel-join-request', eventId });
     } catch (err) {
       setError(err.message || t('events.cancelRequestError'));
     }
@@ -253,8 +270,10 @@ function Events({ currentUser }) {
                 onJoin={() => handleJoin(event.id)}
                 onLeave={() => handleLeave(event.id)}
                 onCancelJoinRequest={() => handleCancelJoinRequest(event.id)}
-                onSavedChange={(isSaved) => setEvents((current) => current.map((value) =>
-                  value.id === event.id ? { ...value, isSaved } : value))}
+                onSavedChange={(isSaved) => {
+                  setEvents((current) => current.map((value) =>
+                    value.id === event.id ? { ...value, isSaved } : value));
+                }}
                 onInvite={() => setInviteEvent(event)}
                 onEdit={Number(event.createdByUserId) === Number(currentUser?.id) ? () => navigate(`/app/events/${event.id}/edit`) : undefined}
               />

@@ -32,6 +32,7 @@ import Settings from "./pages/app/Settings";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import SessionExpiredModal from "./components/SessionExpiredModal";
 import { getGuestCity, isGuestSession, isOrganizerSession } from "./services/guestSession";
+import { PROFILE_CHANGED_EVENT } from "./services/notificationService";
 import "./App.css";
 
 const USER_ID_CLAIMS = [
@@ -48,6 +49,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState("");
   const [userProfile, setUserProfile] = useState({
     bio: "",
+    email: "",
     profilePicture: null,
     location: "",
     matchesCount: null,
@@ -139,6 +141,7 @@ function App() {
 
     const onTokenChanged = () => refreshCurrentUser();
     window.addEventListener("tokenChanged", onTokenChanged);
+    window.addEventListener(PROFILE_CHANGED_EVENT, onTokenChanged);
 
     // slusa za promenu tabova
     const onStorage = (e) => {
@@ -149,6 +152,7 @@ function App() {
       mounted = false;
       activeController?.abort();
       window.removeEventListener("tokenChanged", onTokenChanged);
+      window.removeEventListener(PROFILE_CHANGED_EVENT, onTokenChanged);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -164,6 +168,7 @@ function App() {
         if (mounted) {
           setUserProfile({
             bio: "",
+            email: "",
             profilePicture: "",
             location: "",
             matchesCount: null,
@@ -215,6 +220,7 @@ function App() {
         if (mounted && localStorage.getItem("token") === token) {
           setUserProfile({
             bio: data.bio ?? "",
+            email: data.email ?? "",
             location: data.location ?? "",
             profilePicture: data.profilePicture ?? "",
             matchesCount: data.matchesCount ?? null,
@@ -247,6 +253,7 @@ function App() {
 
     const onTokenChanged = () => loadUserProfile();
     window.addEventListener("tokenChanged", onTokenChanged);
+    window.addEventListener(PROFILE_CHANGED_EVENT, onTokenChanged);
 
     const onStorage = (e) => {
       if (e.key === "token") loadUserProfile();
@@ -257,6 +264,7 @@ function App() {
       mounted = false;
       activeController?.abort();
       window.removeEventListener("tokenChanged", onTokenChanged);
+      window.removeEventListener(PROFILE_CHANGED_EVENT, onTokenChanged);
       window.removeEventListener("storage", onStorage);
     };
   }, []);

@@ -31,6 +31,8 @@ export const notificationService = {
 
 export const NOTIFICATIONS_CHANGED_EVENT = 'mym:notifications-changed';
 export const EVENT_JOIN_REQUEST_CHANGED_EVENT = 'mym:event-join-request-changed';
+export const PROFILE_CHANGED_EVENT = 'mym:profile-changed';
+export const EVENTS_CHANGED_EVENT = 'mym:events-changed';
 
 export function announceNotificationsChanged() {
   window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
@@ -39,4 +41,12 @@ export function announceNotificationsChanged() {
 export function announceEventJoinRequestChanged(detail) {
   window.dispatchEvent(new CustomEvent(EVENT_JOIN_REQUEST_CHANGED_EVENT, { detail }));
   announceNotificationsChanged();
+}
+
+export function announceProfileChanged(detail = {}) {
+  window.dispatchEvent(new CustomEvent(PROFILE_CHANGED_EVENT, { detail }));
+}
+
+export function announceEventsChanged(detail = {}) {
+  window.dispatchEvent(new CustomEvent(EVENTS_CHANGED_EVENT, { detail }));
 }

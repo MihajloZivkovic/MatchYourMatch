@@ -15,8 +15,11 @@ import {
 } from 'lucide-react';
 import UserAvatar from '../../components/UserAvatar';
 import {
+  announceEventsChanged,
   announceEventJoinRequestChanged,
   announceNotificationsChanged,
+  announceProfileChanged,
+  EVENTS_CHANGED_EVENT,
 } from '../../services/notificationService';
 import { organizerService } from '../../services/organizerService';
 import { EventDetails } from './Profile';
@@ -97,7 +100,16 @@ function OrganizerDashboard({ currentUser, userProfile }) {
 
   useEffect(() => {
     const initial = window.setTimeout(loadDashboard, 0);
-    return () => window.clearTimeout(initial);
+    const refreshAfterExternalChange = (event) => {
+      const source = event.detail?.source || '';
+      if (source.startsWith('organizer-')) return;
+      loadDashboard();
+    };
+    window.addEventListener(EVENTS_CHANGED_EVENT, refreshAfterExternalChange);
+    return () => {
+      window.clearTimeout(initial);
+      window.removeEventListener(EVENTS_CHANGED_EVENT, refreshAfterExternalChange);
+    };
   }, [loadDashboard]);
 
   const stats = useMemo(() => {
@@ -152,6 +164,7 @@ function OrganizerDashboard({ currentUser, userProfile }) {
       );
       setNotice(`${request.displayName || request.username} was ${action === 'accept' ? 'accepted' : 'rejected'}.`);
       announceEventJoinRequestChanged({ eventId: request.eventId, requestId: request.id, action });
+      announceEventsChanged({ source: 'organizer-join-request', eventId: request.eventId });
     } catch (requestError) {
       setError(requestError.message || 'Join request could not be updated.');
     } finally {
@@ -170,6 +183,7 @@ function OrganizerDashboard({ currentUser, userProfile }) {
       setRequests((current) => current.filter((item) => item.eventId !== event.id));
       setNotice('Event deleted.');
       announceNotificationsChanged();
+      announceEventsChanged({ source: 'organizer-delete-event', eventId: event.id });
     } catch (requestError) {
       setError(requestError.message || 'Event could not be deleted.');
     } finally {
@@ -211,6 +225,7 @@ function OrganizerDashboard({ currentUser, userProfile }) {
         ...saved,
         profilePicture: cacheBustedPicture || savedPicture || current?.profilePicture || displayProfile?.profilePicture,
       }));
+      announceProfileChanged({ source: 'organizer-profile-picture' });
       setNotice('Organization image updated.');
     } catch (requestError) {
       setError(requestError.message || 'Organization image could not be updated.');

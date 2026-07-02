@@ -38,7 +38,9 @@ import { useTranslation } from "../../hooks/useTranslation";
 import { clearAuthSession, logoutAndRedirect } from "../../services/authSession";
 import { PASSWORD_POLICY_MESSAGE, getPasswordValidationMessage } from "../../utils/passwordPolicy";
 import {
+  announceEventsChanged,
   announceEventJoinRequestChanged,
+  announceProfileChanged,
   EVENT_JOIN_REQUEST_CHANGED_EVENT,
 } from "../../services/notificationService";
 
@@ -166,6 +168,7 @@ function Profile(props) {
   const [usernameDraft, setUsernameDraft] = useState(currentUser?.username || "");
   const [emailDraft, setEmailDraft] = useState(currentUser?.email || "");
   const [emailPasswordDraft, setEmailPasswordDraft] = useState("");
+  const [emailVerificationCode, setEmailVerificationCode] = useState("");
   const [passwordDraft, setPasswordDraft] = useState({
     currentPassword: "",
     newPassword: "",
@@ -266,7 +269,7 @@ function Profile(props) {
 
   useEffect(() => {
     setUsernameDraft(currentUser?.username || "");
-    setEmailDraft(currentUser?.email || "");
+    setEmailDraft(userProfile?.email || currentUser?.email || "");
     setVisibilityDraft(
       userProfile?.profileVisibility ||
         currentUser?.profileVisibility ||
@@ -276,6 +279,7 @@ function Profile(props) {
     currentUser?.username,
     currentUser?.email,
     currentUser?.profileVisibility,
+    userProfile?.email,
     userProfile?.profileVisibility,
   ]);
 
@@ -585,6 +589,7 @@ function Profile(props) {
         ...prev,
         profilePicture: convertedImage,
       }));
+      announceProfileChanged({ source: "profile-picture" });
       setProfileSuccess(t("profileSettings.pictureSaved"));
     } catch (error) {
       console.error("Failed to save profile image:", error);
@@ -647,8 +652,9 @@ function Profile(props) {
     setProfileSuccess("");
     if (editor === "username") setUsernameDraft(currentUser?.username || "");
     if (editor === "email") {
-      setEmailDraft(currentUser?.email || "");
+      setEmailDraft(userProfile?.email || currentUser?.email || "");
       setEmailPasswordDraft("");
+      setEmailVerificationCode("");
     }
     if (editor === "password") {
       setPasswordDraft({
@@ -671,6 +677,7 @@ function Profile(props) {
     setAccountSaving("");
     setAccountMessage({ type: "", text: "" });
     setEmailPasswordDraft("");
+    setEmailVerificationCode("");
     setPasswordDraft({
       currentPassword: "",
       newPassword: "",
@@ -686,7 +693,18 @@ function Profile(props) {
       pendingEmail: saved.pendingEmail ?? previous.pendingEmail ?? "",
       profileVisibility: saved.profileVisibility ?? previous.profileVisibility ?? "Standard",
     }));
-    window.dispatchEvent(new Event("tokenChanged"));
+    announceProfileChanged({ source: "account-profile" });
+  };
+
+  const applyEmailChangeResponse = (saved) => {
+    if (!saved) return;
+    props.setUserProfile((previous) => ({
+      ...previous,
+      ...saved,
+      email: saved.email ?? previous.email,
+      pendingEmail: saved.pendingEmail ?? "",
+    }));
+    announceProfileChanged({ source: "email" });
   };
 
   const saveUsername = async () => {
@@ -710,34 +728,97 @@ function Profile(props) {
     setAccountSaving("email");
     setAccountMessage({ type: "", text: "" });
     try {
+      const emailError = getEmailChangeRequestError(emailDraft, emailPasswordDraft);
+      if (emailError) {
+        setAccountMessage({ type: "error", text: emailError });
+        return;
+      }
+
       const result = await accountService.updateEmail({
         newEmail: emailDraft.trim(),
         password: emailPasswordDraft,
       });
+      applyEmailChangeResponse(result);
       setEmailPasswordDraft("");
+      setEmailVerificationCode("");
       setAccountMessage({
         type: "success",
-        text: result?.message || "Verification code sent to the new email address.",
+        text: `Verification code sent to ${result?.pendingEmail || emailDraft.trim()}.`,
       });
       setAccountEditor(null);
-      window.dispatchEvent(new Event("tokenChanged"));
     } catch (error) {
-      setAccountMessage({ type: "error", text: error.message || "Email change could not be started." });
+      setAccountMessage({ type: "error", text: getEmailChangeErrorMessage(error) });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
+  const verifyEmailChange = async () => {
+    const code = emailVerificationCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      setAccountMessage({
+        type: "error",
+        text: "Invalid or expired verification code.",
+      });
+      return;
+    }
+
+    setAccountSaving("emailVerify");
+    setAccountMessage({ type: "", text: "" });
+
+    try {
+      const saved = await accountService.verifyEmailChange({ code });
+      applyEmailChangeResponse(saved);
+      setEmailVerificationCode("");
+      setEmailDraft(saved?.email || emailDraft);
+      setAccountMessage({ type: "success", text: "Email changed successfully." });
+    } catch (error) {
+      setAccountMessage({ type: "error", text: getEmailChangeErrorMessage(error) });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
+  const resendEmailChangeCode = async () => {
+    setAccountSaving("emailResend");
+    setAccountMessage({ type: "", text: "" });
+
+    try {
+      const result = await accountService.resendEmailChangeCode();
+      applyEmailChangeResponse(result);
+      setAccountMessage({ type: "success", text: "Verification code sent again." });
+    } catch (error) {
+      setAccountMessage({ type: "error", text: getEmailChangeErrorMessage(error) });
+    } finally {
+      setAccountSaving("");
+    }
+  };
+
+  const cancelEmailChange = async () => {
+    setAccountSaving("emailCancel");
+    setAccountMessage({ type: "", text: "" });
+
+    try {
+      const saved = await accountService.cancelEmailChange();
+      applyEmailChangeResponse(saved);
+      setEmailVerificationCode("");
+      setAccountMessage({ type: "success", text: "Pending email change cancelled." });
+    } catch (error) {
+      setAccountMessage({ type: "error", text: getEmailChangeErrorMessage(error) });
     } finally {
       setAccountSaving("");
     }
   };
 
   const savePassword = async () => {
-    setAccountSaving("password");
-    setAccountMessage({ type: "", text: "" });
-
-    const passwordError = getPasswordValidationMessage(passwordDraft.newPassword);
+    const passwordError = getPasswordFormError(passwordDraft);
     if (passwordError) {
-      setAccountSaving("");
       setAccountMessage({ type: "error", text: passwordError });
       return;
     }
+
+    setAccountSaving("password");
+    setAccountMessage({ type: "", text: "" });
 
     try {
       await accountService.updatePassword(passwordDraft);
@@ -749,7 +830,10 @@ function Profile(props) {
       setAccountMessage({ type: "success", text: "Password updated." });
       setAccountEditor(null);
     } catch (error) {
-      setAccountMessage({ type: "error", text: error.message || "Password could not be updated." });
+      setAccountMessage({
+        type: "error",
+        text: getPasswordChangeErrorMessage(error),
+      });
     } finally {
       setAccountSaving("");
     }
@@ -822,7 +906,7 @@ function Profile(props) {
       );
       setLocationSuggestions([]);
       styleButton(1);
-      window.dispatchEvent(new Event("tokenChanged"));
+      announceProfileChanged({ source: "profile" });
       setProfileEditing(false);
     } catch (err) {
       setProfileError(
@@ -860,6 +944,7 @@ function Profile(props) {
         ? saved.currentlyExploring
         : [],
     }));
+    announceProfileChanged({ source: "profile-tags" });
   };
 
   const startLifestyleEdit = () => {
@@ -900,6 +985,7 @@ function Profile(props) {
         conversationStyle: saved.conversationStyle || "",
         lookingFor: Array.isArray(saved.lookingFor) ? saved.lookingFor : [],
       }));
+      announceProfileChanged({ source: "profile-lifestyle" });
       setLifestyleEditing(false);
     } catch (error) {
       setLifestyleError(error.message || t("profileLifestyle.saveError"));
@@ -934,7 +1020,7 @@ function Profile(props) {
         bio: bioText,
       }));
       styleButton(2);
-      window.dispatchEvent(new Event("tokenChanged"));
+      announceProfileChanged({ source: "profile-bio" });
     } catch (error) {
       console.error("Failed to save bio:", error);
     }
@@ -961,11 +1047,18 @@ function Profile(props) {
   const profileUserId = currentUser?.id ?? userProfile?.id;
 
   const followingValue = currentUser?.followingCount ?? userProfile?.followingCount;
-  
+
   const followingDisplay =
     typeof followingValue === "number" ? String(followingValue) : "—";
 
 
+
+  const pendingEmail =
+    userProfile?.pendingEmail || currentUser?.pendingEmail || "";
+  const displayEmail = userProfile?.email || currentUser?.email || "";
+  const isEmailVerifyBusy = accountSaving === "emailVerify";
+  const isEmailResendBusy = accountSaving === "emailResend";
+  const isEmailCancelBusy = accountSaving === "emailCancel";
 
   const savedLocationInput =
     currentUser?.locationRawInput || userProfile.location || "";
@@ -978,6 +1071,10 @@ function Profile(props) {
     showAgeDraft !== Boolean(userProfile.showAge);
 
   const eventLists = profileEvents;
+  const passwordValidationMessage =
+    accountEditor === "password" ? getPasswordFormError(passwordDraft) : "";
+  const isPasswordSaveDisabled =
+    accountSaving === "password" || Boolean(passwordValidationMessage);
   const eventEmptyCopy = {
     Upcoming: "No upcoming joined events.",
     Past: "No past events yet.",
@@ -1010,6 +1107,7 @@ function Profile(props) {
         current?.id === eventId ? updated : current,
       );
       await fetchProfileEvents();
+      announceEventsChanged({ source: "profile-join", eventId });
     } catch (error) {
       setEventsError(error.message || "Event could not be joined.");
     }
@@ -1030,6 +1128,7 @@ function Profile(props) {
         current?.id === eventId ? updated : current,
       );
       await fetchProfileEvents();
+      announceEventsChanged({ source: "profile-cancel-join-request", eventId });
     } catch (error) {
       setEventsError(error.message || t("events.cancelRequestError"));
     }
@@ -1398,9 +1497,9 @@ function Profile(props) {
                       icon={Mail}
                       label={t("profileSettings.email")}
                       value={
-                        currentUser.pendingEmail
-                          ? `${currentUser.email} (pending ${currentUser.pendingEmail})`
-                          : currentUser.email ||
+                        pendingEmail
+                          ? `${displayEmail} (pending ${pendingEmail})`
+                          : displayEmail ||
                             t("profileSettings.privateValue")
                       }
                       active={accountEditor === "email"}
@@ -1430,6 +1529,59 @@ function Profile(props) {
                         onCancel={cancelAccountEditor}
                       />
                     </EditableSetting>
+                    {pendingEmail && (
+                      <div className="profile-settings-email-verify">
+                        <div>
+                          <strong>Verify new email</strong>
+                          <p>
+                            We sent a verification code to {pendingEmail}. Enter
+                            the code below to complete your email change.
+                          </p>
+                        </div>
+                        <label>
+                          <span>Verification code</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={6}
+                            value={emailVerificationCode}
+                            onChange={(event) =>
+                              setEmailVerificationCode(
+                                event.target.value.replace(/\D/g, "").slice(0, 6),
+                              )
+                            }
+                            autoComplete="one-time-code"
+                          />
+                        </label>
+                        <div className="profile-settings-email-verify__actions">
+                          <button
+                            type="button"
+                            className="app-btn-pill"
+                            disabled={isEmailVerifyBusy || emailVerificationCode.trim().length !== 6}
+                            onClick={verifyEmailChange}
+                          >
+                            {isEmailVerifyBusy ? "Verifying..." : "Verify"}
+                          </button>
+                          <button
+                            type="button"
+                            className="profile__quiet-btn"
+                            disabled={isEmailResendBusy}
+                            onClick={resendEmailChangeCode}
+                          >
+                            {isEmailResendBusy ? "Sending..." : "Resend code"}
+                          </button>
+                          <button
+                            type="button"
+                            className="profile__quiet-btn"
+                            disabled={isEmailCancelBusy}
+                            onClick={cancelEmailChange}
+                          >
+                            {isEmailCancelBusy ? "Cancelling..." : "Cancel pending change"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <EditableSetting
                       icon={KeyRound}
                       label={t("profileSettings.password")}
@@ -1482,8 +1634,15 @@ function Profile(props) {
                           autoComplete="new-password"
                         />
                       </label>
+                      {passwordValidationMessage && (
+                        <p className="profile-settings-field-error">
+                          {passwordValidationMessage}
+                        </p>
+                      )}
                       <SettingActions
                         saving={accountSaving === "password"}
+                        disabled={isPasswordSaveDisabled}
+                        disabledReason={passwordValidationMessage}
                         onSave={savePassword}
                         onCancel={cancelAccountEditor}
                       />
@@ -2148,7 +2307,7 @@ function EditableSetting({ icon: Icon, label, value, active, onOpen, children })
   );
 }
 
-function SettingActions({ saving, onSave, onCancel }) {
+function SettingActions({ saving, disabled = false, disabledReason = "", onSave, onCancel }) {
   return (
     <div className="profile-settings-editable__actions">
       <button
@@ -2163,7 +2322,8 @@ function SettingActions({ saving, onSave, onCancel }) {
         type="button"
         className="app-btn-pill"
         onClick={onSave}
-        disabled={saving}
+        disabled={saving || disabled}
+        title={!saving && disabledReason ? disabledReason : undefined}
       >
         {saving ? "Saving..." : "Save"}
       </button>
@@ -2740,6 +2900,94 @@ function mapConnectionToProfileMatch(match) {
 function toDateInputValue(value) {
   if (!value || typeof value !== "string") return "";
   return value.split("T")[0];
+}
+
+function getPasswordFormError(passwordDraft) {
+  if (!passwordDraft.currentPassword.trim()) return "Current password is required.";
+  if (!passwordDraft.newPassword.trim()) return "New password is required.";
+  if (!passwordDraft.confirmNewPassword.trim())
+    return "Confirm new password is required.";
+  if (passwordDraft.newPassword !== passwordDraft.confirmNewPassword)
+    return "Passwords do not match.";
+
+  return getPasswordValidationMessage(passwordDraft.newPassword);
+}
+
+function getEmailChangeRequestError(emailDraft, passwordDraft) {
+  const email = emailDraft.trim();
+  if (!email) return "Enter a valid email address.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return "Enter a valid email address.";
+  if (!passwordDraft.trim()) return "Current password is required.";
+  return "";
+}
+
+function getEmailChangeErrorMessage(error) {
+  const message = String(error?.message || "").trim();
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("trenutna lozinka") ||
+    normalized.includes("current password") ||
+    normalized.includes("incorrect")
+  ) {
+    return "Current password is incorrect.";
+  }
+
+  if (
+    normalized.includes("vec u upotrebi") ||
+    normalized.includes("already") ||
+    normalized.includes("in use")
+  ) {
+    return "This email is already in use.";
+  }
+
+  if (
+    normalized.includes("invalid or expired") ||
+    normalized.includes("verification code")
+  ) {
+    return "Invalid or expired verification code.";
+  }
+
+  if (
+    normalized.includes("format") ||
+    normalized.includes("valid email") ||
+    normalized.includes("email is required")
+  ) {
+    return "Enter a valid email address.";
+  }
+
+  return message || "Email could not be changed. Please try again.";
+}
+
+function getPasswordChangeErrorMessage(error) {
+  const message = String(error?.message || "").trim();
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("trenutna lozinka") ||
+    normalized.includes("current password") ||
+    normalized.includes("incorrect")
+  ) {
+    return "Current password is incorrect.";
+  }
+
+  if (
+    normalized.includes("weak_password") ||
+    normalized.includes("at least 8 characters") ||
+    normalized.includes("uppercase")
+  ) {
+    return PASSWORD_POLICY_MESSAGE;
+  }
+
+  if (
+    normalized.includes("ne poklapaju") ||
+    normalized.includes("do not match")
+  ) {
+    return "Passwords do not match.";
+  }
+
+  return message || "Password could not be changed. Please try again.";
 }
 
 function getMaximumDateOfBirth() {

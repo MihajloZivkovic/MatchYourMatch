@@ -88,6 +88,77 @@ public class AccountService : IAccountService
         };
     }
 
+    public async Task<UserProfileDto> VerifyEmailChangeAsync(int userId, VerifyEmailChangeDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+
+        if (string.IsNullOrWhiteSpace(user.PendingEmail) ||
+            string.IsNullOrWhiteSpace(user.PendingEmailVerificationCodeHash) ||
+            user.PendingEmailVerificationCodeExpiresAt <= DateTime.UtcNow ||
+            !VerificationCodeMatches(dto.Code, user.PendingEmailVerificationCodeHash))
+        {
+            throw new InvalidOperationException("Invalid or expired verification code.");
+        }
+
+        var pendingEmail = NormalizeEmail(user.PendingEmail);
+        if (await _context.Users.AnyAsync(x => x.Id != userId && x.Email == pendingEmail))
+            throw new InvalidOperationException("Email je vec u upotrebi.");
+
+        user.Email = pendingEmail;
+        user.EmailConfirmed = true;
+        user.EmailConfirmedAt = DateTime.UtcNow;
+        ClearPendingEmailChange(user);
+
+        await _context.SaveChangesAsync();
+        return await _profiles.GetProfileAsync(userId);
+    }
+
+    public async Task<object> ResendEmailChangeCodeAsync(int userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+
+        if (string.IsNullOrWhiteSpace(user.PendingEmail))
+            throw new InvalidOperationException("There is no pending email change.");
+        if (user.PendingEmailVerificationCodeSentAt > DateTime.UtcNow.AddSeconds(-30))
+        {
+            return new
+            {
+                success = true,
+                message = "Verification code sent again.",
+                email = user.Email,
+                pendingEmail = user.PendingEmail
+            };
+        }
+
+        var code = GenerateVerificationCode();
+        user.PendingEmailVerificationCodeHash = HashVerificationCode(code);
+        user.PendingEmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+        user.PendingEmailVerificationCodeSentAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        await _emailService.SendEmailVerificationAsync(user.PendingEmail, code);
+
+        return new
+        {
+            success = true,
+            message = "Verification code sent again.",
+            email = user.Email,
+            pendingEmail = user.PendingEmail
+        };
+    }
+
+    public async Task<UserProfileDto> CancelEmailChangeAsync(int userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
+            ?? throw new KeyNotFoundException("Account does not exist.");
+
+        ClearPendingEmailChange(user);
+        await _context.SaveChangesAsync();
+        return await _profiles.GetProfileAsync(userId);
+    }
+
     public async Task ChangePasswordAsync(int userId, UpdatePasswordDto dto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == userId)
@@ -376,6 +447,19 @@ public class AccountService : IAccountService
 
     private static string HashVerificationCode(string code) 
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+
+    private static bool VerificationCodeMatches(string code, string storedHash)
+        => CryptographicOperations.FixedTimeEquals(
+            SHA256.HashData(Encoding.UTF8.GetBytes(code.Trim())),
+            Convert.FromHexString(storedHash));
+
+    private static void ClearPendingEmailChange(User user)
+    {
+        user.PendingEmail = null;
+        user.PendingEmailVerificationCodeHash = null;
+        user.PendingEmailVerificationCodeExpiresAt = null;
+        user.PendingEmailVerificationCodeSentAt = null;
+    }
 
     private async Task<ExternalIdentity> ValidateExternalIdentityAsync(ReactivateAccountDto dto) =>
         dto.Provider?.Trim().ToLowerInvariant() switch

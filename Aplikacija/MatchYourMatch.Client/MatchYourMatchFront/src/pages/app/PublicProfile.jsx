@@ -26,6 +26,10 @@ import ProfileStats from '../../components/profile/ProfileStats';
 import FollowListModal from '../../components/profile/FollowListModal';
 import EventCard from '../../components/EventCard';
 import { getSessionRole, isGuestSession, isOrganizerSession } from '../../services/guestSession';
+import {
+  announceEventsChanged,
+  announceProfileChanged,
+} from '../../services/notificationService';
 import './Profile.css';
 
 function PublicProfile() {
@@ -184,6 +188,7 @@ function PublicProfile() {
           (await response.text()) || t('publicProfile.followError'),
         );
       await loadProfile();
+      announceProfileChanged({ source: previous ? 'unfollow' : 'follow', userId: id });
     } catch (err) {
       setIsFollowing(previous);
       setProfile((current) =>
@@ -223,6 +228,7 @@ function PublicProfile() {
       if (!response.ok) throw new Error('RATING_SAVE_FAILED');
       const updatedStatus = await response.json();
       setRatingStatus(updatedStatus);
+      await loadProfile();
       const nextUnratedEvent = updatedStatus.eligibleEvents?.find(
         (event) => event.myRating == null,
       );
@@ -274,6 +280,7 @@ function PublicProfile() {
       if (!response.ok)
         throw new Error((await response.text()) || 'RATING_UPDATE_FAILED');
       setRatingStatus(await response.json());
+      await loadProfile();
       setEditingRatingId(null);
       setRatingSuccess(t('publicProfile.ratingUpdated'));
     } catch {
@@ -400,6 +407,7 @@ function PublicProfile() {
       if (!response.ok) throw new Error(await response.text() || 'Event could not be joined.');
       const updated = mapApiEvent(await response.json());
       replaceOrganizerEvent(updated);
+      announceEventsChanged({ source: 'public-profile-event-join', eventId });
     } catch (err) {
       setOrganizerEventsError(err.message || 'Event could not be joined.');
     }
@@ -414,6 +422,7 @@ function PublicProfile() {
       if (!response.ok) throw new Error(await response.text() || 'Event could not be left.');
       const updated = mapApiEvent(await response.json());
       replaceOrganizerEvent(updated);
+      announceEventsChanged({ source: 'public-profile-event-leave', eventId });
     } catch (err) {
       setOrganizerEventsError(err.message || 'Event could not be left.');
     }
@@ -428,6 +437,7 @@ function PublicProfile() {
       if (!response.ok) throw new Error(await response.text() || 'Join request could not be canceled.');
       const updated = mapApiEvent(await response.json());
       replaceOrganizerEvent(updated);
+      announceEventsChanged({ source: 'public-profile-cancel-join-request', eventId });
     } catch (err) {
       setOrganizerEventsError(err.message || 'Join request could not be canceled.');
     }
