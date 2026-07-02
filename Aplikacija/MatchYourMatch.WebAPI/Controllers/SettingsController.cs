@@ -46,12 +46,7 @@ namespace MatchYourMatch.WebAPI.Controllers
             settings.NotifyEventInvites = dto.NotifyEventInvites;
             settings.NotifyNewFollowers = dto.NotifyNewFollowers;
             settings.NotifyQuickMatches = dto.NotifyQuickMatches;
-            settings.NotifyChatMessages = dto.NotifyChatMessages;
-            settings.NotifyGroupMessages = dto.NotifyGroupMessages;
-            settings.NotifyEventDiscussionReplies = dto.NotifyEventDiscussionReplies;
-            settings.NotifyNewEventNearby = dto.NotifyNewEventNearby;
             settings.NotifyEventStartingSoon = dto.NotifyEventStartingSoon;
-            settings.NotifyNewMatchNearby = dto.NotifyNewMatchNearby;
 
             await _context.SaveChangesAsync();
             return Ok(Map(settings));
@@ -164,12 +159,7 @@ namespace MatchYourMatch.WebAPI.Controllers
                 NotifyEventInvites=x.NotifyEventInvites, 
                 NotifyNewFollowers=x.NotifyNewFollowers, 
                 NotifyQuickMatches=x.NotifyQuickMatches, 
-                NotifyChatMessages=x.NotifyChatMessages,
-                NotifyGroupMessages=x.NotifyGroupMessages, 
-                NotifyEventDiscussionReplies=x.NotifyEventDiscussionReplies, 
-                NotifyNewEventNearby=x.NotifyNewEventNearby,
-                NotifyEventStartingSoon=x.NotifyEventStartingSoon, 
-                NotifyNewMatchNearby=x.NotifyNewMatchNearby 
+                NotifyEventStartingSoon=x.NotifyEventStartingSoon
             };
     }
 }

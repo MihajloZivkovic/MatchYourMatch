@@ -32,12 +32,7 @@ const defaults = {
   notifyEventInvites: true,
   notifyNewFollowers: true,
   notifyQuickMatches: true,
-  notifyChatMessages: true,
-  notifyGroupMessages: true,
-  notifyEventDiscussionReplies: true,
-  notifyNewEventNearby: true,
   notifyEventStartingSoon: true,
-  notifyNewMatchNearby: false,
 };
 const choices = [
   ['MatchesOnly', 'Matches only'],
@@ -50,6 +45,24 @@ const numberDraftsFrom = (settings) => ({
   maximumDistanceKm: settings.maximumDistanceKm?.toString() ?? '',
   minAge: settings.minAge?.toString() ?? '',
   maxAge: settings.maxAge?.toString() ?? '',
+});
+const editableSettingsFrom = (settings) => ({
+  ...defaults,
+  maximumDistanceKm: settings.maximumDistanceKm ?? null,
+  showMeInQuickMatch: settings.showMeInQuickMatch ?? defaults.showMeInQuickMatch,
+  showMeInDeepMatch: settings.showMeInDeepMatch ?? defaults.showMeInDeepMatch,
+  preferPeopleNearby: settings.preferPeopleNearby ?? defaults.preferPeopleNearby,
+  minAge: settings.minAge ?? null,
+  maxAge: settings.maxAge ?? null,
+  whoCanMessageMe: settings.whoCanMessageMe || defaults.whoCanMessageMe,
+  allowEventInvitesFrom: settings.allowEventInvitesFrom || defaults.allowEventInvitesFrom,
+  allowGroupChatInvitesFrom:
+    settings.allowGroupChatInvitesFrom || defaults.allowGroupChatInvitesFrom,
+  notifyEventInvites: settings.notifyEventInvites ?? defaults.notifyEventInvites,
+  notifyNewFollowers: settings.notifyNewFollowers ?? defaults.notifyNewFollowers,
+  notifyQuickMatches: settings.notifyQuickMatches ?? defaults.notifyQuickMatches,
+  notifyEventStartingSoon:
+    settings.notifyEventStartingSoon ?? defaults.notifyEventStartingSoon,
 });
 
 function Card({ icon: Icon, title, subtitle, children }) {
@@ -89,15 +102,17 @@ function Settings() {
     })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
-        setSettings(data);
-        setNumberDrafts(numberDraftsFrom(data));
+        const editableSettings = editableSettingsFrom(data);
+        setSettings(editableSettings);
+        setNumberDrafts(numberDraftsFrom(editableSettings));
       })
       .catch(() => setMessage('Settings could not be loaded.'))
       .finally(() => setLoading(false));
   }, [isOrganizer]);
   const save = async (next) => {
     const previous = settings;
-    setSettings(next);
+    const payload = editableSettingsFrom(next);
+    setSettings(payload);
     setMessage('Saving…');
     try {
       const r = await fetch('/api/Settings/me', {
@@ -106,10 +121,10 @@ function Settings() {
           Authorization: `Bearer ${token()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(next),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) throw new Error();
-      const saved = await r.json();
+      const saved = editableSettingsFrom(await r.json());
       setSettings(saved);
       setNumberDrafts(numberDraftsFrom(saved));
       setMessage('Saved');
@@ -349,12 +364,7 @@ function Settings() {
             ['notifyEventInvites', 'Event invites'],
             ['notifyNewFollowers', 'New followers'],
             ['notifyQuickMatches', 'Quick Match matches'],
-            ['notifyChatMessages', 'Chat messages'],
-            ['notifyGroupMessages', 'Group chat messages'],
-            ['notifyEventDiscussionReplies', 'Event discussion replies'],
-            ['notifyNewEventNearby', 'New event nearby'],
             ['notifyEventStartingSoon', 'Event starting soon'],
-            ['notifyNewMatchNearby', 'New match nearby'],
           ].map(([f, l]) => (
             <Toggle key={f} field={f} label={l} />
           ))}
