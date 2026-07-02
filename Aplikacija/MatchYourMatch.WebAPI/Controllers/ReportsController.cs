@@ -164,7 +164,8 @@ namespace MatchYourMatch.WebAPI.Controllers
                     CreatedAt = report.CreatedAt,
                     ReviewedAt = report.ReviewedAt,
                     ReviewedByUserId = report.ReviewedByUserId,
-                    ReviewedByUsername = report.ReviewedByUser != null ? report.ReviewedByUser.Username : null
+                    ReviewedByUsername = report.ReviewedByUser != null ? report.ReviewedByUser.Username : null,
+                    ReportedUserLifetimeReportCount = _context.UserReports.Count(r => r.ReportedUserId == report.ReportedUserId)
                 });
 
             var totalCount = await projected.CountAsync();

@@ -16,5 +16,6 @@ namespace MatchYourMatch.WebAPI.DTOs.Report
         public DateTime? ReviewedAt { get; set; }
         public int? ReviewedByUserId { get; set; }
         public string? ReviewedByUsername { get; set; }
+        public int ReportedUserLifetimeReportCount { get; set; }
     }
 }
