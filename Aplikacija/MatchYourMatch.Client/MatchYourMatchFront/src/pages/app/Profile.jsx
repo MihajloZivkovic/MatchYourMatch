@@ -927,20 +927,18 @@ function Profile(props) {
   const profileScoreValue =
     props.currentUser?.profileScorePercent ??
     props.userProfile?.profileScorePercent;
+  const ratingsCount =
+      props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
+  const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
   const followersValue =
     props.currentUser?.followersCount ?? props.userProfile?.followersCount;
-  const ratingsCount =
-    props.currentUser?.ratingsCount ?? props.userProfile?.ratingsCount ?? 0;
   const followersDisplay =
     typeof followersValue === "number" ? String(followersValue) : "—";
 
-  const profileUserId = props.currentUser?.id ?? props.userProfile?.id;
 
-  const followingValue = props.currentUser?.followingCount ?? props.userProfile?.followingCount;
-  
-  const followingDisplay =
-    typeof followingValue === "number" ? String(followingValue) : "—";
-
+  var followingValue =
+    props.currentUser?.followingCount ?? props.userProfile?.followingCount ?? 0;
+  followingValue --;
 
 
   const savedLocationInput =
@@ -1096,7 +1094,7 @@ function Profile(props) {
                 disabled={!profileUserId}
               >
                 <Users size={14} />
-                <strong>{followingDisplay}</strong>{" "}
+                <strong>{followingValue}</strong>{" "}
                 {t("publicProfile.following")}
               </button>
               <p className="profile__location">
