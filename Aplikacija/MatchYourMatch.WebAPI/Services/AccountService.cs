@@ -20,7 +20,6 @@ public class AccountService : IAccountService
     private readonly EmailService _emailService;
     private readonly GoogleTokenValidator _google;
     private readonly MicrosoftTokenValidator _microsoft;
-    private readonly ILogger<AccountService> _logger;
 
     public AccountService(AppDbContext context, IAuthService authService, IUserProfilesService profiles, EmailService emailService, GoogleTokenValidator google,
         MicrosoftTokenValidator microsoft)
@@ -31,7 +30,6 @@ public class AccountService : IAccountService
         _emailService = emailService;
         _google = google;
         _microsoft = microsoft;
-        _logger = logger;
     }
 
     public async Task<AccountStatusDto> GetStatusAsync(int userId)
@@ -310,27 +308,11 @@ public class AccountService : IAccountService
         catch (DbUpdateException ex)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(
-                ex,
-                "User account deletion failed for UserId {UserId}, Username {Username}. EF details: {Details}. InnerException: {InnerException}. StackTrace: {StackTrace}",
-                userId,
-                username ?? "(unknown)",
-                GetFullExceptionDetails(ex),
-                ex.InnerException?.Message,
-                ex.StackTrace);
             throw new InvalidOperationException("User could not be deleted because related data still exists.", ex);
         }
-        catch (Exception ex)
+        catch
         {
             await transaction.RollbackAsync();
-            _logger.LogError(
-                ex,
-                "User account deletion failed for UserId {UserId}, Username {Username}. Details: {Details}. InnerException: {InnerException}. StackTrace: {StackTrace}",
-                userId,
-                username ?? "(unknown)",
-                GetFullExceptionDetails(ex),
-                ex.InnerException?.Message,
-                ex.StackTrace);
             throw;
         }
     }
