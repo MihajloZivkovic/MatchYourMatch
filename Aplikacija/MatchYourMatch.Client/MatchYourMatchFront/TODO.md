@@ -1,9 +1,7 @@
 Mihajlo - [ ] brisanje nekad nece kod admina?
 Mihajlo - [ ] kada organizatoru stigne request da se odma pojavi u Join Requests, da ne mora da refresuje
 Mihajlo - [ ] dodati opciju leave kod event details
-Jana - [ ] Private profili prikazuju na svim opcijama not yet set iako su opcije postavljene na profilu, nesto drugo da pise na fazon private
-Jana - [ ] change password ne radi nista kad kliknem save - proveriti
-Jana - [ ] change email salje kod ali nema gde da se unese
+
 TBD - [ ] delete account ne radi - Cannot delete or update a parent row: a foreign key constraint fails (`matchyourmatch`.`quickmatchrequests`, CONSTRAINT `FK_QuickMatchRequests_Users_RequesterUserId` FOREIGN KEY (`RequesterUserId`) REFERENCES `users` (`Id`))
 
 TBD (mozda opciono ovo realno) - [ ] da se novi event odmah pojavi, bez refresh
