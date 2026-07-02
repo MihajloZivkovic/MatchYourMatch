@@ -345,7 +345,6 @@ function AdminDashboard() {
       setActionLoading(false);
     }
   };
-  console.log(reports);
 
   const requestBanReportedUser = (report) => {
     setConfirmError('');
@@ -852,20 +851,10 @@ function AdminEventsPanel({
                     <dd>{formatAttendees(event, t)}</dd>
                   </div>
                   <div>
-                    <dt>{t('admin.events.visibility')}</dt>
-                    <dd>{t('admin.events.visible')}</dd>
-                  </div>
-                  <div>
                     <dt>{t('admin.events.status')}</dt>
                     <dd>{isPastEvent(event) ? t('admin.events.filters.past') : t('admin.events.filters.upcoming')}</dd>
                   </div>
                 </dl>
-                <div className='admin-row-actions'>
-                  <button type='button' disabled title={t('admin.events.hideShowUnavailable')}>
-                    <EyeOff size={15} aria-hidden='true' />
-                    {t('admin.actions.hideEvent')}
-                  </button>
-                </div>
                 <button
                   type='button'
                   className='admin-event-card__delete'
