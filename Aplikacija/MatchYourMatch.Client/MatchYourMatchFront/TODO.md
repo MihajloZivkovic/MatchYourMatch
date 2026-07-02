@@ -3,6 +3,8 @@ Mihajlo - [ ] kada organizatoru stigne request da se odma pojavi u Join Requests
 Mihajlo - [ ] dodati opciju leave kod event details
 TBD - [ ] ne smeju isti timeslotovi u jedan dan
 TBD - [ ] delete account ne radi - Cannot delete or update a parent row: a foreign key constraint fails (`matchyourmatch`.`quickmatchrequests`, CONSTRAINT `FK_QuickMatchRequests_Users_RequesterUserId` FOREIGN KEY (`RequesterUserId`) REFERENCES `users` (`Id`))
+TBD - [ ] promena lozinke odloguje korisnika
+TBD - [ ] da se uklone settings sto su pinovani na discord
 
 TBD (mozda opciono ovo realno) - [ ] da se novi event odmah pojavi, bez refresh
 ------------------------
