@@ -54,7 +54,7 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> UpdatePassword(UpdatePasswordDto dto) => await Handle(async () =>
     {
         await _accounts.ChangePasswordAsync(CurrentUserId(), dto);
-        return Ok(new { success = true, message = "Password updated." });
+        return Ok(new { success = true, message = "Password changed successfully." });
     });
 
     [Authorize]
