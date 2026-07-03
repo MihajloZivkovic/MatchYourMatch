@@ -63,7 +63,7 @@ function EventCard({ event, style, mini = false, guestMode = false, organizerMod
       }}
     >
       <div className="event-card__top">
-        <span className="event-card__category">{t(`events.${category.toLowerCase()}`)}</span>
+        <span className="event-card__category">{t(`events.${category.toLowerCase().replace(' ', '')}`)}</span>
         <span className="event-card__top-actions">
           {!guestMode && <EventSaveButton eventId={event.id} isSaved={event.isSaved} onChange={onSavedChange} />}
           <span className="event-card__date-pill">{date}</span>
