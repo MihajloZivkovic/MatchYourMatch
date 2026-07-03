@@ -171,7 +171,6 @@ public class AccountService : IAccountService
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         user.HasPassword = true;
-        user.TokenVersion++;
         await _context.SaveChangesAsync();
     }
 

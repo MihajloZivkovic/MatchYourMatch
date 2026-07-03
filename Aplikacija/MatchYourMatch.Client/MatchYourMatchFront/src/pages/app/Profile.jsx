@@ -835,7 +835,10 @@ function Profile(props) {
         newPassword: "",
         confirmNewPassword: "",
       });
-      setAccountMessage({ type: "success", text: "Password updated." });
+      setAccountMessage({
+        type: "success",
+        text: "Password changed successfully.",
+      });
       setAccountEditor(null);
     } catch (error) {
       setAccountMessage({
@@ -3080,6 +3083,10 @@ function getEmailChangeErrorMessage(error) {
 }
 
 function getPasswordChangeErrorMessage(error) {
+  if (error?.status >= 500) {
+    return "Password could not be changed. Please try again.";
+  }
+
   const message = String(error?.message || "").trim();
   const normalized = message.toLowerCase();
 

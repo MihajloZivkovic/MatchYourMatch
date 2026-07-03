@@ -9,7 +9,7 @@ namespace MatchYourMatch.WebAPI.Services
 {
     public class DeepMatchService : IDeepMatchService
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext _context; 
 
         private const int MaxRawScore = 170;
 
@@ -161,8 +161,8 @@ namespace MatchYourMatch.WebAPI.Services
                 : ScoreLocation(currentUser.Profile, candidate.Profile, reasons);
             score += locationMatch.Score;
 
-            if (candidate.IsActive)
-                score += 3;
+            //if (candidate.IsActive)
+               // score += 3;
 
             var preferenceBoost = ScoreSelectedPreferences(candidate, selectedInterests, selectedVibes, matchedPreferences);
             score += preferenceBoost;
