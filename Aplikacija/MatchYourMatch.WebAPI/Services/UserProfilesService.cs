@@ -352,20 +352,20 @@ namespace MatchYourMatch.WebAPI.Services
         public async Task AddTimeSlotAsync(int userId, CreateFreeTimeSlotDto dto)
         {
             ValidateTimeSlot(dto);
-            var duplicate = await _context.FreeTimeSlots.AnyAsync(slot =>
-                slot.UserId == userId &&
-                slot.DayOfWeek == dto.DayOfWeek &&
-                slot.StartTime == dto.StartTime &&
-                slot.EndTime == dto.EndTime);
-            if (duplicate)
-                throw new Exception("This time slot is already added for this day.");
+            var startTime = dto.StartTime!.Value;
+            var endTime = dto.EndTime!.Value;
+            var existingSlots = await _context.FreeTimeSlots
+                .Where(slot => slot.UserId == userId && slot.DayOfWeek == dto.DayOfWeek)
+                .ToListAsync();
+            if (existingSlots.Any(slot => DoSlotsOverlap(slot.StartTime, slot.EndTime, startTime, endTime)))
+                throw TimeSlotValidationException.OverlappingSlots();
 
             var timeslot = new FreeTimeSlot
             {
                 UserId = userId,
                 DayOfWeek = dto.DayOfWeek,
-                StartTime = dto.StartTime,
-                EndTime = dto.EndTime
+                StartTime = startTime,
+                EndTime = endTime
             };
 
             _context.FreeTimeSlots.Add(timeslot);
@@ -392,7 +392,7 @@ namespace MatchYourMatch.WebAPI.Services
             {
                 ValidateTimeSlot(slot);
             }
-            ValidateNoDuplicateTimeSlots(requestedSlots);
+            ValidateNoOverlappingTimeSlots(requestedSlots);
 
             var current = await _context.FreeTimeSlots
                 .Where(s => s.UserId == userId)
@@ -404,8 +404,8 @@ namespace MatchYourMatch.WebAPI.Services
             {
                 UserId = userId,
                 DayOfWeek = slot.DayOfWeek,
-                StartTime = slot.StartTime,
-                EndTime = slot.EndTime
+                StartTime = slot.StartTime!.Value,
+                EndTime = slot.EndTime!.Value
             }));
 
             await _context.SaveChangesAsync();
@@ -505,35 +505,53 @@ namespace MatchYourMatch.WebAPI.Services
         private static void ValidateTimeSlot(CreateFreeTimeSlotDto dto)
         {
             if (dto.DayOfWeek < 0 || dto.DayOfWeek > 6)
-                throw new Exception("Day of week must be between 0 and 6.");
+                throw new TimeSlotValidationException(
+                    "INVALID_TIME_SLOT",
+                    "Day of week must be between 0 and 6.");
 
-            if (dto.StartTime >= dto.EndTime)
-                throw new Exception("Start time must be before end time.");
+            if (!dto.StartTime.HasValue || !dto.EndTime.HasValue)
+                throw new TimeSlotValidationException(
+                    "INVALID_TIME_SLOT",
+                    "Start time and end time are required.");
+
+            if (dto.StartTime.Value >= dto.EndTime.Value)
+                throw TimeSlotValidationException.InvalidTimeOrder();
         }
 
-        private static void ValidateNoDuplicateTimeSlots(IEnumerable<CreateFreeTimeSlotDto> slots)
+        private static void ValidateNoOverlappingTimeSlots(IEnumerable<CreateFreeTimeSlotDto> slots)
         {
-            var seen = new HashSet<string>();
-            foreach (var slot in slots)
+            foreach (var daySlots in slots.GroupBy(slot => slot.DayOfWeek))
             {
-                var key = $"{slot.DayOfWeek}|{slot.StartTime:HH:mm}|{slot.EndTime:HH:mm}";
-                if (!seen.Add(key))
+                var orderedSlots = daySlots
+                    .OrderBy(slot => slot.StartTime!.Value)
+                    .ToList();
+
+                for (var index = 0; index < orderedSlots.Count; index++)
                 {
-                    string day;
-                    switch (slot.DayOfWeek)
+                    var current = orderedSlots[index];
+                    for (var nextIndex = index + 1; nextIndex < orderedSlots.Count; nextIndex++)
                     {
-                        case 0: day = "sunday"; break;
-                        case 1: day = "monday"; break;
-                        case 2: day = "tuesday"; break;
-                        case 3: day = "wednesday"; break;
-                        case 4: day = "thursday"; break;
-                        case 5: day = "friday"; break;
-                        case 6: day = "saturday"; break;
-                        default: day = "undefined"; break;
+                        var next = orderedSlots[nextIndex];
+                        if (DoSlotsOverlap(
+                            current.StartTime!.Value,
+                            current.EndTime!.Value,
+                            next.StartTime!.Value,
+                            next.EndTime!.Value))
+                        {
+                            throw TimeSlotValidationException.OverlappingSlots();
+                        }
                     }
-                    throw new Exception($"This time slot is already added for {day}.");
                 }
             }
+        }
+
+        private static bool DoSlotsOverlap(
+            TimeOnly existingStart,
+            TimeOnly existingEnd,
+            TimeOnly newStart,
+            TimeOnly newEnd)
+        {
+            return existingStart < newEnd && newStart < existingEnd;
         }
 
         private static DeepMatchPreferenceDto MapPreference(UserDeepMatchPreference? preference)
@@ -742,5 +760,26 @@ namespace MatchYourMatch.WebAPI.Services
             return await _context.UserMatches.AnyAsync(x => x.IsActive && x.Source == "QuickMatch" &&
                 ((x.UserAId == senderId && x.UserBId == receiverId) || (x.UserBId == senderId && x.UserAId == receiverId)));
         }
+    }
+
+    public class TimeSlotValidationException : Exception
+    {
+        public TimeSlotValidationException(string errorCode, string message)
+            : base(message)
+        {
+            ErrorCode = errorCode;
+        }
+
+        public string ErrorCode { get; }
+
+        public static TimeSlotValidationException InvalidTimeOrder()
+            => new(
+                "INVALID_TIME_SLOT",
+                "Start time must be before end time.");
+
+        public static TimeSlotValidationException OverlappingSlots()
+            => new(
+                "OVERLAPPING_TIME_SLOTS",
+                "Time slots for the same day cannot overlap.");
     }
 }

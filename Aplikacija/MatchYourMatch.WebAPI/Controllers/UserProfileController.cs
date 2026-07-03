@@ -1,4 +1,5 @@
 ﻿using MatchYourMatch.WebAPI.DTOs.User;
+using MatchYourMatch.WebAPI.Services;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -296,6 +297,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 await _service.AddTimeSlotAsync(userId, dto);
                 return NoContent();
             }
+            catch (TimeSlotValidationException ex)
+            {
+                return BadRequest(new { errorCode = ex.ErrorCode, message = ex.Message });
+            }
             catch (Exception ex) 
             {
                 return BadRequest(ex.Message);
@@ -343,6 +348,10 @@ namespace MatchYourMatch.WebAPI.Controllers
                 var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
                 var timeslots = await _service.UpdateAvailabilityAsync(userId, dto);
                 return Ok(timeslots);
+            }
+            catch (TimeSlotValidationException ex)
+            {
+                return BadRequest(new { errorCode = ex.ErrorCode, message = ex.Message });
             }
             catch (Exception ex)
             {
