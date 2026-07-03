@@ -93,7 +93,7 @@ namespace MatchYourMatch.WebAPI.Controllers
         {
             var reporterId = CurrentUserId();
             page = Math.Max(1, page);
-            pageSize = Math.Clamp(pageSize, 1, 50);
+            pageSize = Math.Clamp(pageSize, 1, 50);//treba pageSize,1,10
 
             var query = _context.UserReports.AsNoTracking()
                 .Where(report => report.ReporterUserId == reporterId)

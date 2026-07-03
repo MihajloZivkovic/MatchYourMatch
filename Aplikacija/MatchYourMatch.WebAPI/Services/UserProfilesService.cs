@@ -3,6 +3,7 @@ using MatchYourMatch.WebAPI.DTOs.User;
 using MatchYourMatch.WebAPI.Models;
 using MatchYourMatch.WebAPI.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System.Text.Json;
 
 namespace MatchYourMatch.WebAPI.Services
@@ -517,7 +518,21 @@ namespace MatchYourMatch.WebAPI.Services
             {
                 var key = $"{slot.DayOfWeek}|{slot.StartTime:HH:mm}|{slot.EndTime:HH:mm}";
                 if (!seen.Add(key))
-                    throw new Exception("This time slot is already added for this day.");
+                {
+                    string day;
+                    switch (slot.DayOfWeek)
+                    {
+                        case 0: day = "sunday"; break;
+                        case 1: day = "monday"; break;
+                        case 2: day = "tuesday"; break;
+                        case 3: day = "wednesday"; break;
+                        case 4: day = "thursday"; break;
+                        case 5: day = "friday"; break;
+                        case 6: day = "saturday"; break;
+                        default: day = "undefined"; break;
+                    }
+                    throw new Exception($"This time slot is already added for {day}.");
+                }
             }
         }
 
